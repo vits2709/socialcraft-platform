@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 
 function safeSlug(raw: string) {
@@ -37,8 +37,9 @@ export default function ManageVenuePage({ params }: { params: { slug: string } }
   const [last7, setLast7] = useState(0);
   const [last30, setLast30] = useState(0);
   const [series7, setSeries7] = useState<{ day: string; count: number }[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  const compute = useCallback(() => {
     const now = new Date();
 
     const t = readDailyCount(slug, now);
@@ -68,6 +69,33 @@ export default function ManageVenuePage({ params }: { params: { slug: string } }
     setReady(true);
   }, [slug]);
 
+  useEffect(() => {
+    compute();
+  }, [compute]);
+
+  const refreshNow = () => {
+    setRefreshing(true);
+    compute();
+    setTimeout(() => setRefreshing(false), 300);
+  };
+
+  const resetTodayDemo = () => {
+    const now = new Date();
+    const dk = dayKey(now);
+
+    // azzera counter usato da manage
+    localStorage.removeItem(`dailyCount:${slug}:${dk}`);
+
+    // opzionale: azzera anche la visita del pubblico (così puoi rifare scan)
+    localStorage.removeItem(`visit:${slug}:${dk}`);
+
+    // opzionale: azzera anche la cassa (se stai usando la patch che separa le chiavi)
+    localStorage.removeItem(`cashierDaily:${slug}:${dk}`);
+    localStorage.removeItem(`cashier:${slug}:${dk}`);
+
+    refreshNow();
+  };
+
   if (!ready) {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
@@ -90,12 +118,38 @@ export default function ManageVenuePage({ params }: { params: { slug: string } }
             </div>
           </div>
 
-          <Link
-            href={`/v/${encodeURIComponent(slug)}`}
-            className="rounded-xl bg-orange-600 text-white font-bold px-4 py-3 hover:opacity-90"
-          >
-            Apri pagina scan
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={refreshNow}
+              disabled={refreshing}
+              className="rounded-xl bg-orange-600 text-white font-bold px-4 py-3 hover:bg-orange-700 disabled:opacity-60"
+              title="Ricalcola subito i dati leggendo il localStorage"
+            >
+              {refreshing ? "Aggiornamento…" : "🔄 Refresh dati"}
+            </button>
+
+            <button
+              onClick={resetTodayDemo}
+              className="rounded-xl bg-slate-900 text-white font-bold px-4 py-3 hover:opacity-90"
+              title="Demo: azzera le chiavi di oggi per poter rifare test senza aspettare domani"
+            >
+              🧨 Reset oggi (demo)
+            </button>
+
+            <Link
+              href={`/v/${encodeURIComponent(slug)}?t=public`}
+              className="rounded-xl border border-slate-200 bg-white text-slate-900 font-bold px-4 py-3 hover:bg-slate-50 text-center"
+            >
+              Apri scan (P)
+            </Link>
+
+            <Link
+              href={`/v/${encodeURIComponent(slug)}?t=cashier`}
+              className="rounded-xl border border-slate-200 bg-white text-slate-900 font-bold px-4 py-3 hover:bg-slate-50 text-center"
+            >
+              Apri cassa (C)
+            </Link>
+          </div>
         </div>
 
         {/* KPI */}
@@ -117,9 +171,15 @@ export default function ManageVenuePage({ params }: { params: { slug: string } }
           </div>
         </div>
 
-        {/* Trend 7 giorni (semplice e leggibile) */}
+        {/* Trend 7 giorni */}
         <div className="rounded-2xl bg-white p-6 shadow">
-          <div className="text-sm font-bold text-slate-900">Trend ultimi 7 giorni</div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-bold text-slate-900">Trend ultimi 7 giorni</div>
+            <div className="text-xs text-slate-500">
+              Aggiornato: <span className="font-mono">{dayKey(new Date())}</span>
+            </div>
+          </div>
+
           <div className="mt-4 grid grid-cols-7 gap-2">
             {series7.map((x) => (
               <div key={x.day} className="rounded-xl border border-slate-200 p-3 text-center">
@@ -128,6 +188,7 @@ export default function ManageVenuePage({ params }: { params: { slug: string } }
               </div>
             ))}
           </div>
+
           <div className="mt-4 text-xs text-slate-500">
             (Demo locale) Domani lo rendiamo reale con DB e grafico vero.
           </div>
@@ -163,4 +224,3 @@ export default function ManageVenuePage({ params }: { params: { slug: string } }
     </main>
   );
 }
-
