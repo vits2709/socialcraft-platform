@@ -8,6 +8,13 @@ function prettify(slug: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : "Venue";
 }
 
+function formatDayKey(d = new Date()) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 // QR via servizio pubblico (perfetto per demo). Se vuoi 100% local, poi lo facciamo con una lib.
 function qrUrl(data: string, size = 240) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(
@@ -20,42 +27,150 @@ export default function Home() {
 
   // ✅ evita hydration mismatch: origin è vuoto su server + primo render client
   const [origin, setOrigin] = useState<string>("");
+  const [toolMsg, setToolMsg] = useState<string>("");
 
   useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
 
-  const publicUrl = useMemo(() => {
-    return `/v/${encodeURIComponent(slug)}?t=public`;
-  }, [slug]);
+  const publicUrl = useMemo(() => `/v/${encodeURIComponent(slug)}?t=public`, [slug]);
+  const cashierUrl = useMemo(() => `/v/${encodeURIComponent(slug)}?t=cashier`, [slug]);
 
-  const cashierUrl = useMemo(() => {
-    return `/v/${encodeURIComponent(slug)}?t=cashier`;
-  }, [slug]);
+  const absolutePublic = useMemo(
+    () => (origin ? `${origin}${publicUrl}` : publicUrl),
+    [origin, publicUrl]
+  );
 
-  // ✅ URL assoluti solo dopo mount
-  const absolutePublic = useMemo(() => {
-    return origin ? `${origin}${publicUrl}` : publicUrl;
-  }, [origin, publicUrl]);
-
-  const absoluteCashier = useMemo(() => {
-    return origin ? `${origin}${cashierUrl}` : cashierUrl;
-  }, [origin, cashierUrl]);
+  const absoluteCashier = useMemo(
+    () => (origin ? `${origin}${cashierUrl}` : cashierUrl),
+    [origin, cashierUrl]
+  );
 
   const venueName = prettify(slug);
+
+  // --- DEV TOOLS (reset local demo) ---
+  const today = useMemo(() => formatDayKey(), []);
+  const keys = useMemo(() => {
+    // PUBBLICO
+    const publicVisitKey = `visit:${slug}:${today}`;
+    const publicDailyCountKey = `dailyCount:${slug}:${today}`;
+
+    // CASSA (ora ufficiali, perché /v/[slug] le usa davvero)
+    const cashierVisitKey = `cashier:${slug}:${today}`;
+    const cashierDailyKey = `cashierDaily:${slug}:${today}`;
+
+    return {
+      publicVisitKey,
+      publicDailyCountKey,
+      cashierVisitKey,
+      cashierDailyKey,
+      guestKey: "sc_guest_id",
+    };
+  }, [slug, today]);
+
+  const toast = (msg: string) => {
+    setToolMsg(msg);
+    window.clearTimeout((window as any).__sc_toast);
+    (window as any).__sc_toast = window.setTimeout(() => setToolMsg(""), 2200);
+  };
+
+  const resetPublicToday = () => {
+    localStorage.removeItem(keys.publicVisitKey);
+    localStorage.removeItem(keys.publicDailyCountKey);
+    toast(`Reset OK (PUBBLICO) • ${slug} • ${today}`);
+  };
+
+  const resetCashierToday = () => {
+    localStorage.removeItem(keys.cashierVisitKey);
+    localStorage.removeItem(keys.cashierDailyKey);
+    toast(`Reset OK (CASSA) • ${slug} • ${today}`);
+  };
+
+  const resetGuest = () => {
+    localStorage.removeItem(keys.guestKey);
+    toast("Reset OK (guest) — verrà rigenerato al prossimo scan");
+  };
+
+  const copyKeys = async () => {
+    const txt =
+      `PUBBLICO:\n- ${keys.publicVisitKey}\n- ${keys.publicDailyCountKey}\n\n` +
+      `CASSA:\n- ${keys.cashierVisitKey}\n- ${keys.cashierDailyKey}\n\n` +
+      `GUEST:\n- ${keys.guestKey}\n`;
+    await navigator.clipboard.writeText(txt);
+    toast("Chiavi copiate ✅");
+  };
 
   return (
     <main className="min-h-screen bg-orange-50 flex items-center justify-center p-6">
       <div className="w-full max-w-3xl space-y-4">
         {/* HERO */}
         <div className="rounded-2xl bg-white p-6 shadow">
-          <div className="text-xs font-semibold text-orange-600">SOCIALCRAFT</div>
-          <h1 className="text-3xl font-extrabold mt-2">Play • Demo QR doppio</h1>
-          <p className="text-slate-600 mt-2">
-            Un locale ha <b>due QR</b>: uno per il pubblico (presenza/gioco) e uno
-            alla cassa (validazione punti). Questa pagina genera i QR e ti permette
-            di simulare il flusso in 30 secondi.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-orange-600">SOCIALCRAFT</div>
+              <h1 className="text-3xl font-extrabold mt-2">Play • Demo QR doppio</h1>
+              <p className="text-slate-600 mt-2">
+                Un locale ha <b>due QR</b>: uno per il pubblico (presenza/gioco) e uno
+                alla cassa (validazione punti). Questa pagina genera i QR e ti permette
+                di simulare il flusso in 30 secondi.
+              </p>
+            </div>
+
+            {/* ✅ TOOLBOX TEST */}
+            <div className="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-xs font-bold text-slate-700">Tools (test)</div>
+
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => location.reload()}
+                  className="rounded-xl bg-blue-600 text-white text-xs font-bold px-3 py-2 hover:bg-blue-700"
+                  title="Ricarica la pagina"
+                >
+                  🔄 Refresh UI
+                </button>
+
+                <button
+                  onClick={resetGuest}
+                  className="rounded-xl bg-slate-900 text-white text-xs font-bold px-3 py-2 hover:opacity-90"
+                  title="Reset profilo guest"
+                >
+                  🗑️ Reset guest
+                </button>
+
+                <button
+                  onClick={resetPublicToday}
+                  className="rounded-xl bg-orange-600 text-white text-xs font-bold px-3 py-2 hover:bg-orange-700"
+                  title="Cancella visita + counter di oggi (PUBBLICO)"
+                >
+                  🧨 Reset oggi (P)
+                </button>
+
+                <button
+                  onClick={resetCashierToday}
+                  className="rounded-xl bg-zinc-800 text-white text-xs font-bold px-3 py-2 hover:bg-zinc-900"
+                  title="Cancella visita + counter di oggi (CASSA)"
+                >
+                  🧨 Reset oggi (C)
+                </button>
+
+                <button
+                  onClick={copyKeys}
+                  className="col-span-2 rounded-xl border border-slate-200 bg-white text-xs font-bold px-3 py-2 hover:bg-slate-100"
+                  title="Copia le chiavi localStorage usate nel test"
+                >
+                  📋 Copia chiavi
+                </button>
+              </div>
+
+              {toolMsg ? (
+                <div className="mt-2 text-[11px] text-slate-600">{toolMsg}</div>
+              ) : (
+                <div className="mt-2 text-[11px] text-slate-500">
+                  Oggi: <b>{today}</b>
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div className="md:col-span-2">
@@ -131,6 +246,7 @@ export default function Home() {
                     className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50"
                     onClick={async () => {
                       await navigator.clipboard.writeText(absolutePublic);
+                      toast("Link pubblico copiato ✅");
                     }}
                   >
                     Copia link
@@ -178,6 +294,7 @@ export default function Home() {
                     className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50"
                     onClick={async () => {
                       await navigator.clipboard.writeText(absoluteCashier);
+                      toast("Link cassa copiato ✅");
                     }}
                   >
                     Copia link

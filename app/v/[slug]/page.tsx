@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 function formatDayKey(d = new Date()) {
   const yyyy = d.getFullYear();
@@ -50,6 +51,10 @@ function guestProfileFromId(id: string) {
 type ScanStatus = "loading" | "counted" | "already";
 
 export default function VenueScanPage({ params }: { params: { slug: string } }) {
+  const searchParams = useSearchParams();
+  const t = (searchParams.get("t") || "public").toLowerCase();
+  const mode: "public" | "cashier" = t === "cashier" ? "cashier" : "public";
+
   const slug = useMemo(() => safeSlug(params.slug), [params.slug]);
   const venueName = useMemo(() => prettify(slug), [slug]);
 
@@ -61,7 +66,9 @@ export default function VenueScanPage({ params }: { params: { slug: string } }) 
   const [todayCount, setTodayCount] = useState(0);
 
   useEffect(() => {
-    // tutto client-only: evita hydration mismatch
+    setReady(false);
+    setStatus("loading");
+
     const dayKey = formatDayKey();
 
     // guest id stabile
@@ -77,9 +84,14 @@ export default function VenueScanPage({ params }: { params: { slug: string } }) 
     setNickname(profile.nickname);
     setAvatar(profile.avatar);
 
-    // 1 scan al giorno per venue (locale)
-    const visitKey = `visit:${slug}:${dayKey}`;
-    const dailyCounterKey = `dailyCount:${slug}:${dayKey}`;
+    // ✅ chiavi diverse per pubblico/cassa
+    const visitKey =
+      mode === "cashier" ? `cashier:${slug}:${dayKey}` : `visit:${slug}:${dayKey}`;
+
+    const dailyCounterKey =
+      mode === "cashier"
+        ? `cashierDaily:${slug}:${dayKey}`
+        : `dailyCount:${slug}:${dayKey}`;
 
     const currentDaily = Number(localStorage.getItem(dailyCounterKey) || "0");
 
@@ -95,7 +107,7 @@ export default function VenueScanPage({ params }: { params: { slug: string } }) 
     }
 
     setReady(true);
-  }, [slug]);
+  }, [slug, mode]);
 
   const badge =
     status === "counted"
@@ -124,7 +136,16 @@ export default function VenueScanPage({ params }: { params: { slug: string } }) 
           <div className="text-xs font-semibold text-orange-600">SOCIALCRAFT</div>
           <h1 className="text-2xl font-extrabold mt-2">{venueName}</h1>
 
-          <div className={`mt-4 inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold ${badge.cls}`}>
+          <div className="mt-2 text-xs font-semibold text-slate-500">
+            Modalità:{" "}
+            <span className="font-bold">
+              {mode === "cashier" ? "CASSA" : "PUBBLICO"}
+            </span>
+          </div>
+
+          <div
+            className={`mt-4 inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold ${badge.cls}`}
+          >
             {badge.text}
           </div>
 
@@ -137,9 +158,7 @@ export default function VenueScanPage({ params }: { params: { slug: string } }) 
                 <div className="text-xs text-slate-500">Oggi sei dentro ✨</div>
               </div>
             </div>
-            <div className="mt-2 text-[11px] text-slate-400 break-all">
-              guest: {guestId}
-            </div>
+            <div className="mt-2 text-[11px] text-slate-400 break-all">guest: {guestId}</div>
           </div>
 
           {/* Mission placeholder */}
@@ -147,7 +166,9 @@ export default function VenueScanPage({ params }: { params: { slug: string } }) 
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-bold text-slate-900">Missione settimanale</div>
-                <div className="text-xs text-slate-500">Placeholder (domani la colleghiamo al DB)</div>
+                <div className="text-xs text-slate-500">
+                  Placeholder (domani la colleghiamo al DB)
+                </div>
               </div>
               <span className="text-xs font-semibold px-3 py-1 rounded-full bg-orange-100 text-orange-700">
                 LIVE
@@ -173,28 +194,15 @@ export default function VenueScanPage({ params }: { params: { slug: string } }) 
           </div>
 
           <div className="mt-4 text-xs text-slate-500">
-            Oggi (locale): scans su questa venue: <b>{todayCount}</b>
+            Oggi (locale): scans {mode === "cashier" ? "cassa" : "pubblico"} su questa
+            venue: <b>{todayCount}</b>
           </div>
 
           <div className="mt-4 text-[11px] font-mono text-slate-400">
             build: SCAN-A-2026-02-03
           </div>
         </div>
-
-        <div className="rounded-2xl bg-white p-5 shadow">
-          <div className="text-sm font-bold text-slate-900">Salva i tuoi progressi</div>
-          <div className="text-sm text-slate-600 mt-2">
-            Prossimo step: login Google/email per sincronizzare e riscattare premi.
-          </div>
-          <button
-            disabled
-            className="mt-4 w-full rounded-xl bg-slate-200 text-slate-500 font-bold py-3 cursor-not-allowed"
-          >
-            Login (arriva subito)
-          </button>
-        </div>
       </div>
     </main>
   );
 }
-
