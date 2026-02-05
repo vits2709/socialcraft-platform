@@ -1,9 +1,18 @@
+import { headers } from "next/headers";
+
 type Row = {
   id: string;
   name: string;
   score: number;
   meta?: string;
 };
+
+function getBaseUrl() {
+  const h = headers();
+  const host = h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  return `${proto}://${host}`;
+}
 
 async function getJSON<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-store" });
@@ -39,7 +48,7 @@ function LeaderboardTable({ rows, label }: { rows: Row[]; label: string }) {
 }
 
 export default async function Home() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  const base = getBaseUrl();
 
   const [venues, users] = await Promise.all([
     getJSON<Row[]>(`${base}/api/leaderboard/venues`),
