@@ -1,17 +1,7 @@
-import { headers } from "next/headers";
-
 type Row = { id: string; name: string; score: number; meta?: string };
 
-function getBaseUrl() {
-  const h = headers();
-  const host = h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}`;
-}
-
 async function getRows(): Promise<Row[]> {
-  const base = getBaseUrl();
-  const res = await fetch(`${base}/api/leaderboard/users`, { cache: "no-store" });
+  const res = await fetch("/api/leaderboard/users", { cache: "no-store" });
   if (!res.ok) throw new Error("Fetch users failed");
   return res.json();
 }

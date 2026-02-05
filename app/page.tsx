@@ -1,5 +1,3 @@
-import { headers } from "next/headers";
-
 type Row = {
   id: string;
   name: string;
@@ -7,16 +5,9 @@ type Row = {
   meta?: string;
 };
 
-function getBaseUrl() {
-  const h = headers();
-  const host = h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}`;
-}
-
-async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Fetch failed: ${url}`);
+async function getJSON<T>(path: string): Promise<T> {
+  const res = await fetch(path, { cache: "no-store" }); // path relativo
+  if (!res.ok) throw new Error(`Fetch failed: ${path}`);
   return res.json();
 }
 
@@ -48,11 +39,9 @@ function LeaderboardTable({ rows, label }: { rows: Row[]; label: string }) {
 }
 
 export default async function Home() {
-  const base = getBaseUrl();
-
   const [venues, users] = await Promise.all([
-    getJSON<Row[]>(`${base}/api/leaderboard/venues`),
-    getJSON<Row[]>(`${base}/api/leaderboard/users`),
+    getJSON<Row[]>("/api/leaderboard/venues"),
+    getJSON<Row[]>("/api/leaderboard/users"),
   ]);
 
   return (
