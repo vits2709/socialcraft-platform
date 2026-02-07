@@ -1,0 +1,10 @@
+import { NextResponse } from "next/server";
+
+export async function GET(
+  _req: Request,
+  ctx: { params: { venueId: string } }
+) {
+  const venueId = ctx.params?.venueId;
+  // se la route dinamica viene matchata, qui venueId ESISTE
+  return NextResponse.redirect(new URL(`/admin/venues/${venueId}/view`, _req.url));
+}

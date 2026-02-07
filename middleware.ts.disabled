@@ -1,0 +1,51 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+
+  // 1) Cookie utente anonimo (per leaderboard utenti)
+  const hasUid = req.cookies.get("sc_uid")?.value;
+  if (!hasUid) {
+    const uid = crypto.randomUUID();
+    res.cookies.set("sc_uid", uid, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365, // 1 anno
+    });
+  }
+
+  // 2) Protezione /admin e /venue
+  const url = process.env.SUPABASE_URL;
+  const anon = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anon) return res;
+
+  const supabase = createServerClient(url, anon, {
+    cookies: {
+      getAll() {
+        return req.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value, options } of cookiesToSet) {
+          res.cookies.set(name, value, options);
+        }
+      },
+    },
+  });
+
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+
+  const path = req.nextUrl.pathname;
+  if ((path.startsWith("/admin") || path.startsWith("/venue")) && !user) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  return res;
+}
+
+export const config = {
+  matcher: ["/admin/:path*", "/venue/:path*", "/rate/:path*"],
+};

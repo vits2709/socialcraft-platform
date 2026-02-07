@@ -1,72 +1,54 @@
-type Row = {
-  id: string;
-  name: string;
-  score: number;
-  meta?: string;
-};
-
-async function getJSON<T>(path: string): Promise<T> {
-  const res = await fetch(path, { cache: "no-store" }); // path relativo
-  if (!res.ok) throw new Error(`Fetch failed: ${path}`);
-  return res.json();
-}
-
-function LeaderboardTable({ rows, label }: { rows: Row[]; label: string }) {
-  return (
-    <table className="table" aria-label={label}>
-      <thead>
-        <tr>
-          <th className="rank">#</th>
-          <th>Nome</th>
-          <th>Info</th>
-          <th className="score">Score</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr key={r.id}>
-            <td className="rank">{i + 1}</td>
-            <td>
-              {r.name} {i === 0 ? <span className="badge top">🥇 Top</span> : null}
-            </td>
-            <td className="muted">{r.meta ?? "—"}</td>
-            <td className="score">{r.score.toLocaleString("it-IT")}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
+import { getVenueLeaderboard } from "@/lib/leaderboards";
 
 export default async function Home() {
-  const [venues, users] = await Promise.all([
-    getJSON<Row[]>("/api/leaderboard/venues"),
-    getJSON<Row[]>("/api/leaderboard/users"),
-  ]);
+  const rows = await getVenueLeaderboard(100);
 
   return (
     <div>
-      <h1 className="h1">Leaderboards</h1>
-      <p className="muted">
-        Classifiche di test (mock API). Quando vuoi, le colleghiamo a Supabase.
-      </p>
+      <h1 className="h1">Leaderboard Venue</h1>
+      <p className="muted">Classifica basata su rating (media 1–5) + numero voti + visite (scan reali).</p>
 
-      <div className="grid">
-        <section className="card">
-          <div className="cardHead">
-            <h2 className="h2">Venue</h2>
-            <a className="btn" href="/leaderboard/venues">Vedi tutto →</a>
-          </div>
-          <LeaderboardTable rows={venues.slice(0, 10)} label="Leaderboard venue" />
-        </section>
+      <div className="card">
+        <div className="cardHead">
+          <h2 className="h2">Top venue</h2>
+          <span className="badge">
+            <span className="dot" /> rating
+          </span>
+        </div>
 
-        <section className="card">
-          <div className="cardHead">
-            <h2 className="h2">Utenti</h2>
-            <a className="btn" href="/leaderboard/users">Vedi tutto →</a>
+        <table className="table" aria-label="Leaderboard venue">
+          <thead>
+            <tr>
+              <th className="rank">#</th>
+              <th>Venue</th>
+              <th>Città</th>
+              <th className="score">Rating</th>
+              <th className="score">Visite</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id}>
+                <td className="rank">{i + 1}</td>
+                <td>
+                  {r.name} {i === 0 ? <span className="badge top">🥇 Top</span> : null}
+                  <div className="muted">Il voto è possibile solo via QR in sede.</div>
+                </td>
+                <td className="muted">{r.city ?? "—"}</td>
+                <td className="score">
+                  {Number(r.avg_rating).toFixed(2)} <span className="muted">({r.ratings_count})</span>
+                </td>
+                <td className="score">{Number(r.visits_count ?? 0).toLocaleString("it-IT")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {rows.length === 0 ? (
+          <div className="notice" style={{ marginTop: 12 }}>
+            Nessuna venue trovata. Crea almeno una venue in tabella <b>venues</b>.
           </div>
-          <LeaderboardTable rows={users.slice(0, 10)} label="Leaderboard utenti" />
-        </section>
+        ) : null}
       </div>
     </div>
   );

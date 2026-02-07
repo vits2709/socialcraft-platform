@@ -1,0 +1,144 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getSessionUser, isAdmin } from "@/lib/auth";
+import { getVenueLeaderboard } from "@/lib/leaderboards";
+import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
+
+type Kpi = {
+  scans_today: number;
+  votes_today: number;
+  scans_7d: number;
+  votes_7d: number;
+  scans_live_10m: number;
+};
+
+async function getActivePromoTitleAdmin(venueId: string) {
+  const supabase = createSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from("venue_promos")
+    .select("title")
+    .eq("venue_id", venueId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data?.title ?? null;
+}
+
+}
+
+async function getKpis(venueId: string): Promise<Kpi> {
+  const supabase = await createSupabaseServerClientReadOnly();
+  const { data, error } = await supabase.rpc("get_venue_kpis", { p_venue_id: venueId });
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    scans_today: Number(row?.scans_today ?? 0),
+    votes_today: Number(row?.votes_today ?? 0),
+    scans_7d: Number(row?.scans_7d ?? 0),
+    votes_7d: Number(row?.votes_7d ?? 0),
+    scans_live_10m: Number(row?.scans_live_10m ?? 0),
+  };
+}
+
+export default async function AdminDashboard() {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  if (!(await isAdmin(user.id))) redirect("/venue");
+
+  const venues = await getVenueLeaderboard(500);
+
+  const extra = await Promise.all(
+    venues.map(async (v) => {
+      const [kpis, promoTitle] = await Promise.all([getKpis(v.id), getActivePromoTitle(v.id)]);
+      return { venueId: v.id, kpis, promoTitle };
+    })
+  );
+
+  const extraMap = new Map(extra.map((e) => [e.venueId, e]));
+
+  return (
+    <div className="card">
+      <div className="cardHead">
+        <div>
+          <h1 className="h1" style={{ marginBottom: 6 }}>
+            Admin Dashboard
+          </h1>
+          <p className="muted" style={{ margin: 0 }}>
+            Loggato come: <b>{user.email}</b>
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link className="btn" href="/admin/create-venue">
+            + Nuova venue
+          </Link>
+
+          <span className="badge">
+            <span className="dot" /> admin
+          </span>
+        </div>
+      </div>
+
+      <div className="notice" style={{ marginBottom: 12 }}>
+        Qui gestisci le promo (una attiva per venue) e controlli scans/voti/visite.
+      </div>
+
+      <table className="table" aria-label="Admin venues overview">
+        <thead>
+          <tr>
+            <th className="rank">#</th>
+            <th>Venue</th>
+            <th>Città</th>
+            <th className="score">Rating</th>
+            <th className="score">Visite</th>
+            <th className="score">Scan oggi</th>
+            <th className="score">Voti oggi</th>
+            <th className="score">Live 10m</th>
+            <th>Promo attiva</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {venues.map((v, i) => {
+            const ex = extraMap.get(v.id);
+            return (
+              <tr key={v.id}>
+                <td className="rank">{i + 1}</td>
+                <td>
+                  <b>{v.name}</b>
+                  <div className="muted">ID: {v.id}</div>
+                </td>
+                <td className="muted">{v.city ?? "—"}</td>
+                <td className="score">
+                  {Number(v.avg_rating).toFixed(2)}{" "}
+                  <span className="muted">({v.ratings_count})</span>
+                </td>
+                <td className="score">{Number(v.visits_count ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">{Number(ex?.kpis.scans_today ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">{Number(ex?.kpis.votes_today ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">{Number(ex?.kpis.scans_live_10m ?? 0).toLocaleString("it-IT")}</td>
+                <td>{ex?.promoTitle ?? <span className="muted">—</span>}</td>
+                <td style={{ whiteSpace: "nowrap" }}>
+                  {/* ✅ FIX: niente /view */}
+                  <Link className="btn" href={`/admin/venues/${v.id}`}>
+                    Gestisci
+                  </Link>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {venues.length === 0 ? (
+        <div className="notice" style={{ marginTop: 12 }}>
+          Nessuna venue trovata. Crea righe in <b>venues</b>.
+        </div>
+      ) : null}
+    </div>
+  );
+}

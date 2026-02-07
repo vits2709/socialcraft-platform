@@ -1,44 +1,57 @@
-type Row = { id: string; name: string; score: number; meta?: string };
+import { getUserLeaderboard } from "@/lib/users";
 
-async function getRows(): Promise<Row[]> {
-  const res = await fetch("/api/leaderboard/users", { cache: "no-store" });
-  if (!res.ok) throw new Error("Fetch users failed");
-  return res.json();
+function shortId(id: string) {
+  return id.slice(0, 8);
 }
 
-export default async function UsersLeaderboard() {
-  const rows = await getRows();
+export default async function UsersLeaderboardPage() {
+  const rows = await getUserLeaderboard(50);
 
   return (
-    <div className="card">
-      <div className="cardHead">
-        <div>
-          <h2 className="h2">Leaderboard Utenti (tutte)</h2>
-          <div className="muted">Ordinata per score decrescente</div>
-        </div>
-        <span className="badge"><span className="dot" /> users</span>
-      </div>
+    <div>
+      <h1 className="h1">Leaderboard Utenti</h1>
+      <p className="muted">Punti: scan in sede (+1) • voto valido (+2)</p>
 
-      <table className="table" aria-label="Leaderboard utenti completa">
-        <thead>
-          <tr>
-            <th className="rank">#</th>
-            <th>Utente</th>
-            <th>Badge</th>
-            <th className="score">Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.id}>
-              <td className="rank">{i + 1}</td>
-              <td>{r.name}</td>
-              <td className="muted">{r.meta ?? "—"}</td>
-              <td className="score">{r.score.toLocaleString("it-IT")}</td>
+      <div className="card">
+        <div className="cardHead">
+          <h2 className="h2">Top users</h2>
+          <span className="badge">
+            <span className="dot" /> points
+          </span>
+        </div>
+
+        <table className="table" aria-label="Leaderboard users">
+          <thead>
+            <tr>
+              <th className="rank">#</th>
+              <th>User</th>
+              <th className="score">Punti</th>
+              <th className="score">Scan</th>
+              <th className="score">Voti</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((u, i) => (
+              <tr key={u.user_id}>
+                <td className="rank">{i + 1}</td>
+                <td>
+                  <span className="badge">UID: {shortId(u.user_id)}</span>
+                  <div className="muted">Anonimo (cookie)</div>
+                </td>
+                <td className="score">{Number(u.points ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">{Number(u.scans ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">{Number(u.votes ?? 0).toLocaleString("it-IT")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {rows.length === 0 ? (
+          <div className="notice" style={{ marginTop: 12 }}>
+            Nessuna attività utenti ancora. Appena scansionano un QR e votano, qui si popola.
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

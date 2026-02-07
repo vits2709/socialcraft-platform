@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SocialCraft – Venue Rating (QR token monouso 120s) + Login Admin/Venue
+Next.js App Router + Supabase (Auth + RLS).
 
-## Getting Started
+## Cosa fa
+- Home: leaderboard venue (media rating 1–5 + numero voti)
+- Voto SOLO in presenza: serve QR con token `t=` valido
+- Token: monouso + scadenza 120s
+- Login: /login (venue + admin)
+- Admin: /admin (protetta)
+- Venue: /venue (protetta) con bottone "Genera QR voto (2 min)"
 
-First, run the development server:
-
+## Dipendenze
+Nel progetto:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm i @supabase/supabase-js @supabase/ssr
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Env
+Crea `.env.local` (NON committare):
+```
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## DB
+Esegui `supabase/schema.sql` nel Supabase SQL Editor.
 
-## Learn More
+## Setup admin
+1) Crea utente in Auth (email/password)
+2) Copia user id
+3) SQL:
+```sql
+insert into public.admins (user_id) values ('UUID_ADMIN');
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Setup venue account
+1) Crea utente in Auth (email/password)
+2) Inserisci venue collegata:
+```sql
+insert into public.venues (name, city, owner_user_id)
+values ('Mood','Vasto','UUID_UTENTE_VENUE');
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Flusso voto
+- Staff venue apre /venue → "Genera QR voto (2 min)"
+- Mostra il link/QR al banco
+- Cliente scansiona → /rate/<venueId>?t=<token>
+- Se token scaduto/usato → voto non disponibile

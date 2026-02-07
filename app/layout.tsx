@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "SocialCraft Leaderboards",
-  description: "Venue & user leaderboards",
+  title: "SocialCraft – Venue Ratings",
+  description: "Leaderboard venues basata su rating",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -13,9 +13,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <header className="header">
             <div className="brand">SocialCraft</div>
             <nav className="nav">
-              <a href="/">Home</a>
-              <a href="/leaderboard/venues">Venue</a>
-              <a href="/leaderboard/users">Utenti</a>
+              <a href="/">Leaderboard</a>
+              <a href="/leaderboard/users">Users</a>
+              <a href="/login">Login</a>
+              <a href="/admin">Admin</a>
+              <a href="/venue">Venue</a>
             </nav>
           </header>
 
