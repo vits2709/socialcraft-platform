@@ -168,21 +168,23 @@ export async function POST(req: Request) {
     p_points: points,
   });
 
-  if (rpcErr) {
-    // fallback: upsert su leaderboard_users
-    await supabase.from("leaderboard_users").upsert(
-      { id: String(userId), name: "utente", score: points },
-      { onConflict: "id" }
-    );
+if (rpcErr) {
+  // fallback: upsert su leaderboard_users
+  await supabase.from("leaderboard_users").upsert(
+    { id: String(userId), name: "utente", score: points },
+    { onConflict: "id" }
+  );
 
-    // se già esiste, incrementa
-    await supabase
-      .rpc("increment_user_score_fallback", {
-        p_user_id_text: String(userId),
-        p_points: points,
-      })
-      .catch(() => null);
+  // se già esiste, incrementa (fallback best-effort)
+  try {
+    await supabase.rpc("increment_user_score_fallback", {
+      p_user_id_text: String(userId),
+      p_points: points,
+    });
+  } catch {
+    // ignora
   }
+}
 
   return NextResponse.json({
     ok: true,
