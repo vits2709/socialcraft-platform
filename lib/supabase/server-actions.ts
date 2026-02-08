@@ -1,25 +1,24 @@
 import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 
-export function createSupabaseServerActionClient() {
-  const cookieStore = cookies();
+/**
+ * Helper per Server Actions / Route Handlers:
+ * in Next 16 `cookies()` è async e puoi settare cookie SOLO lì.
+ */
+export async function getCookieStore() {
+  return await cookies();
+}
 
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+/**
+ * Snapshot “safe” dei cookie (array {name,value}) utile per Supabase SSR.
+ * In Next 16, facciamo snapshot una volta e lo usiamo.
+ */
+export async function getCookieSnapshot(): Promise<{ name: string; value: string }[]> {
+  const cookieStore: any = await cookies();
 
-  if (!url || !anon) throw new Error("Missing Supabase env (URL/ANON)");
+  if (typeof cookieStore.getAll === "function") {
+    return cookieStore.getAll().map((c: any) => ({ name: c.name, value: c.value }));
+  }
 
-  // ✅ QUI si possono settare cookie (MA solo se chiamato in server action / route)
-  return createServerClient(url, anon, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll().map((c) => ({ name: c.name, value: c.value }));
-      },
-      setAll(cookiesToSet) {
-        for (const { name, value, options } of cookiesToSet) {
-          cookieStore.set(name, value, options);
-        }
-      },
-    },
-  });
+  // fallback ultra-safe (se getAll non esiste)
+  return [];
 }
