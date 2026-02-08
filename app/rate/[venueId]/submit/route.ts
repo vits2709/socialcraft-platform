@@ -1,39 +1,52 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-export async function POST(req: Request, { params }: { params: { venueId: string } }) {
-  const form = await req.formData();
-  const token = String(form.get("token") ?? "");
-  const ratingRaw = String(form.get("rating") ?? "");
-  const note = String(form.get("note") ?? "").slice(0, 280);
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ venueId: string }> }
+) {
+  try {
+    const { venueId } = await context.params;
 
-  const rating = Number(ratingRaw);
-  if (!token) {
-    return NextResponse.redirect(new URL(`/rate/${params.venueId}`, req.url), 303);
+    if (!venueId) {
+      return NextResponse.json({ error: "missing_venueId" }, { status: 400 });
+    }
+
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+    }
+
+    // Qui adatta ai tuoi campi reali:
+    // esempio tipico: token + rating
+    const token = String(body.token ?? "").trim();
+    const rating = Number(body.rating ?? 0);
+
+    if (!token) return NextResponse.json({ error: "missing_token" }, { status: 400 });
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return NextResponse.json({ error: "invalid_rating" }, { status: 400 });
+    }
+
+    // Server-side: usa service role (admin client) perché stai validando token + scrivendo voto
+    const supabase = createSupabaseAdminClient();
+
+    // Se tu hai già una RPC che fa tutto (consigliato), usa quella.
+    // Esempio: submit_vote_token(p_venue_id, p_token, p_rating)
+    const { data, error } = await supabase.rpc("submit_vote_token", {
+      p_venue_id: venueId,
+      p_token: token,
+      p_rating: rating,
+    });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ ok: true, result: data ?? null }, { status: 200 });
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: e?.message ?? "unknown_error" },
+      { status: 500 }
+    );
   }
-  if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
-    return NextResponse.redirect(new URL(`/rate/${params.venueId}?t=${encodeURIComponent(token)}`, req.url), 303);
-  }
-
-  const url = process.env.SUPABASE_URL;
-  const anon = process.env.SUPABASE_ANON_KEY;
-  if (!url || !anon) {
-    return NextResponse.json({ error: "Missing env" }, { status: 500 });
-  }
-
-  const supabase = createClient(url, anon, { auth: { persistSession: false } });
-
-  const { error } = await supabase.rpc("submit_vote_with_token", {
-    p_venue_id: params.venueId,
-    p_token: token,
-    p_rating: rating,
-    p_note: note.length ? note : null,
-  });
-
-  // Se token scaduto/usato, torniamo alla pagina senza token (messaggio "scannerizza di nuovo")
-  if (error) {
-    return NextResponse.redirect(new URL(`/rate/${params.venueId}`, req.url), 303);
-  }
-
-  return NextResponse.redirect(new URL(`/rate/${params.venueId}`, req.url), 303);
 }
