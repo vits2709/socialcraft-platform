@@ -17,7 +17,8 @@ export async function POST(req: Request) {
   if (!venueId) return NextResponse.json({ ok: false, error: "missing_venue_id" }, { status: 400 });
   if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "missing_file" }, { status: 400 });
 
-  const cookieStore = cookies();
+  // ✅ Next 16: cookies() è Promise
+  const cookieStore = await cookies();
   const userId = cookieStore.get("sc_uid")?.value; // utente “auto”
   if (!userId) return NextResponse.json({ ok: false, error: "missing_sc_uid_cookie" }, { status: 401 });
 
@@ -55,8 +56,9 @@ export async function POST(req: Request) {
     .limit(1);
 
   if (alreadyErr) return NextResponse.json({ ok: false, error: alreadyErr.message }, { status: 500 });
-  if (already && already.length > 0)
+  if (already && already.length > 0) {
     return NextResponse.json({ ok: false, error: "already_confirmed_today" }, { status: 429 });
+  }
 
   // calcola hash e salva su storage
   const ab = await file.arrayBuffer();
@@ -72,7 +74,6 @@ export async function POST(req: Request) {
   });
 
   if (upErr) {
-    // se è un conflitto hash/dup, ci pensa unique index dopo
     return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
   }
 
