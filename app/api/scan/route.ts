@@ -1,62 +1,54 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import crypto from "crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const venueId = searchParams.get("v");
+export const runtime = "nodejs";
+
+function newUid() {
+  // id breve ma abbastanza unico per “utente auto”
+  return `u_${crypto.randomBytes(12).toString("hex")}`;
+}
+
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  const venueId = String(body?.venue_id ?? body?.venueId ?? "").trim();
 
   if (!venueId) {
-    return NextResponse.json({ error: "missing venue" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "missing_venue_id" }, { status: 400 });
   }
 
-  const cookieStore = cookies();
+  // ✅ Next 16: cookies() è Promise
+  const cookieStore = await cookies();
+
   let userId = cookieStore.get("sc_uid")?.value;
 
-  const supabase = createSupabaseAdminClient();
-
-  // 1. crea utente se non esiste
+  // Se non esiste, crea utente “auto” e salva cookie
   if (!userId) {
-    const { data, error } = await supabase
-      .from("sc_users")
-      .insert({})
-      .select("id")
-      .single();
+    userId = newUid();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    userId = data.id;
-
+    // Qui siamo in Route Handler → puoi settare cookie
     cookieStore.set("sc_uid", userId, {
       httpOnly: true,
+      sameSite: "lax",
+      secure: true,
       path: "/",
-      maxAge: 60 * 60 * 24 * 365,
+      maxAge: 60 * 60 * 24 * 365, // 1 anno
     });
   }
 
-  // 2. registra evento utente
-  await supabase.from("user_events").insert({
-    user_id: userId,
+  const supabase = createSupabaseAdminClient();
+
+  // Registra lo scan (presenza)
+  const { error } = await supabase.from("venue_events").insert({
     venue_id: venueId,
-    event_type: "scan",
-    points: 10,
-  });
-
-  // 3. registra evento venue
-  await supabase.from("venue_events").insert({
-    venue_id: venueId,
-    event_type: "scan",
     user_id: userId,
+    event_type: "scan",
   });
 
-  // 4. aggiorna leaderboard utenti
-  await supabase.rpc("increment_user_score", {
-    p_user_id: userId,
-    p_points: 10,
-  });
+  if (error) {
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
 
-  // 5. redirect alla pagina venue
-  return NextResponse.redirect(new URL(`/venue/${venueId}`, req.url));
+  return NextResponse.json({ ok: true, user_id: userId, venue_id: venueId });
 }
