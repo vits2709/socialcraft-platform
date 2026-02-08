@@ -1,16 +1,17 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSessionUser, isAdmin } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { revalidatePath } from "next/cache";
 
-export async function deleteVenueAction(venueId: string) {
+export async function deleteVenueAction(venueId: string): Promise<void> {
   const user = await getSessionUser();
   if (!user || !(await isAdmin(user.id))) throw new Error("not_allowed");
 
   const supabase = createSupabaseAdminClient();
 
-  // prende owner_user_id per eliminare anche l'utente auth
+  // 1) Recupera owner_user_id (così possiamo eliminare anche l'utente Auth collegato)
   const { data: venue, error: vErr } = await supabase
     .from("venues")
     .select("id, owner_user_id")
@@ -20,28 +21,29 @@ export async function deleteVenueAction(venueId: string) {
   if (vErr) throw new Error(vErr.message);
   if (!venue) throw new Error("venue_not_found");
 
-  const ownerUserId = venue.owner_user_id as string | null;
+  // 2) Elimina promo della venue (se non hai FK con ON DELETE CASCADE)
+  const { error: pErr } = await supabase.from("venue_promos").delete().eq("venue_id", venueId);
+  if (pErr) throw new Error(pErr.message);
 
-  // 1) promo
-  await supabase.from("venue_promos").delete().eq("venue_id", venueId);
+  // 3) Elimina leaderboard row (id TEXT che contiene UUID come stringa)
+  const { error: lbErr } = await supabase.from("leaderboard_venues").delete().eq("id", String(venueId));
+  if (lbErr) throw new Error(lbErr.message);
 
-  // 2) eventi (se hai nomi diversi dimmeli e li allineo)
-  // se non esistono tabelle, commentale oppure dimmi i nomi reali
-  await supabase.from("scan_events").delete().eq("venue_id", venueId);
-  await supabase.from("rating_events").delete().eq("venue_id", venueId);
-
-  // 3) leaderboard (se esiste)
-  await supabase.from("leaderboard_venues").delete().eq("id", String(venueId));
-
-  // 4) venue
+  // 4) Elimina venue
   const { error: delVenueErr } = await supabase.from("venues").delete().eq("id", venueId);
   if (delVenueErr) throw new Error(delVenueErr.message);
 
-  // 5) utente auth proprietario (se vuoi NON cancellarlo, dimmelo e lo tolgo)
-  if (ownerUserId) {
-    await supabase.auth.admin.deleteUser(ownerUserId);
+  // 5) Elimina l'utente Auth collegato (se esiste)
+  if (venue.owner_user_id) {
+    const { error: delUserErr } = await supabase.auth.admin.deleteUser(venue.owner_user_id);
+    // se fallisce non blocchiamo tutto (per evitare edge-case), ma puoi anche fare throw se preferisci
+    if (delUserErr) {
+      // eslint-disable-next-line no-console
+      console.warn("Auth user delete failed:", delUserErr.message);
+    }
   }
 
   revalidatePath("/admin");
-  return { ok: true };
+  // rimani in /admin (o torna lì se eri in una sub-page)
+  redirect("/admin");
 }
