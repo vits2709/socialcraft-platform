@@ -29,7 +29,8 @@ export async function POST(req: Request) {
   const id = String(searchParams.get("id") ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "missing_id" }, { status: 400 });
 
-  const cookieStore = cookies();
+  // ✅ FIX Next 16: cookies() è async
+  const cookieStore = await cookies();
   const userId = cookieStore.get("sc_uid")?.value;
   if (!userId) return NextResponse.json({ ok: false, error: "missing_sc_uid_cookie" }, { status: 401 });
 
@@ -175,10 +176,12 @@ export async function POST(req: Request) {
     );
 
     // se già esiste, incrementa
-    await supabase.rpc("increment_user_score_fallback", {
-      p_user_id_text: String(userId),
-      p_points: points,
-    }).catch(() => null);
+    await supabase
+      .rpc("increment_user_score_fallback", {
+        p_user_id_text: String(userId),
+        p_points: points,
+      })
+      .catch(() => null);
   }
 
   return NextResponse.json({
