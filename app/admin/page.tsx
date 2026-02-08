@@ -43,12 +43,24 @@ export default async function AdminDashboard() {
 
   const venues = await getVenueLeaderboard(500);
 
+  const supabase = await createSupabaseServerClientReadOnly();
+
+  // ✅ prendiamo gli slug REALI dalla tabella venues (non dalla leaderboard)
+  const venueIds = venues.map((v) => v.id);
+  const { data: venueRows, error: venuesErr } = await supabase
+    .from("venues")
+    .select("id,slug")
+    .in("id", venueIds);
+
+  if (venuesErr) throw new Error(venuesErr.message);
+
+  const slugMap = new Map<string, string | null>(
+    (venueRows ?? []).map((r) => [String(r.id), (r as any).slug ?? null])
+  );
+
   const extra = await Promise.all(
     venues.map(async (v) => {
-      const [kpis, promoTitle] = await Promise.all([
-        getKpis(v.id),
-        getActivePromoTitle(v.id),
-      ]);
+      const [kpis, promoTitle] = await Promise.all([getKpis(v.id), getActivePromoTitle(v.id)]);
       return { venueId: v.id, kpis, promoTitle };
     })
   );
@@ -101,6 +113,7 @@ export default async function AdminDashboard() {
         <tbody>
           {venues.map((v, i) => {
             const ex = extraMap.get(v.id);
+            const slug = slugMap.get(v.id) ?? null;
 
             return (
               <tr key={v.id}>
@@ -109,6 +122,7 @@ export default async function AdminDashboard() {
                 <td>
                   <b>{v.name}</b>
                   <div className="muted">ID: {v.id}</div>
+                  <div className="muted">slug: {slug ?? "—"}</div>
                 </td>
 
                 <td className="muted">{v.city ?? "—"}</td>
@@ -118,38 +132,24 @@ export default async function AdminDashboard() {
                   <span className="muted">({v.ratings_count})</span>
                 </td>
 
-                <td className="score">
-                  {Number(v.visits_count ?? 0).toLocaleString("it-IT")}
-                </td>
+                <td className="score">{Number(v.visits_count ?? 0).toLocaleString("it-IT")}</td>
 
-                <td className="score">
-                  {Number(ex?.kpis.scans_today ?? 0).toLocaleString("it-IT")}
-                </td>
+                <td className="score">{Number(ex?.kpis.scans_today ?? 0).toLocaleString("it-IT")}</td>
 
-                <td className="score">
-                  {Number(ex?.kpis.votes_today ?? 0).toLocaleString("it-IT")}
-                </td>
+                <td className="score">{Number(ex?.kpis.votes_today ?? 0).toLocaleString("it-IT")}</td>
 
-                <td className="score">
-                  {Number(ex?.kpis.scans_live_10m ?? 0).toLocaleString("it-IT")}
-                </td>
+                <td className="score">{Number(ex?.kpis.scans_live_10m ?? 0).toLocaleString("it-IT")}</td>
 
                 <td>{ex?.promoTitle ?? <span className="muted">—</span>}</td>
 
                 <td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
                   <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-                    
                     <Link className="btn" href={`/admin/venues/${v.id}`}>
                       Gestisci
                     </Link>
 
-                    {v.slug ? (
-                      <a
-                        className="btn"
-                        href={`/v/${v.slug}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                    {slug ? (
+                      <a className="btn" href={`/v/${slug}`} target="_blank" rel="noreferrer">
                         Apri
                       </a>
                     ) : (
@@ -159,7 +159,6 @@ export default async function AdminDashboard() {
                     <form action={deleteVenueAction.bind(null, v.id)}>
                       <DeleteVenueButton venueName={v.name} />
                     </form>
-
                   </div>
                 </td>
               </tr>
