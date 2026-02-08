@@ -1,5 +1,7 @@
 "use server";
 
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSessionUser, isAdmin } from "@/lib/auth";
 
@@ -9,7 +11,7 @@ function mustStr(fd: FormData, key: string) {
   return v;
 }
 
-export async function createVenueAction(formData: FormData) {
+export async function createVenueAction(formData: FormData): Promise<void> {
   const user = await getSessionUser();
   if (!user || !(await isAdmin(user.id))) {
     throw new Error("not_allowed");
@@ -47,8 +49,7 @@ export async function createVenueAction(formData: FormData) {
   if (venueError) throw new Error(venueError.message);
 
   // 3) crea leaderboard entry
-  // NB: nel tuo DB leaderboard_venues.id è TEXT e ci sono vecchi id tipo "v_mood".
-  // Qui inseriamo SEMPRE l'UUID come stringa (coerente e futuro-proof).
+  // NB: leaderboard_venues.id è TEXT → inseriamo UUID come stringa.
   const { error: leaderboardError } = await supabase.from("leaderboard_venues").insert({
     id: String(venueData.id),
     name: venueData.name,
@@ -58,5 +59,7 @@ export async function createVenueAction(formData: FormData) {
 
   if (leaderboardError) throw new Error(leaderboardError.message);
 
-  return { venue_id: venueData.id };
+  // aggiorna cache + vai subito alla gestione venue
+  revalidatePath("/admin");
+  redirect(`/admin/venues/${venueData.id}`);
 }
