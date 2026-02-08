@@ -1,58 +1,37 @@
+import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { cookies, headers } from "next/headers";
 
-/**
- * ✅ Read-only client: NON scrive cookie.
- * Usalo in Server Components (page.tsx, layout.tsx, lib/auth.ts, ecc.)
- */
-export async function createSupabaseServerClientReadOnly() {
+async function createClientReadOnly() {
   const cookieStore = await cookies();
-  const headerStore = await headers();
 
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const anon = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) throw new Error("Missing Supabase env (URL/ANON)");
 
-  if (!url || !anon) throw new Error("Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  // Snapshot subito (Next.js 16 dynamic API)
+  const cookieSnapshot =
+    typeof (cookieStore as any).getAll === "function"
+      ? (cookieStore as any).getAll().map((c: any) => ({ name: c.name, value: c.value }))
+      : [];
 
   return createServerClient(url, anon, {
     cookies: {
       getAll() {
-        return cookieStore.getAll();
+        return cookieSnapshot;
       },
-      // 🔥 NO-OP: evita crash “Cookies can only be modified…”
-      setAll() {},
-    },
-    global: {
-      headers: {
-        // opzionale ma utile dietro proxy/vercel
-        "x-forwarded-host": headerStore.get("x-forwarded-host") ?? "",
-        "x-forwarded-proto": headerStore.get("x-forwarded-proto") ?? "",
+      setAll() {
+        // NO-OP: nelle Server Components non puoi scrivere cookie
       },
     },
   });
 }
 
-/**
- * ✅ Write client: PUÒ scrivere cookie.
- * Usalo SOLO in Server Actions o Route Handlers.
- */
+// ✅ export “nuovo”
 export async function createSupabaseServerClient() {
-  const cookieStore = await cookies();
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClientReadOnly();
+}
 
-  if (!url || !anon) throw new Error("Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
-
-  return createServerClient(url, anon, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        for (const { name, value, options } of cookiesToSet) {
-          cookieStore.set(name, value, options);
-        }
-      },
-    },
-  });
+// ✅ export “vecchio” per compatibilità con i tuoi import esistenti
+export async function createSupabaseServerClientReadOnly() {
+  return createClientReadOnly();
 }

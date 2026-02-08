@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getSessionUser, isAdmin } from "@/lib/auth";
 import { getVenueLeaderboard } from "@/lib/leaderboards";
 import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
+import { deleteVenueAction } from "@/app/admin/actions";
+import DeleteVenueButton from "@/components/DeleteVenueButton";
 
 type Kpi = {
   scans_today: number;
@@ -12,22 +14,12 @@ type Kpi = {
   scans_live_10m: number;
 };
 
-async function getActivePromoTitleAdmin(venueId: string) {
-  const supabase = createSupabaseAdminClient();
-
-  const { data, error } = await supabase
-    .from("venue_promos")
-    .select("title")
-    .eq("venue_id", venueId)
-    .eq("is_active", true)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  return data?.title ?? null;
-}
-
+async function getActivePromoTitle(venueId: string) {
+  const supabase = await createSupabaseServerClientReadOnly();
+  const { data, error } = await supabase.rpc("get_active_promo", { p_venue_id: venueId });
+  if (error) return null;
+  const promo = Array.isArray(data) ? data[0] : null;
+  return promo?.title ?? null;
 }
 
 async function getKpis(venueId: string): Promise<Kpi> {
@@ -99,34 +91,51 @@ export default async function AdminDashboard() {
             <th className="score">Voti oggi</th>
             <th className="score">Live 10m</th>
             <th>Promo attiva</th>
-            <th></th>
+            <th style={{ textAlign: "right" }}>Azioni</th>
           </tr>
         </thead>
+
         <tbody>
           {venues.map((v, i) => {
             const ex = extraMap.get(v.id);
+
             return (
               <tr key={v.id}>
                 <td className="rank">{i + 1}</td>
+
                 <td>
                   <b>{v.name}</b>
                   <div className="muted">ID: {v.id}</div>
                 </td>
+
                 <td className="muted">{v.city ?? "—"}</td>
+
                 <td className="score">
                   {Number(v.avg_rating).toFixed(2)}{" "}
                   <span className="muted">({v.ratings_count})</span>
                 </td>
+
                 <td className="score">{Number(v.visits_count ?? 0).toLocaleString("it-IT")}</td>
+
                 <td className="score">{Number(ex?.kpis.scans_today ?? 0).toLocaleString("it-IT")}</td>
+
                 <td className="score">{Number(ex?.kpis.votes_today ?? 0).toLocaleString("it-IT")}</td>
+
                 <td className="score">{Number(ex?.kpis.scans_live_10m ?? 0).toLocaleString("it-IT")}</td>
+
                 <td>{ex?.promoTitle ?? <span className="muted">—</span>}</td>
-                <td style={{ whiteSpace: "nowrap" }}>
-                  {/* ✅ FIX: niente /view */}
-                  <Link className="btn" href={`/admin/venues/${v.id}`}>
-                    Gestisci
-                  </Link>
+
+                {/* ✅ AZIONI */}
+                <td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
+                  <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                    <Link className="btn" href={`/admin/venues/${v.id}`}>
+                      Gestisci
+                    </Link>
+
+                    <form action={deleteVenueAction.bind(null, v.id)}>
+                      <DeleteVenueButton venueName={v.name} />
+                    </form>
+                  </div>
                 </td>
               </tr>
             );

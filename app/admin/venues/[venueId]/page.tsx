@@ -27,6 +27,10 @@ function mustStr(fd: FormData, key: string) {
   return v;
 }
 
+/* ---------------------------
+   DATA LOADERS
+---------------------------- */
+
 async function getKpisAdmin(venueId: string): Promise<Kpi> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase.rpc("get_venue_kpis", { p_venue_id: venueId });
@@ -45,16 +49,16 @@ async function getKpisAdmin(venueId: string): Promise<Kpi> {
 async function getActivePromoTitleAdmin(venueId: string) {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase.rpc("get_active_promo", { p_venue_id: venueId });
-  if (error) throw new Error(error.message);
+  if (error) return null;
   const promo = Array.isArray(data) ? data[0] : null;
   return promo?.title ?? null;
 }
 
 /* ---------------------------
-   Server Actions
+   SERVER ACTIONS
 ---------------------------- */
 
-async function createPromoAction(venueId: string, _prev: any, formData: FormData) {
+async function createPromoAction(venueId: string, formData: FormData) {
   "use server";
 
   const user = await getSessionUser();
@@ -65,6 +69,7 @@ async function createPromoAction(venueId: string, _prev: any, formData: FormData
   const promo_type = String(formData.get("promo_type") ?? "").trim() || "generic";
 
   const supabase = createSupabaseAdminClient();
+
   const { error } = await supabase.from("venue_promos").insert({
     venue_id: venueId,
     title,
@@ -76,7 +81,6 @@ async function createPromoAction(venueId: string, _prev: any, formData: FormData
   if (error) throw new Error(error.message);
 
   revalidatePath(`/admin/venues/${venueId}`);
-  return { ok: true };
 }
 
 async function setActivePromoAction(venueId: string, promoId: string) {
@@ -87,22 +91,18 @@ async function setActivePromoAction(venueId: string, promoId: string) {
 
   const supabase = createSupabaseAdminClient();
 
-  // 1) spegni tutte
-  const { error: offErr } = await supabase
+  // spegni tutte
+  await supabase
     .from("venue_promos")
     .update({ is_active: false })
     .eq("venue_id", venueId);
 
-  if (offErr) throw new Error(offErr.message);
-
-  // 2) accendi quella scelta
-  const { error: onErr } = await supabase
+  // attiva scelta
+  await supabase
     .from("venue_promos")
     .update({ is_active: true })
     .eq("id", promoId)
     .eq("venue_id", venueId);
-
-  if (onErr) throw new Error(onErr.message);
 
   revalidatePath(`/admin/venues/${venueId}`);
 }
@@ -114,15 +114,34 @@ async function deactivateAllPromosAction(venueId: string) {
   if (!user || !(await isAdmin(user.id))) throw new Error("not_allowed");
 
   const supabase = createSupabaseAdminClient();
-  const { error } = await supabase
+  await supabase
     .from("venue_promos")
     .update({ is_active: false })
     .eq("venue_id", venueId);
 
-  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/venues/${venueId}`);
+}
+
+async function deletePromoAction(venueId: string, promoId: string) {
+  "use server";
+
+  const user = await getSessionUser();
+  if (!user || !(await isAdmin(user.id))) throw new Error("not_allowed");
+
+  const supabase = createSupabaseAdminClient();
+
+  await supabase
+    .from("venue_promos")
+    .delete()
+    .eq("id", promoId)
+    .eq("venue_id", venueId);
 
   revalidatePath(`/admin/venues/${venueId}`);
 }
+
+/* ---------------------------
+   PAGE
+---------------------------- */
 
 export default async function AdminVenuePage(props: { params: Promise<{ venueId: string }> }) {
   const user = await getSessionUser();
@@ -130,182 +149,98 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
   if (!(await isAdmin(user.id))) redirect("/venue");
 
   const { venueId } = await props.params;
-
   const supabase = createSupabaseAdminClient();
 
-  // Venue
-  const { data: venue, error: venueErr } = await supabase
+  const { data: venue } = await supabase
     .from("venues")
     .select("id,name,city,owner_user_id")
     .eq("id", venueId)
     .maybeSingle();
 
-  if (venueErr) throw new Error(venueErr.message);
   if (!venue) {
     return (
       <div className="card">
         <h1 className="h1">Venue non trovata</h1>
-        <p className="muted">ID: {venueId}</p>
+        <p>ID: {venueId}</p>
         <Link className="btn" href="/admin">← Admin</Link>
       </div>
     );
   }
 
-  // KPI + promo attiva + lista promo
   const [kpis, activePromoTitle, promosRes] = await Promise.all([
     getKpisAdmin(venueId),
     getActivePromoTitleAdmin(venueId),
     supabase
       .from("venue_promos")
-      .select("id,title,description,promo_type,is_active,created_at")
+      .select("*")
       .eq("venue_id", venueId)
       .order("created_at", { ascending: false }),
   ]);
 
-  if (promosRes.error) throw new Error(promosRes.error.message);
   const promos = (promosRes.data ?? []) as PromoRow[];
-
-  // Server Action “bound” al venueId
   const createPromoBound = createPromoAction.bind(null, venueId);
 
   return (
     <div className="card">
-      <div className="cardHead">
-        <div>
-          <h1 className="h1" style={{ marginBottom: 6 }}>
-            Gestisci venue
-          </h1>
-          <p className="muted" style={{ margin: 0 }}>
-            <b>{venue.name}</b> • {venue.city ?? "—"} • ID: {venue.id}
-          </p>
-          <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
-            owner_user_id: <b>{venue.owner_user_id ?? "—"}</b>
-          </p>
-        </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Link className="btn" href="/admin">
-            ← Admin
-          </Link>
-          <span className="badge">
-            <span className="dot" /> admin
-          </span>
-        </div>
+      <h1 className="h1">Gestisci venue</h1>
+
+      <div className="notice">
+        <b>{venue.name}</b> — {venue.city ?? "—"}  
+        <br />ID: {venue.id}
       </div>
 
-      {/* KPI */}
-      <div className="notice" style={{ marginTop: 12 }}>
-        <b>KPI</b> — Oggi: scans <b>{kpis.scans_today}</b>, voti <b>{kpis.votes_today}</b> • 7 giorni:
-        scans <b>{kpis.scans_7d}</b>, voti <b>{kpis.votes_7d}</b> • Live 10m: <b>{kpis.scans_live_10m}</b>
+      <div className="notice" style={{ marginTop: 10 }}>
+        KPI: scans oggi {kpis.scans_today} • voti oggi {kpis.votes_today} • live {kpis.scans_live_10m}
       </div>
 
-      {/* Promo attiva */}
-      <div className="notice" style={{ marginTop: 12 }}>
+      <div className="notice" style={{ marginTop: 10 }}>
         Promo attiva: <b>{activePromoTitle ?? "—"}</b>
+
         <form action={deactivateAllPromosAction.bind(null, venueId)} style={{ display: "inline-block", marginLeft: 10 }}>
-          <button className="btn" type="submit">
-            Disattiva tutte
-          </button>
+          <button className="btn" type="submit">Disattiva tutte</button>
         </form>
       </div>
 
-      {/* Crea promo */}
-      <h2 className="h2" style={{ marginTop: 18 }}>
-        Crea nuova promo
-      </h2>
+      <h2 className="h2" style={{ marginTop: 18 }}>Crea nuova promo</h2>
 
-      <form action={createPromoBound as any} className="card" style={{ padding: 12, marginTop: 8 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div>
-            <div className="muted" style={{ marginBottom: 6 }}>
-              Titolo
-            </div>
-            <input name="title" className="input" placeholder="Es: Spritz 4€ (solo oggi)" />
-          </div>
-
-          <div>
-            <div className="muted" style={{ marginBottom: 6 }}>
-              Tipo
-            </div>
-            <select name="promo_type" className="input" defaultValue="generic">
-              <option value="generic">generic</option>
-              <option value="drink">drink</option>
-              <option value="food">food</option>
-              <option value="event">event</option>
-              <option value="discount">discount</option>
-            </select>
-          </div>
-
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div className="muted" style={{ marginBottom: 6 }}>
-              Descrizione (opzionale)
-            </div>
-            <textarea
-              name="description"
-              className="input"
-              rows={3}
-              placeholder="Dettagli: orari, condizioni, ecc."
-            />
-          </div>
-
-          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
-            <button className="btn" type="submit">
-              Crea promo
-            </button>
-            <span className="muted" style={{ alignSelf: "center" }}>
-              La promo non diventa attiva automaticamente: la attivi dalla lista sotto.
-            </span>
-          </div>
-        </div>
+      <form action={createPromoBound} className="card" style={{ padding: 12, marginTop: 8 }}>
+        <input name="title" className="input" placeholder="Titolo promo" />
+        <textarea name="description" className="input" placeholder="Descrizione" />
+        <select name="promo_type" className="input">
+          <option value="generic">generic</option>
+          <option value="drink">drink</option>
+          <option value="food">food</option>
+        </select>
+        <button className="btn" type="submit">Crea promo</button>
       </form>
 
-      {/* Lista promo */}
-      <h2 className="h2" style={{ marginTop: 18 }}>
-        Promo (storico)
-      </h2>
+      <h2 className="h2" style={{ marginTop: 18 }}>Promo</h2>
 
-      <table className="table" aria-label="Promo list">
-        <thead>
-          <tr>
-            <th>Titolo</th>
-            <th className="score">Tipo</th>
-            <th className="score">Attiva</th>
-            <th></th>
-          </tr>
-        </thead>
+      <table className="table">
         <tbody>
           {promos.map((p) => (
             <tr key={p.id}>
-              <td>
-                <b>{p.title}</b>
-                <div className="muted">{p.description ?? "—"}</div>
-              </td>
-              <td className="score">{p.promo_type ?? "—"}</td>
-              <td className="score">{p.is_active ? "si" : "no"}</td>
-              <td style={{ whiteSpace: "nowrap" }}>
+              <td>{p.title}</td>
+              <td>{p.is_active ? "Attiva" : "No"}</td>
+              <td style={{ display: "flex", gap: 8 }}>
                 <form action={setActivePromoAction.bind(null, venueId, p.id)}>
-                  <button className="btn" type="submit" disabled={p.is_active}>
-                    {p.is_active ? "Attiva" : "Rendi attiva"}
-                  </button>
+                  <button className="btn" type="submit">Attiva</button>
+                </form>
+
+                <form action={deletePromoAction.bind(null, venueId, p.id)}>
+                  <button className="btn" type="submit">Elimina</button>
                 </form>
               </td>
             </tr>
           ))}
-
-          {promos.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="muted">
-                Nessuna promo ancora.
-              </td>
-            </tr>
-          ) : null}
         </tbody>
       </table>
 
-      {/* TODO area scans/QR */}
-      <div className="notice" style={{ marginTop: 14 }}>
-        Prossimo step: “Scans/Visite reali” (token monouso 1–2 minuti) + generazione QR per questa venue.
+      <div style={{ marginTop: 20 }}>
+        <Link className="btn" href="/admin">← Torna Admin</Link>
       </div>
+
     </div>
   );
 }

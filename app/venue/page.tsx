@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser, getVenueByOwner, isAdmin } from "@/lib/auth";
 import { getVenueDetails } from "@/lib/leaderboards";
 import GenerateVoteToken from "@/app/venue/GenerateVoteToken";
+import ReceiptConfirm from "@/components/ReceiptConfirm";
 
 export default async function VenueDashboard() {
   const user = await getSessionUser();
@@ -48,7 +49,13 @@ export default async function VenueDashboard() {
         </div>
 
         <div style={{ height: 12 }} />
+
         <GenerateVoteToken venueId={venue.id} />
+
+        <div style={{ height: 12 }} />
+
+        {/* QUI aggiungiamo la conferma scontrino */}
+        <ReceiptConfirm venueId={venue.id} />
 
         <div style={{ height: 12 }} />
         <div className="btnRow">
