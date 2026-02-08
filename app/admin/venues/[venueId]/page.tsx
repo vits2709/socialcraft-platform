@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import QRCode from "qrcode";
 import { getSessionUser, isAdmin } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -27,10 +28,6 @@ function mustStr(fd: FormData, key: string) {
   return v;
 }
 
-/* ---------------------------
-   DATA LOADERS
----------------------------- */
-
 async function getKpisAdmin(venueId: string): Promise<Kpi> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase.rpc("get_venue_kpis", { p_venue_id: venueId });
@@ -49,16 +46,16 @@ async function getKpisAdmin(venueId: string): Promise<Kpi> {
 async function getActivePromoTitleAdmin(venueId: string) {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase.rpc("get_active_promo", { p_venue_id: venueId });
-  if (error) return null;
+  if (error) throw new Error(error.message);
   const promo = Array.isArray(data) ? data[0] : null;
   return promo?.title ?? null;
 }
 
 /* ---------------------------
-   SERVER ACTIONS
+   Server Actions
 ---------------------------- */
 
-async function createPromoAction(venueId: string, formData: FormData) {
+async function createPromoAction(venueId: string, _prev: any, formData: FormData) {
   "use server";
 
   const user = await getSessionUser();
@@ -69,7 +66,6 @@ async function createPromoAction(venueId: string, formData: FormData) {
   const promo_type = String(formData.get("promo_type") ?? "").trim() || "generic";
 
   const supabase = createSupabaseAdminClient();
-
   const { error } = await supabase.from("venue_promos").insert({
     venue_id: venueId,
     title,
@@ -91,18 +87,20 @@ async function setActivePromoAction(venueId: string, promoId: string) {
 
   const supabase = createSupabaseAdminClient();
 
-  // spegni tutte
-  await supabase
+  const { error: offErr } = await supabase
     .from("venue_promos")
     .update({ is_active: false })
     .eq("venue_id", venueId);
 
-  // attiva scelta
-  await supabase
+  if (offErr) throw new Error(offErr.message);
+
+  const { error: onErr } = await supabase
     .from("venue_promos")
     .update({ is_active: true })
     .eq("id", promoId)
     .eq("venue_id", venueId);
+
+  if (onErr) throw new Error(onErr.message);
 
   revalidatePath(`/admin/venues/${venueId}`);
 }
@@ -114,34 +112,15 @@ async function deactivateAllPromosAction(venueId: string) {
   if (!user || !(await isAdmin(user.id))) throw new Error("not_allowed");
 
   const supabase = createSupabaseAdminClient();
-  await supabase
+  const { error } = await supabase
     .from("venue_promos")
     .update({ is_active: false })
     .eq("venue_id", venueId);
 
-  revalidatePath(`/admin/venues/${venueId}`);
-}
-
-async function deletePromoAction(venueId: string, promoId: string) {
-  "use server";
-
-  const user = await getSessionUser();
-  if (!user || !(await isAdmin(user.id))) throw new Error("not_allowed");
-
-  const supabase = createSupabaseAdminClient();
-
-  await supabase
-    .from("venue_promos")
-    .delete()
-    .eq("id", promoId)
-    .eq("venue_id", venueId);
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/admin/venues/${venueId}`);
 }
-
-/* ---------------------------
-   PAGE
----------------------------- */
 
 export default async function AdminVenuePage(props: { params: Promise<{ venueId: string }> }) {
   const user = await getSessionUser();
@@ -149,19 +128,21 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
   if (!(await isAdmin(user.id))) redirect("/venue");
 
   const { venueId } = await props.params;
+
   const supabase = createSupabaseAdminClient();
 
-  const { data: venue } = await supabase
+  const { data: venue, error: venueErr } = await supabase
     .from("venues")
-    .select("id,name,city,owner_user_id")
+    .select("id,name,city,owner_user_id,slug")
     .eq("id", venueId)
     .maybeSingle();
 
+  if (venueErr) throw new Error(venueErr.message);
   if (!venue) {
     return (
       <div className="card">
         <h1 className="h1">Venue non trovata</h1>
-        <p>ID: {venueId}</p>
+        <p className="muted">ID: {venueId}</p>
         <Link className="btn" href="/admin">← Admin</Link>
       </div>
     );
@@ -172,75 +153,168 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
     getActivePromoTitleAdmin(venueId),
     supabase
       .from("venue_promos")
-      .select("*")
+      .select("id,title,description,promo_type,is_active,created_at")
       .eq("venue_id", venueId)
       .order("created_at", { ascending: false }),
   ]);
 
+  if (promosRes.error) throw new Error(promosRes.error.message);
   const promos = (promosRes.data ?? []) as PromoRow[];
+
   const createPromoBound = createPromoAction.bind(null, venueId);
+
+  // ✅ URL pubblico + QR
+  const publicPath = venue.slug ? `/v/${venue.slug}` : null;
+  const publicAbs =
+    venue.slug ? `https://${process.env.NEXT_PUBLIC_SITE_HOST ?? "app.socialcraft.it"}${publicPath}` : null;
+
+  const qrDataUrl = publicAbs
+    ? await QRCode.toDataURL(publicAbs, { margin: 1, width: 260 })
+    : null;
 
   return (
     <div className="card">
+      <div className="cardHead">
+        <div>
+          <h1 className="h1" style={{ marginBottom: 6 }}>
+            Gestisci venue
+          </h1>
+          <p className="muted" style={{ margin: 0 }}>
+            <b>{venue.name}</b> • {venue.city ?? "—"} • ID: {venue.id}
+          </p>
+          <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
+            owner_user_id: <b>{venue.owner_user_id ?? "—"}</b>
+          </p>
+          <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
+            slug: <b>{venue.slug ?? "—"}</b>
+          </p>
+        </div>
 
-      <h1 className="h1">Gestisci venue</h1>
-
-      <div className="notice">
-        <b>{venue.name}</b> — {venue.city ?? "—"}  
-        <br />ID: {venue.id}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link className="btn" href="/admin">← Admin</Link>
+          <span className="badge">
+            <span className="dot" /> admin
+          </span>
+        </div>
       </div>
 
-      <div className="notice" style={{ marginTop: 10 }}>
-        KPI: scans oggi {kpis.scans_today} • voti oggi {kpis.votes_today} • live {kpis.scans_live_10m}
+      {/* ✅ QR */}
+      <div className="notice" style={{ marginTop: 12 }}>
+        <b>QR pubblico</b>
+        <div className="muted" style={{ marginTop: 6 }}>
+          {publicPath ? (
+            <>
+              Link: <a href={publicPath} target="_blank" rel="noreferrer">{publicPath}</a>
+            </>
+          ) : (
+            <>Questa venue non ha slug: aggiungilo (o lo generiamo al volo nel prossimo step).</>
+          )}
+        </div>
+
+        {qrDataUrl ? (
+          <div style={{ display: "flex", gap: 14, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+            <img src={qrDataUrl} alt="QR venue" style={{ borderRadius: 10, background: "white", padding: 10 }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <a className="btn" href={publicPath!} target="_blank" rel="noreferrer">
+                Apri pagina venue
+              </a>
+              <div className="muted" style={{ maxWidth: 420 }}>
+                Stampa questo QR e mettilo nel locale: quando lo scansionano entra su /v/slug e registra lo scan.
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <div className="notice" style={{ marginTop: 10 }}>
+      {/* KPI */}
+      <div className="notice" style={{ marginTop: 12 }}>
+        <b>KPI</b> — Oggi: scans <b>{kpis.scans_today}</b>, voti <b>{kpis.votes_today}</b> • 7 giorni:
+        scans <b>{kpis.scans_7d}</b>, voti <b>{kpis.votes_7d}</b> • Live 10m: <b>{kpis.scans_live_10m}</b>
+      </div>
+
+      {/* Promo attiva */}
+      <div className="notice" style={{ marginTop: 12 }}>
         Promo attiva: <b>{activePromoTitle ?? "—"}</b>
-
         <form action={deactivateAllPromosAction.bind(null, venueId)} style={{ display: "inline-block", marginLeft: 10 }}>
           <button className="btn" type="submit">Disattiva tutte</button>
         </form>
       </div>
 
-      <h2 className="h2" style={{ marginTop: 18 }}>Crea nuova promo</h2>
+      {/* Crea promo */}
+      <h2 className="h2" style={{ marginTop: 18 }}>
+        Crea nuova promo
+      </h2>
 
-      <form action={createPromoBound} className="card" style={{ padding: 12, marginTop: 8 }}>
-        <input name="title" className="input" placeholder="Titolo promo" />
-        <textarea name="description" className="input" placeholder="Descrizione" />
-        <select name="promo_type" className="input">
-          <option value="generic">generic</option>
-          <option value="drink">drink</option>
-          <option value="food">food</option>
-        </select>
-        <button className="btn" type="submit">Crea promo</button>
+      <form action={createPromoBound as any} className="card" style={{ padding: 12, marginTop: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <div className="muted" style={{ marginBottom: 6 }}>Titolo</div>
+            <input name="title" className="input" placeholder="Es: Spritz 4€ (solo oggi)" />
+          </div>
+
+          <div>
+            <div className="muted" style={{ marginBottom: 6 }}>Tipo</div>
+            <select name="promo_type" className="input" defaultValue="generic">
+              <option value="generic">generic</option>
+              <option value="drink">drink</option>
+              <option value="food">food</option>
+              <option value="event">event</option>
+              <option value="discount">discount</option>
+            </select>
+          </div>
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <div className="muted" style={{ marginBottom: 6 }}>Descrizione (opzionale)</div>
+            <textarea name="description" className="input" rows={3} placeholder="Dettagli: orari, condizioni, ecc." />
+          </div>
+
+          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+            <button className="btn" type="submit">Crea promo</button>
+            <span className="muted" style={{ alignSelf: "center" }}>
+              La promo non diventa attiva automaticamente: la attivi dalla lista sotto.
+            </span>
+          </div>
+        </div>
       </form>
 
-      <h2 className="h2" style={{ marginTop: 18 }}>Promo</h2>
+      {/* Lista promo */}
+      <h2 className="h2" style={{ marginTop: 18 }}>Promo (storico)</h2>
 
-      <table className="table">
+      <table className="table" aria-label="Promo list">
+        <thead>
+          <tr>
+            <th>Titolo</th>
+            <th className="score">Tipo</th>
+            <th className="score">Attiva</th>
+            <th></th>
+          </tr>
+        </thead>
         <tbody>
           {promos.map((p) => (
             <tr key={p.id}>
-              <td>{p.title}</td>
-              <td>{p.is_active ? "Attiva" : "No"}</td>
-              <td style={{ display: "flex", gap: 8 }}>
+              <td>
+                <b>{p.title}</b>
+                <div className="muted">{p.description ?? "—"}</div>
+              </td>
+              <td className="score">{p.promo_type ?? "—"}</td>
+              <td className="score">{p.is_active ? "si" : "no"}</td>
+              <td style={{ whiteSpace: "nowrap" }}>
                 <form action={setActivePromoAction.bind(null, venueId, p.id)}>
-                  <button className="btn" type="submit">Attiva</button>
-                </form>
-
-                <form action={deletePromoAction.bind(null, venueId, p.id)}>
-                  <button className="btn" type="submit">Elimina</button>
+                  <button className="btn" type="submit" disabled={p.is_active}>
+                    {p.is_active ? "Attiva" : "Rendi attiva"}
+                  </button>
                 </form>
               </td>
             </tr>
           ))}
+
+          {promos.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="muted">Nessuna promo ancora.</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
-
-      <div style={{ marginTop: 20 }}>
-        <Link className="btn" href="/admin">← Torna Admin</Link>
-      </div>
-
     </div>
   );
 }

@@ -45,7 +45,10 @@ export default async function AdminDashboard() {
 
   const extra = await Promise.all(
     venues.map(async (v) => {
-      const [kpis, promoTitle] = await Promise.all([getKpis(v.id), getActivePromoTitle(v.id)]);
+      const [kpis, promoTitle] = await Promise.all([
+        getKpis(v.id),
+        getActivePromoTitle(v.id),
+      ]);
       return { venueId: v.id, kpis, promoTitle };
     })
   );
@@ -115,26 +118,48 @@ export default async function AdminDashboard() {
                   <span className="muted">({v.ratings_count})</span>
                 </td>
 
-                <td className="score">{Number(v.visits_count ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">
+                  {Number(v.visits_count ?? 0).toLocaleString("it-IT")}
+                </td>
 
-                <td className="score">{Number(ex?.kpis.scans_today ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">
+                  {Number(ex?.kpis.scans_today ?? 0).toLocaleString("it-IT")}
+                </td>
 
-                <td className="score">{Number(ex?.kpis.votes_today ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">
+                  {Number(ex?.kpis.votes_today ?? 0).toLocaleString("it-IT")}
+                </td>
 
-                <td className="score">{Number(ex?.kpis.scans_live_10m ?? 0).toLocaleString("it-IT")}</td>
+                <td className="score">
+                  {Number(ex?.kpis.scans_live_10m ?? 0).toLocaleString("it-IT")}
+                </td>
 
                 <td>{ex?.promoTitle ?? <span className="muted">—</span>}</td>
 
-                {/* ✅ AZIONI */}
                 <td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
                   <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                    
                     <Link className="btn" href={`/admin/venues/${v.id}`}>
                       Gestisci
                     </Link>
 
+                    {v.slug ? (
+                      <a
+                        className="btn"
+                        href={`/v/${v.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Apri
+                      </a>
+                    ) : (
+                      <span className="muted">no slug</span>
+                    )}
+
                     <form action={deleteVenueAction.bind(null, v.id)}>
                       <DeleteVenueButton venueName={v.name} />
                     </form>
+
                   </div>
                 </td>
               </tr>

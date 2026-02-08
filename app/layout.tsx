@@ -14,7 +14,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="brand">SocialCraft</div>
             <nav className="nav">
               <a href="/">Leaderboard</a>
-              <a href="/leaderboard/users">Users</a>
               <a href="/login">Login</a>
               <a href="/admin">Admin</a>
               <a href="/venue">Venue</a>

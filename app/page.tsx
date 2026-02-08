@@ -1,55 +1,126 @@
-import { getVenueLeaderboard } from "@/lib/leaderboards";
+import Link from "next/link";
+import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
 
-export default async function Home() {
-  const rows = await getVenueLeaderboard(100);
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+type LBRow = {
+  id: string;
+  name: string | null;
+  score: number | null;
+  meta?: string | null;
+};
+
+export default async function HomePage() {
+  const supabase = await createSupabaseServerClientReadOnly();
+
+  const [{ data: venues, error: vErr }, { data: users, error: uErr }] = await Promise.all([
+    supabase
+      .from("leaderboard_venues")
+      .select("id,name,score,meta")
+      .order("score", { ascending: false })
+      .limit(200),
+    supabase
+      .from("leaderboard_users")
+      .select("id,name,score,meta")
+      .order("score", { ascending: false })
+      .limit(200),
+  ]);
 
   return (
-    <div>
-      <h1 className="h1">Leaderboard Venue</h1>
-      <p className="muted">Classifica basata su rating (media 1–5) + numero voti + visite (scan reali).</p>
+    <div className="card">
+      <div className="cardHead">
+        <div>
+          <h1 className="h1" style={{ marginBottom: 6 }}>
+            Leaderboard
+          </h1>
+          <p className="muted" style={{ margin: 0 }}>
+            Venues + Users
+          </p>
+        </div>
+      </div>
 
-      <div className="card">
-        <div className="cardHead">
-          <h2 className="h2">Top venue</h2>
-          <span className="badge">
-            <span className="dot" /> rating
-          </span>
+      {/* VENUES */}
+      <section style={{ marginTop: 12 }}>
+        <div className="notice" style={{ marginBottom: 12 }}>
+          <b>Venues</b>
         </div>
 
-        <table className="table" aria-label="Leaderboard venue">
-          <thead>
-            <tr>
-              <th className="rank">#</th>
-              <th>Venue</th>
-              <th>Città</th>
-              <th className="score">Rating</th>
-              <th className="score">Visite</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.id}>
-                <td className="rank">{i + 1}</td>
-                <td>
-                  {r.name} {i === 0 ? <span className="badge top">🥇 Top</span> : null}
-                  <div className="muted">Il voto è possibile solo via QR in sede.</div>
-                </td>
-                <td className="muted">{r.city ?? "—"}</td>
-                <td className="score">
-                  {Number(r.avg_rating).toFixed(2)} <span className="muted">({r.ratings_count})</span>
-                </td>
-                <td className="score">{Number(r.visits_count ?? 0).toLocaleString("it-IT")}</td>
+        {vErr ? (
+          <div className="notice">Errore venues: {vErr.message}</div>
+        ) : (
+          <table className="table" aria-label="Leaderboard venues">
+            <thead>
+              <tr>
+                <th className="rank">#</th>
+                <th>Nome</th>
+                <th className="score">Score</th>
+                <th style={{ textAlign: "right" }}>Apri</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(venues ?? []).map((v: LBRow, i: number) => {
+                const slugMatch = String(v.meta ?? "").match(/slug=([a-z0-9-]+)/i);
+                const slug = slugMatch?.[1] ?? null;
 
-        {rows.length === 0 ? (
-          <div className="notice" style={{ marginTop: 12 }}>
-            Nessuna venue trovata. Crea almeno una venue in tabella <b>venues</b>.
-          </div>
-        ) : null}
-      </div>
+                return (
+                  <tr key={v.id}>
+                    <td className="rank">{i + 1}</td>
+                    <td>
+                      <b>{v.name ?? "—"}</b>
+                      <div className="muted">ID: {v.id}</div>
+                      {slug ? <div className="muted">slug: {slug}</div> : null}
+                    </td>
+                    <td className="score">{Number(v.score ?? 0).toLocaleString("it-IT")}</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                      {slug ? (
+                        <Link className="btn" href={`/v/${slug}`} target="_blank">
+                          Apri
+                        </Link>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* USERS */}
+      <section id="users" style={{ marginTop: 18 }}>
+        <div className="notice" style={{ marginBottom: 12 }}>
+          <b>Users</b>
+        </div>
+
+        {uErr ? (
+          <div className="notice">Errore users: {uErr.message}</div>
+        ) : (
+          <table className="table" aria-label="Leaderboard users">
+            <thead>
+              <tr>
+                <th className="rank">#</th>
+                <th>Utente</th>
+                <th className="score">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(users ?? []).map((u: LBRow, i: number) => (
+                <tr key={u.id}>
+                  <td className="rank">{i + 1}</td>
+                  <td>
+                    <b>{u.name ?? "utente"}</b>
+                    <div className="muted">ID: {u.id}</div>
+                  </td>
+                  <td className="score">{Number(u.score ?? 0).toLocaleString("it-IT")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }
