@@ -11,7 +11,24 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  function validate(): string | null {
+    const f = first.trim();
+    const l = last.trim();
+    const e = email.trim();
+    if (!f) return "Inserisci il nome.";
+    if (!l) return "Inserisci il cognome.";
+    if (!e) return "Inserisci l’email.";
+    if (!pass || pass.length < 6) return "Password troppo corta (min 6).";
+    return null;
+    }
+
   async function submit() {
+    const v = validate();
+    if (v) {
+      setMsg(`Errore: ${v}`);
+      return;
+    }
+
     setLoading(true);
     setMsg(null);
 
@@ -56,26 +73,62 @@ export default function SignupPage() {
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        <input className="input" placeholder="Nome" value={first} onChange={(e) => setFirst(e.target.value)} />
-        <input className="input" placeholder="Cognome" value={last} onChange={(e) => setLast(e.target.value)} />
-        <input className="input" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      {/* ✅ FORM = più affidabile su iOS/Android */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!loading) submit();
+        }}
+        style={{ display: "grid", gap: 10, marginTop: 12 }}
+      >
+        <input
+          className="input"
+          placeholder="Nome"
+          value={first}
+          onChange={(e) => setFirst(e.target.value)}
+          autoComplete="given-name"
+        />
+
+        <input
+          className="input"
+          placeholder="Cognome"
+          value={last}
+          onChange={(e) => setLast(e.target.value)}
+          autoComplete="family-name"
+        />
+
+        <input
+          className="input"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          inputMode="email"
+          autoComplete="email"
+        />
+
         <input
           className="input"
           placeholder="Password (min 6)"
           type="password"
           value={pass}
           onChange={(e) => setPass(e.target.value)}
+          autoComplete="new-password"
         />
 
-        <button className="btn primary" onClick={submit} disabled={loading}>
+        {/* ✅ submit vero (mobile friendly) */}
+        <button className="btn primary" type="submit" disabled={loading}>
           {loading ? "Creazione..." : "Crea account"}
         </button>
 
-        <div className="muted">
-          Hai già un account? <Link href="/login"><b>Accedi</b></Link>
+        <div className="muted" style={{ textAlign: "center" }}>
+          Hai già un account?{" "}
+          <Link href="/login">
+            <b>Accedi</b>
+          </Link>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
