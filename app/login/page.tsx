@@ -10,11 +10,8 @@ export default function ExplorerLoginPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   async function submit() {
-    if (loading) return;
-
     setLoading(true);
     setMsg(null);
-
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -31,8 +28,7 @@ export default function ExplorerLoginPage() {
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || "login_failed");
 
-      // hard nav per essere sicuri che i cookie vengano letti subito
-      window.location.assign("/me");
+      window.location.href = "/me";
     } catch (e: any) {
       setMsg(`Errore: ${e?.message || "unknown"}`);
     } finally {
@@ -51,14 +47,7 @@ export default function ExplorerLoginPage() {
         </div>
       ) : null}
 
-      {/* ✅ FORM vero: niente comportamenti strani su mobile */}
-      <form
-        style={{ display: "grid", gap: 10, marginTop: 12 }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
+      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <input
           className="input"
           placeholder="Email"
@@ -67,33 +56,30 @@ export default function ExplorerLoginPage() {
           autoCapitalize="none"
           autoCorrect="off"
           inputMode="email"
-          name="email"
         />
+
         <input
           className="input"
           placeholder="Password"
           type="password"
           value={pass}
           onChange={(e) => setPass(e.target.value)}
-          name="password"
         />
 
-        <button className="btn primary" type="submit" disabled={loading}>
+        {/* ✅ Metti type="button" per evitare submit fantasma */}
+        <button className="btn primary" type="button" onClick={submit} disabled={loading}>
           {loading ? "Accesso..." : "Accedi"}
         </button>
 
-        {/* ✅ SUPER bulletproof su mobile: link HTML (non JS) */}
+        {/* ✅ BULLETPROOF MOBILE: link vero */}
         <a className="btn" href="/signup" aria-disabled={loading ? "true" : "false"}>
           Crea profilo →
         </a>
 
         <div className="muted" style={{ textAlign: "center" }}>
-          Oppure{" "}
-          <Link href="/">
-            <b>torna alla leaderboard</b>
-          </Link>
+          Oppure <Link href="/"><b>torna alla leaderboard</b></Link>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
