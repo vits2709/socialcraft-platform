@@ -1,50 +1,56 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const PUBLIC_PATHS = [
+  "/",        // home
+  "/login",   // login esploratori
+  "/signup",  // signup esploratori  ✅ FIX
+  "/logout",  // logout (se esiste)
+];
+
+// roba che deve sempre passare (assets + api auth)
+function isAlwaysAllowed(pathname: string) {
+  if (PUBLIC_PATHS.includes(pathname)) return true;
+
+  // next internals / static
+  if (pathname.startsWith("/_next/")) return true;
+  if (pathname.startsWith("/favicon")) return true;
+  if (pathname.startsWith("/robots.txt")) return true;
+  if (pathname.startsWith("/sitemap")) return true;
+
+  // api auth (signup/login/logout)
+  if (pathname.startsWith("/api/auth/")) return true;
+
+  return false;
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ✅ NON bloccare MAI le API: devono rispondere JSON, non HTML.
-  if (pathname.startsWith("/api/")) {
+  // ✅ lascia passare tutto ciò che è pubblico
+  if (isAlwaysAllowed(pathname)) {
     return NextResponse.next();
   }
 
-  // ✅ lascia passare asset e file Next
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon.ico") ||
-    pathname.startsWith("/robots.txt") ||
-    pathname.startsWith("/sitemap.xml")
-  ) {
-    return NextResponse.next();
+  // Cookie esploratore (sc_uid)
+  const scUid = req.cookies.get("sc_uid")?.value?.trim();
+
+  // ✅ Proteggi SOLO le pagine explorer che richiedono profilo
+  if (pathname.startsWith("/me") || pathname.startsWith("/u")) {
+    if (!scUid) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
   }
 
-  // Se hai pagine pubbliche (leaderboard, venue pubblica ecc) NON bloccarle
-  // Adatta questa whitelist al tuo progetto
-  const publicPaths = ["/", "/login"];
-  const isPublic =
-    publicPaths.includes(pathname) ||
-    pathname.startsWith("/v/"); // pagina venue pubblica
-
-  if (isPublic) return NextResponse.next();
-
-  // 🔐 Protezione base per pagine private
-  const scUid = req.cookies.get("sc_uid")?.value;
-  if (!scUid) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+  // Admin/Spot: qui NON tocchiamo niente.
+  // Le tue pagine server-side già fanno redirect("/login") se non c’è sessione admin/spot.
+  // Quindi il middleware non deve bloccarle per forza.
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    /*
-      Matcha tutte le route tranne asset statici.
-      Nota: /api/* lo lasciamo passare sopra.
-    */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next|favicon.ico).*)"],
 };
