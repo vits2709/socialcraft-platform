@@ -82,7 +82,12 @@ export default function ExplorerLoginPage() {
         </button>
 
         {/* ✅ CTA signup: router.push + fallback */}
-        <button type="button" className="btn" onClick={goSignup} disabled={loading}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => window.location.assign("/signup")}
+          disabled={loading}
+        >
           Crea profilo →
         </button>
 
