@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function SignupPage() {
   const [first, setFirst] = useState("");
@@ -30,13 +30,13 @@ export default function SignupPage() {
       const ct = res.headers.get("content-type") || "";
       if (!ct.includes("application/json")) {
         const txt = await res.text();
-        throw new Error(`Risposta non JSON (${res.status}): ${txt.slice(0, 80)}`);
+        throw new Error(`Risposta non JSON (status ${res.status}): ${txt.slice(0, 120)}`);
       }
 
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || "signup_failed");
 
-      setMsg(`Account creato ✅ Login code: ${j.login_code}`);
+      setMsg(`Account creato ✅ Login code: ${j.login_code ?? "—"}`);
       window.location.href = "/me";
     } catch (e: any) {
       setMsg(`Errore: ${e?.message || "unknown"}`);
@@ -68,7 +68,7 @@ export default function SignupPage() {
           onChange={(e) => setPass(e.target.value)}
         />
 
-        <button className="btn primary" type="button" onClick={submit} disabled={loading}>
+        <button className="btn primary" onClick={submit} disabled={loading}>
           {loading ? "Creazione..." : "Crea account"}
         </button>
 
