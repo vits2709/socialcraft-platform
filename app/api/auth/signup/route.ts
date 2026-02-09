@@ -1,83 +1,124 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 
-function normLetters(s: string) {
-  return (s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
+function norm(s: any) {
+  return String(s ?? "").trim();
 }
 
-async function generateLoginCode(supabase: ReturnType<typeof createSupabaseAdminClient>, firstName: string, lastName: string) {
-  const fn = normLetters(firstName);
-  const ln = normLetters(lastName);
+function isEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
 
-  // base: 2 iniziali nome + 4 lettere cognome (o quello che c'è)
-  const base = `${fn.slice(0, 2) || "x"}${ln.slice(0, 4) || "user"}`;
-  let candidate = base;
+// Password hashing (senza dipendenze)
+function hashPassword(password: string) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `scrypt$${salt}$${hash}`;
+}
 
-  for (let i = 0; i < 200; i++) {
-    const { data, error } = await supabase
-      .from("sc_users")
-      .select("id")
-      .eq("login_code", candidate)
-      .limit(1);
-
-    if (error) throw new Error(`login_code_check_failed:${error.message}`);
-    if (!data || data.length === 0) return candidate;
-
-    // prova varianti con numero
-    candidate = `${base}${i + 1}`;
-  }
-
-  // fallback raro
-  return `${base}${Math.floor(Math.random() * 9000) + 1000}`;
+// login_code: es. viSTRA12 (iniziali + pezzo cognome + numero se serve)
+function baseLoginCode(first: string, last: string) {
+  const f = first.toLowerCase().replace(/[^a-z]/g, "");
+  const l = last.toLowerCase().replace(/[^a-z]/g, "");
+  const initials = (f[0] ?? "u") + (l[0] ?? "x");
+  const chunk = (l.slice(0, 5) || "user").padEnd(3, "x");
+  return (initials + chunk).toUpperCase(); // es: VSSTRA
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({} as any));
-    const firstName = String(body?.first_name ?? "").trim();
-    const lastName = String(body?.last_name ?? "").trim();
-    const email = String(body?.email ?? "").trim();
-    const password = String(body?.password ?? "").trim();
 
-    if (!firstName || !lastName) return NextResponse.json({ ok: false, error: "missing_name" }, { status: 400 });
+    const first = norm(body.first_name);
+    const last = norm(body.last_name);
+    const email = norm(body.email).toLowerCase();
+    const password = String(body.password ?? "");
+
+    if (!first) return NextResponse.json({ ok: false, error: "missing_first_name" }, { status: 400 });
+    if (!last) return NextResponse.json({ ok: false, error: "missing_last_name" }, { status: 400 });
     if (!email) return NextResponse.json({ ok: false, error: "missing_email" }, { status: 400 });
-    if (!password || password.length < 6) return NextResponse.json({ ok: false, error: "weak_password" }, { status: 400 });
+    if (!isEmail(email)) return NextResponse.json({ ok: false, error: "invalid_email" }, { status: 400 });
+    if (!password || password.length < 6)
+      return NextResponse.json({ ok: false, error: "weak_password" }, { status: 400 });
 
     const supabase = createSupabaseAdminClient();
 
-    const loginCode = await generateLoginCode(supabase, firstName, lastName);
+    // 1) evita duplicati email
+    const { data: existing, error: exErr } = await supabase
+      .from("sc_users")
+      .select("id,email")
+      .eq("email", email)
+      .maybeSingle();
 
-    // crea utente via RPC (hash password nel DB)
-    const { data: userId, error } = await supabase.rpc("sc_signup", {
-      p_name: `${firstName} ${lastName}`,
-      p_email: email,
-      p_password: password,
-      p_login_code: loginCode,
-    });
+    if (exErr) return NextResponse.json({ ok: false, error: `check_email_failed:${exErr.message}` }, { status: 500 });
+    if (existing) return NextResponse.json({ ok: false, error: "email_already_used" }, { status: 409 });
 
-    if (error) {
-      const msg = error.message || "signup_failed";
-      return NextResponse.json({ ok: false, error: msg }, { status: 400 });
+    // 2) genera login_code unico (prova fino a 20 varianti)
+    const base = baseLoginCode(first, last);
+    let login_code = base;
+    let attempt = 0;
+
+    while (attempt < 20) {
+      const { data: lcExists, error: lcErr } = await supabase
+        .from("sc_users")
+        .select("id,login_code")
+        .eq("login_code", login_code)
+        .maybeSingle();
+
+      if (lcErr) return NextResponse.json({ ok: false, error: `check_login_code_failed:${lcErr.message}` }, { status: 500 });
+
+      if (!lcExists) break;
+
+      attempt += 1;
+      // aggiunge numero: VSSTRA2, VSSTRA3...
+      login_code = `${base}${attempt + 1}`;
     }
 
-    // set cookie sc_uid = id utente
-    const cookieStore = await cookies();
-    cookieStore.set("sc_uid", String(userId), {
-      path: "/",
+    if (attempt >= 20) {
+      return NextResponse.json({ ok: false, error: "login_code_generation_failed" }, { status: 500 });
+    }
+
+    const password_hash = hashPassword(password);
+
+    // 3) crea utente
+    // NB: metti i nomi colonne ESATTI della tua sc_users:
+    // dalla tua tabella vedo: id, first_name, last_name, email, password_hash, login_code, name?, nickname_locked?, created_at...
+    const { data: created, error: insErr } = await supabase
+      .from("sc_users")
+      .insert({
+        first_name: first,
+        last_name: last,
+        email,
+        password_hash,
+        login_code,
+        // name: null, // se esiste la colonna "name" e vuoi che parta vuota
+        // nickname_locked: false, // se esiste
+      })
+      .select("id,login_code")
+      .maybeSingle();
+
+    if (insErr) {
+      return NextResponse.json({ ok: false, error: `insert_failed:${insErr.message}` }, { status: 500 });
+    }
+    if (!created?.id) {
+      return NextResponse.json({ ok: false, error: "insert_failed_no_id" }, { status: 500 });
+    }
+
+    // 4) set cookie sc_uid (serve a tutta la tua piattaforma)
+    const res = NextResponse.json({ ok: true, user_id: created.id, login_code: created.login_code });
+
+    res.cookies.set("sc_uid", String(created.id), {
       httpOnly: true,
       sameSite: "lax",
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
       maxAge: 60 * 60 * 24 * 365, // 1 anno
     });
 
-    return NextResponse.json({ ok: true, user_id: userId, login_code: loginCode });
+    return res;
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown_error" }, { status: 500 });
   }
