@@ -8,6 +8,16 @@ function toInt(n: any) {
   const x = Number(n ?? 0);
   return Number.isFinite(x) ? x : 0;
 }
+function toNum(n: any) {
+  const x = Number(n);
+  return Number.isFinite(x) ? x : NaN;
+}
+function fmtRating(avg: any) {
+  const n = toNum(avg);
+  if (!Number.isFinite(n)) return null;
+  // 1 decimale (4.2)
+  return Math.round(n * 10) / 10;
+}
 
 type Level = {
   label: string;
@@ -69,7 +79,6 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
           </p>
         </div>
 
-        {/* Tabs only show nicely on mobile but kept for all */}
         <div className="tabs">
           <button
             className={`tab ${tab === "spots" ? "active" : ""}`}
@@ -89,7 +98,7 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
       </div>
 
       <div className="leaderGrid">
-        {/* SPOTS COLUMN */}
+        {/* SPOTS */}
         <section className={`leaderCol ${tab !== "spots" ? "mobileHidden" : ""}`}>
           <div className="colTitle">📍 Spot</div>
           <div className="colList">
@@ -102,14 +111,27 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
               const slugMatch = String(v.meta ?? "").match(/slug=([a-z0-9-]+)/i);
               const slug = slugMatch?.[1] ?? null;
 
+              // ✅ Rating
+              const avg = fmtRating(v.avg_rating);
+              const cnt = toInt(v.ratings_count);
+
               return (
                 <div className="rowCard" key={v.id}>
                   <div className="rowTop">
                     <div className="rankBox">{i + 1}</div>
+
                     <div className="rowMain">
                       <div className="rowName">{v.name ?? "Spot"}</div>
                       <div className="rowMeta">
                         {lvl.emoji} {lvl.label} • <b>{score}</b> pt
+                        {/* ✅ rating in meta (senza rivelare chi ha votato) */}
+                        {avg != null ? (
+                          <span>
+                            {" "}
+                            • ⭐ <b>{avg}</b>
+                            {cnt > 0 ? <span className="muted"> ({cnt})</span> : null}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 
@@ -136,7 +158,7 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
           </div>
         </section>
 
-        {/* EXPLORERS COLUMN */}
+        {/* EXPLORERS */}
         <section className={`leaderCol ${tab !== "explorers" ? "mobileHidden" : ""}`}>
           <div className="colTitle">🧑‍🚀 Esploratori</div>
           <div className="colList">

@@ -11,23 +11,64 @@ export type LBRow = {
   name: string | null;
   score: number | null;
   meta?: string | null;
+
+  // ✅ rating spot (aggiunto via view, non da leaderboard_venues)
+  avg_rating?: number | null;
+  ratings_count?: number | null;
+};
+
+type SpotRatingRow = {
+  venue_id: string;
+  avg_rating: number | null;
+  ratings_count: number | null;
 };
 
 export default async function HomePage() {
   const supabase = await createSupabaseServerClientReadOnly();
 
-  const [{ data: spots, error: sErr }, { data: explorers, error: eErr }] = await Promise.all([
+  // ✅ NON selezioniamo avg_rating da leaderboard_venues (non esiste)
+  const [{ data: spotsRaw, error: sErr }, { data: explorers, error: eErr }] = await Promise.all([
     supabase
       .from("leaderboard_venues")
       .select("id,name,score,meta")
       .order("score", { ascending: false })
       .limit(200),
+
     supabase
       .from("leaderboard_users")
       .select("id,name,score,meta")
       .order("score", { ascending: false })
       .limit(200),
   ]);
+
+  // ✅ Merge rating da view
+  let spots: LBRow[] = (spotsRaw ?? []) as LBRow[];
+
+  try {
+    const ids = spots.map((s) => s.id).filter(Boolean);
+    if (ids.length > 0) {
+      const { data: ratings, error: rErr } = await supabase
+        .from("v_spot_ratings")
+        .select("venue_id,avg_rating,ratings_count")
+        .in("venue_id", ids);
+
+      if (!rErr && Array.isArray(ratings)) {
+        const map = new Map<string, SpotRatingRow>();
+        (ratings as SpotRatingRow[]).forEach((r) => map.set(r.venue_id, r));
+
+        spots = spots.map((s) => {
+          const r = map.get(s.id);
+          return {
+            ...s,
+            avg_rating: r?.avg_rating ?? null,
+            ratings_count: r?.ratings_count ?? null,
+          };
+        });
+      }
+    }
+  } catch {
+    // se la view non esiste o altro, ignoriamo: la leaderboard resta funzionante senza rating
+  }
 
   return (
     <div className="page">
@@ -41,7 +82,6 @@ export default async function HomePage() {
             </p>
           </div>
 
-          {/* ✅ CTA: aggiunto Scanner (senza rompere animazioni/leaderboard) */}
           <div className="heroCtas">
             <HomeScannerCTA />
 
@@ -90,8 +130,8 @@ export default async function HomePage() {
         )}
       </div>
 
-      {/* LEADERBOARDS (tabs mobile + 2col desktop) */}
-      <HomeLeaderboards spots={(spots ?? []) as LBRow[]} explorers={(explorers ?? []) as LBRow[]} />
+      {/* LEADERBOARDS */}
+      <HomeLeaderboards spots={spots} explorers={(explorers ?? []) as LBRow[]} />
 
       {/* FOOT NOTES */}
       <div className="card soft" style={{ marginTop: 14 }}>
