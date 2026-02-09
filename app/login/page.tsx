@@ -39,28 +39,50 @@ export default function ExplorerLoginPage() {
     }
   }
 
+  function goSignup() {
+    try {
+      router.push("/signup");
+    } catch {
+      // fallback bulletproof
+      window.location.href = "/signup";
+    }
+  }
+
   return (
     <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
       <h1 className="h1">Accedi (Esploratori)</h1>
       <p className="muted">Se ti esce “missing sc_uid cookie”, qui lo sistemi.</p>
 
-      {msg ? <div className="notice" style={{ marginTop: 12 }}>{msg}</div> : null}
+      {msg ? (
+        <div className="notice" style={{ marginTop: 12 }}>
+          {msg}
+        </div>
+      ) : null}
 
       <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        <input className="input" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input className="input" placeholder="Password" type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
+        <input
+          className="input"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          inputMode="email"
+        />
+        <input
+          className="input"
+          placeholder="Password"
+          type="password"
+          value={pass}
+          onChange={(e) => setPass(e.target.value)}
+        />
 
         <button className="btn primary" onClick={submit} disabled={loading}>
           {loading ? "Accesso..." : "Accedi"}
         </button>
 
-        {/* ✅ CTA signup: NON Link (router.push è bulletproof su mobile) */}
-        <button
-          type="button"
-          className="btn"
-          onClick={() => router.push("/signup")}
-          disabled={loading}
-        >
+        {/* ✅ CTA signup: router.push + fallback */}
+        <button type="button" className="btn" onClick={goSignup} disabled={loading}>
           Crea profilo →
         </button>
 
