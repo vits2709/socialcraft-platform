@@ -56,7 +56,7 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -0.3px;
 }
 
-.nav { display: flex; gap: 10px; flex-wrap: wrap; }
+.nav { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .nav a {
   padding: 8px 10px;
   border-radius: 12px;
@@ -108,6 +108,21 @@ a { color: inherit; text-decoration: none; }
 }
 .btn.mini { padding: 8px 10px; border-radius: 12px; }
 
+/* Inputs */
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.7);
+  outline: none;
+  transition: background 180ms var(--easeOut), border-color 180ms var(--easeOut);
+}
+.input:focus {
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(99,102,241,0.22);
+}
+
 /* Cards */
 .card {
   border: 1px solid var(--border);
@@ -144,7 +159,7 @@ a { color: inherit; text-decoration: none; }
 }
 .heroTitle { margin: 0; font-size: 34px; letter-spacing: -0.8px; }
 .heroSubtitle { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
-.heroCtas { display: flex; gap: 10px; }
+.heroCtas { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .howGrid {
   margin-top: 14px;
@@ -188,7 +203,7 @@ a { color: inherit; text-decoration: none; }
 }
 .sectionTitle { margin: 0; font-size: 20px; letter-spacing: -0.2px; }
 
-.tabs { display: flex; gap: 8px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .tab {
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.7);
@@ -342,6 +357,64 @@ a { color: inherit; text-decoration: none; }
 .softTitle { font-weight: 900; }
 .softText { color: var(--muted); font-size: 13px; margin-top: 2px; }
 
+/* =====
+   UTILITIES (used by profile & flows)
+   ===== */
+.stack {
+  display: grid;
+  gap: 10px;
+}
+.stackRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.70);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(99,102,241,0.9), rgba(236,72,153,0.9));
+}
+
+/* Badges row: desktop grid, mobile horizontal scroll */
+.badgesRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Collapsible (for "Attività recente") */
+.collapse {
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.65);
+}
+.collapse summary {
+  cursor: pointer;
+  font-weight: 900;
+  list-style: none;
+}
+.collapse summary::-webkit-details-marker { display: none; }
+.collapseBody { margin-top: 10px; }
+
 /* Animations */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -379,4 +452,80 @@ a { color: inherit; text-decoration: none; }
   .howGrid { grid-template-columns: 1fr; }
   .leaderGrid { grid-template-columns: 1fr; }
   .mobileHidden { display: none; }
+}
+
+/* =========
+   MOBILE BOOST (<= 640px)
+   ========= */
+@media (max-width: 640px) {
+  .container { padding: 12px; }
+
+  /* Header/nav: compatta e leggibile */
+  .header {
+    top: 8px;
+    padding: 10px 10px;
+    border-radius: 18px;
+  }
+  .brand {
+    font-size: 16px;
+    letter-spacing: -0.2px;
+  }
+  .nav {
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .nav a {
+    padding: 8px 10px;
+    font-size: 14px;
+    border-radius: 14px;
+  }
+
+  /* Hero */
+  .heroTitle { font-size: 26px; }
+  .heroSubtitle { font-size: 14px; }
+  .heroCtas { width: 100%; }
+  .heroCtas .btn { flex: 1; }
+
+  /* Buttons bigger on touch */
+  .btn {
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  /* Leaderboard: cards già vanno in 1 col (regola <=900), ma stringiamo spacing */
+  .leaderCol { padding: 10px; }
+  .rowCard { padding: 12px; }
+
+  /* Tabs wrap better */
+  .tabs { gap: 8px; }
+  .tab { padding: 10px 12px; }
+
+  /* Badges become horizontal swipe */
+  .badgesRow {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .badgesRow > * {
+    min-width: 240px;
+    scroll-snap-align: start;
+  }
+
+  /* Actions stack (used by VisitFlow etc.) */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .actions .btn { width: 100%; }
+
+  /* Notice spacing a bit more breathable */
+  .notice { padding: 14px; }
+
+  /* Collapse: bigger tap target */
+  .collapse { padding: 12px 12px; }
+  .collapse summary { padding: 4px 0; }
 }
