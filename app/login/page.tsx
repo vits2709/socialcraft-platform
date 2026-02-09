@@ -2,19 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function ExplorerLoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function submit() {
+    if (loading) return;
+
     setLoading(true);
     setMsg(null);
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -31,20 +31,12 @@ export default function ExplorerLoginPage() {
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || "login_failed");
 
-      window.location.href = "/me";
+      // hard nav per essere sicuri che i cookie vengano letti subito
+      window.location.assign("/me");
     } catch (e: any) {
       setMsg(`Errore: ${e?.message || "unknown"}`);
     } finally {
       setLoading(false);
-    }
-  }
-
-  function goSignup() {
-    try {
-      router.push("/signup");
-    } catch {
-      // fallback bulletproof
-      window.location.href = "/signup";
     }
   }
 
@@ -59,7 +51,14 @@ export default function ExplorerLoginPage() {
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+      {/* ✅ FORM vero: niente comportamenti strani su mobile */}
+      <form
+        style={{ display: "grid", gap: 10, marginTop: 12 }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
         <input
           className="input"
           placeholder="Email"
@@ -68,6 +67,7 @@ export default function ExplorerLoginPage() {
           autoCapitalize="none"
           autoCorrect="off"
           inputMode="email"
+          name="email"
         />
         <input
           className="input"
@@ -75,26 +75,25 @@ export default function ExplorerLoginPage() {
           type="password"
           value={pass}
           onChange={(e) => setPass(e.target.value)}
+          name="password"
         />
 
-        <button className="btn primary" onClick={submit} disabled={loading}>
+        <button className="btn primary" type="submit" disabled={loading}>
           {loading ? "Accesso..." : "Accedi"}
         </button>
 
-        {/* ✅ CTA signup: router.push + fallback */}
-        <button
-          type="button"
-          className="btn"
-          onClick={() => window.location.assign("/signup")}
-          disabled={loading}
-        >
+        {/* ✅ SUPER bulletproof su mobile: link HTML (non JS) */}
+        <a className="btn" href="/signup" aria-disabled={loading ? "true" : "false"}>
           Crea profilo →
-        </button>
+        </a>
 
         <div className="muted" style={{ textAlign: "center" }}>
-          Oppure <Link href="/"><b>torna alla leaderboard</b></Link>
+          Oppure{" "}
+          <Link href="/">
+            <b>torna alla leaderboard</b>
+          </Link>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
