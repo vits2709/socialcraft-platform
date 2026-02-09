@@ -4,43 +4,56 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-type ScanBody = {
-  venue_id?: string;
-  slug?: string;
-};
+function isUuid(v: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
 
-function jsonError(error: string, status = 400) {
-  return NextResponse.json({ ok: false, error }, { status });
+function normalizeName(n: string | null | undefined) {
+  return String(n ?? "").trim();
+}
+
+function isPlaceholderName(n: string) {
+  const s = n.trim().toLowerCase();
+  return !s || s === "guest" || s === "utente" || s === "user";
+}
+
+async function ensureScUser(supabase: ReturnType<typeof createSupabaseAdminClient>, userId: string) {
+  // NON sovrascrivere mai il nome se esiste già
+  const { data: existing, error: selErr } = await supabase
+    .from("sc_users")
+    .select("id,name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (selErr) throw new Error(`ensure_sc_user_failed: ${selErr.message}`);
+  if (existing?.id) return { id: String(existing.id), name: normalizeName(existing.name) || "Guest" };
+
+  const { data: created, error: insErr } = await supabase
+    .from("sc_users")
+    .insert({ id: userId, name: "Guest" })
+    .select("id,name")
+    .single();
+
+  if (insErr) throw new Error(`ensure_sc_user_failed: ${insErr.message}`);
+  return { id: String(created.id), name: normalizeName(created.name) || "Guest" };
 }
 
 export async function POST(req: Request) {
-  const supabase = createSupabaseAdminClient();
-
-  // 1) cookie sc_uid (utente anonimo)
   const cookieStore = await cookies();
-  let userId = cookieStore.get("sc_uid")?.value;
+  const userId = cookieStore.get("sc_uid")?.value;
 
-  // Se non esiste, creiamolo e settalo
-  let res: NextResponse | null = null;
   if (!userId) {
-    userId = crypto.randomUUID();
-    res = NextResponse.json({ ok: true, created_uid: true, user_id: userId });
-    res.cookies.set("sc_uid", userId, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: true,
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365, // 1 anno
-    });
+    return NextResponse.json({ ok: false, error: "missing_sc_uid_cookie" }, { status: 401 });
   }
 
-  // 2) body
-  const body = (await req.json().catch(() => ({}))) as ScanBody;
+  const body = (await req.json().catch(() => ({} as any))) as any;
   const venueIdRaw = String(body?.venue_id ?? "").trim();
   const slugRaw = String(body?.slug ?? "").trim();
 
-  // 3) risolvi venue_id (priorità: venue_id, altrimenti slug)
-  let venueId: string | null = venueIdRaw || null;
+  const supabase = createSupabaseAdminClient();
+
+  // 0) resolve venue_id (da slug o diretto)
+  let venueId = venueIdRaw;
 
   if (!venueId && slugRaw) {
     const { data: v, error: vErr } = await supabase
@@ -49,36 +62,57 @@ export async function POST(req: Request) {
       .eq("slug", slugRaw)
       .maybeSingle();
 
-    if (vErr) return jsonError(vErr.message, 500);
-    if (!v?.id) return jsonError("venue_not_found_for_slug", 404);
+    if (vErr) return NextResponse.json({ ok: false, error: `venue_lookup_failed: ${vErr.message}` }, { status: 500 });
+    if (!v?.id) return NextResponse.json({ ok: false, error: "missing_venue_id" }, { status: 400 });
     venueId = String(v.id);
   }
 
   if (!venueId) {
-    // Se avevamo già creato cookie response, rendiamola errore coerente
-    return NextResponse.json({ ok: false, error: "missing_venue_id_or_slug" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "missing_venue_id" }, { status: 400 });
   }
 
-  // 4) ensure sc_users (tabella anonimi)
-  // NB: deve esistere public.sc_users come da SQL sopra
-  {
-    const { error: ensureErr } = await supabase.from("sc_users").upsert(
-      { id: userId, name: "utente" },
-      { onConflict: "id" }
-    );
-
-    if (ensureErr) return jsonError(`ensure_sc_user_failed: ${ensureErr.message}`, 500);
+  if (!isUuid(venueId)) {
+    return NextResponse.json({ ok: false, error: "venue_id_not_uuid" }, { status: 400 });
   }
 
-  // 5) salva evento scan
+  // 1) ensure profilo (sc_users)
+  let scName = "Guest";
+  try {
+    const ensured = await ensureScUser(supabase, userId);
+    scName = ensured.name || "Guest";
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message || "ensure_sc_user_failed" }, { status: 500 });
+  }
+
+  // ✅ IMPORTANTISSIMO:
+  // Non passiamo un placeholder all'RPC, altrimenti sovrascrive il nickname in leaderboard_users.
+  const nameForLeaderboard: string | null = isPlaceholderName(scName) ? null : scName;
+
+  // 2) info venue (per RPC venue lunga non ambigua)
+  const { data: venueRow, error: vInfoErr } = await supabase
+    .from("venues")
+    .select("id,name,slug")
+    .eq("id", venueId)
+    .maybeSingle();
+
+  if (vInfoErr) {
+    return NextResponse.json({ ok: false, error: `venue_info_failed: ${vInfoErr.message}` }, { status: 500 });
+  }
+
+  const venueName = String(venueRow?.name ?? "Venue");
+  const venueSlug = String(venueRow?.slug ?? "");
+  const venueMeta = venueSlug ? `slug=${venueSlug}` : `venue_uuid=${venueId}`;
+
+  // 3) salva evento scan
   const { error: evErr } = await supabase.from("venue_events").insert({
     venue_id: venueId,
     user_id: userId,
     event_type: "scan",
   });
-  if (evErr) return jsonError(evErr.message, 500);
 
-  // 6) punti scan
+  if (evErr) return NextResponse.json({ ok: false, error: evErr.message }, { status: 500 });
+
+  // 4) punti base scan
   const points = 2;
 
   const { error: ueErr } = await supabase.from("user_events").insert({
@@ -87,42 +121,39 @@ export async function POST(req: Request) {
     event_type: "scan",
     points,
   });
-  if (ueErr) return jsonError(ueErr.message, 500);
 
-  // 7) leaderboard users (increment)
-  // Se non hai ancora la function increment_user_score(uuid,int), puoi creare la versione che usa leaderboard_users.id uuid.
-  try {
-    await supabase.rpc("increment_user_score", {
-      p_user_id: userId,
-      p_points: points,
-    });
-  } catch {
-    // non blocchiamo lo scan
+  if (ueErr) return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
+
+  // 5) Leaderboard users (chiamiamo sempre la variante lunga → NO ambiguità)
+  //    Ma con p_name = null NON sovrascrive il nome esistente.
+  const { error: uRpcErr } = await supabase.rpc("increment_user_score_text", {
+    p_user_id: String(userId),
+    p_points: points,
+    p_name: nameForLeaderboard, // ✅ null se Guest/utente
+  });
+
+  if (uRpcErr) {
+    return NextResponse.json({ ok: false, error: `increment_user_failed: ${uRpcErr.message}` }, { status: 500 });
   }
 
-  // 8) leaderboard venues (increment) - function che abbiamo creato sopra
-  try {
-    await supabase.rpc("increment_venue_score_uuid", {
-      p_venue_id: venueId,
-      p_points: points,
-    });
-  } catch (e) {
-    // se vuoi, puoi loggare server-side, ma non blocchiamo
+  // 6) Leaderboard venues (sempre variante lunga → NO ambiguità)
+  const { error: vRpcErr } = await supabase.rpc("increment_venue_score_uuid", {
+    p_venue_id: venueId,
+    p_points: points,
+    p_name: venueName,
+    p_meta: venueMeta,
+  });
+
+  if (vRpcErr) {
+    return NextResponse.json({ ok: false, error: `increment_venue_failed: ${vRpcErr.message}` }, { status: 500 });
   }
 
-  // 9) risposta finale (se avevamo già creato res per cookie, riusiamola)
-  if (res) {
-    // era una response "created_uid", ma vogliamo restituire anche esito scan
-    return NextResponse.json({
-      ok: true,
-      created_uid: true,
-      user_id: userId,
-      venue_id: venueId,
-      points,
-    }, {
-      headers: res.headers,
-    });
-  }
-
-  return NextResponse.json({ ok: true, user_id: userId, venue_id: venueId, points });
+  return NextResponse.json({
+    ok: true,
+    venue_id: venueId,
+    points,
+    sc_user_name: scName,
+    leaderboard_name_sent: nameForLeaderboard,
+    venue_name: venueName,
+  });
 }

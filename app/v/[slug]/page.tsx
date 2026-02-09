@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
-import ScanButton from "@/components/ScanButton";
+import VisitFlow from "@/components/VisitFlow";
+import RateSpotButton from "@/components/RateSpotButton";
 
 export const runtime = "nodejs";
 
@@ -25,10 +26,13 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
   if (error || !venue) {
     return (
       <div className="card">
-        <h1 className="h1">Venue</h1>
+        <h1 className="h1">Spot</h1>
         <div className="notice">Errore: not_found</div>
-        <div className="notice">Venue non trovata.</div>
-        <Link className="btn" href="/">← Leaderboard</Link>
+        <div className="notice">Spot non trovato.</div>
+
+        <Link className="btn" href="/" style={{ marginTop: 16 }}>
+          ← Leaderboard
+        </Link>
       </div>
     );
   }
@@ -38,13 +42,19 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
   return (
     <div className="card">
       <h1 className="h1">{v.name}</h1>
+
       <p className="muted" style={{ marginTop: 6 }}>
         {v.city ?? "—"} • slug: <b>{v.slug}</b>
       </p>
 
-      {/* Bottone scan */}
-      <div style={{ marginTop: 20 }}>
-        <ScanButton slug={v.slug!} />
+      {/* ✅ NUOVA LOGICA (scan → upload → voto) */}
+      <div style={{ marginTop: 18 }}>
+        <VisitFlow venueId={v.id} slug={v.slug!} />
+      </div>
+
+      {/* ⭐ Voto (facoltativo) */}
+      <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <RateSpotButton venueId={v.id} spotName={v.name} className="btn" />
       </div>
 
       <Link className="btn" href="/" style={{ marginTop: 16 }}>

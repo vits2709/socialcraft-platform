@@ -13,65 +13,100 @@ export default function ReceiptConfirm({ venueId }: Props) {
 
   async function upload() {
     if (!file) return;
+
     setStatus("uploading");
     setReason(null);
     setPoints(null);
 
-    const fd = new FormData();
-    fd.append("venue_id", venueId);
-    fd.append("file", file);
+    try {
+      const fd = new FormData();
+      fd.append("venue_id", venueId);
+      fd.append("file", file);
 
-    const res = await fetch("/api/receipt/upload", { method: "POST", body: fd });
-    const json = await res.json().catch(() => null);
+      const res = await fetch("/api/receipt/upload", { method: "POST", body: fd });
+      const json = await res.json().catch(() => null);
 
-    if (!res.ok || !json?.ok) {
+      if (!res.ok || !json?.ok) {
+        setStatus("idle");
+        setReason(json?.error || "upload_failed");
+        return;
+      }
+
+      // se già approvato oggi, chiudi il flusso
+      if (json.already_approved) {
+        setVerificationId(json.verification_id ?? null);
+        setStatus("approved");
+        setPoints(10);
+        return;
+      }
+
+      setVerificationId(json.verification_id);
+      setStatus("pending");
+    } catch (e: any) {
       setStatus("idle");
-      setReason(json?.error || "upload_failed");
-      return;
+      setReason(e?.message || "upload_failed");
     }
-
-    setVerificationId(json.verification_id);
-    setStatus("pending");
   }
 
-  // polling: quando pending, chiama process
+  function reset() {
+    setFile(null);
+    setVerificationId(null);
+    setStatus("idle");
+    setReason(null);
+    setPoints(null);
+  }
+
+  // polling process quando pending
   useEffect(() => {
     if (status !== "pending" || !verificationId) return;
 
     let alive = true;
 
     async function run() {
-      const res = await fetch(`/api/receipt/process?id=${verificationId}`, { method: "POST" });
-      const json = await res.json().catch(() => null);
+      try {
+        const res = await fetch(`/api/receipt/process?id=${verificationId}`, { method: "POST" });
+        const json = await res.json().catch(() => null);
 
-      if (!alive) return;
+        if (!alive) return;
 
-      if (!res.ok || !json?.ok) {
-        setReason(json?.error || "process_failed");
-        // resta pending ma mostra errore
-        return;
-      }
+        if (!res.ok || !json?.ok) {
+          setReason(json?.error || "process_failed");
+          // rimani pending ma NON restare appeso: riprova
+          setTimeout(run, 1500);
+          return;
+        }
 
-      if (json.status === "approved") {
-        setStatus("approved");
-        setPoints(json.points ?? 10);
-        setReason(null);
-      } else if (json.status === "rejected") {
-        setStatus("rejected");
-        setReason(json.reason || "rejected");
-      } else {
-        // se ancora pending, riprova tra poco
+        if (json.status === "approved") {
+          setStatus("approved");
+          setPoints(json.points ?? 10);
+          setReason(null);
+          return;
+        }
+
+        if (json.status === "rejected") {
+          setStatus("rejected");
+          setReason(json.reason || "rejected");
+          return;
+        }
+
+        // ancora pending -> riprova
+        setTimeout(run, 1500);
+      } catch (e: any) {
+        if (!alive) return;
+        setReason(e?.message || "process_failed");
         setTimeout(run, 1500);
       }
     }
 
-    const t = setTimeout(run, 700);
+    const t = setTimeout(run, 600);
 
     return () => {
       alive = false;
       clearTimeout(t);
     };
   }, [status, verificationId]);
+
+  const isBusy = status === "uploading" || status === "pending";
 
   return (
     <div className="card" style={{ padding: 16, marginTop: 12 }}>
@@ -88,10 +123,15 @@ export default function ReceiptConfirm({ venueId }: Props) {
           type="file"
           accept="image/*"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          disabled={status === "uploading" || status === "pending"}
+          disabled={isBusy}
         />
-        <button className="btn" onClick={upload} disabled={!file || status === "uploading" || status === "pending"}>
-          {status === "uploading" ? "Caricamento…" : status === "pending" ? "In revisione…" : "Invia"}
+
+        <button className="btn" onClick={upload} disabled={!file || isBusy}>
+          {status === "uploading" ? "Caricamento…" : status === "pending" ? "Verifica…" : "Carica scontrino"}
+        </button>
+
+        <button className="btn" onClick={reset} disabled={status === "uploading"}>
+          Reset
         </button>
 
         {status === "approved" ? <span className="badge">✅ Approvato +{points ?? 10}</span> : null}
@@ -100,7 +140,7 @@ export default function ReceiptConfirm({ venueId }: Props) {
 
       {reason ? (
         <div className="notice" style={{ marginTop: 10 }}>
-          <b>Nota:</b> {reason}
+          <b>Errore:</b> {reason}
         </div>
       ) : null}
     </div>

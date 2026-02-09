@@ -2,49 +2,43 @@
 
 import { useState } from "react";
 
-export default function ScanButton({ slug }: { slug: string }) {
+export default function ScanButton({ venueId }: { venueId: string }) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function handleScan() {
+  async function onScan() {
     setLoading(true);
     setMsg(null);
 
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ slug })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venue_id: venueId }),
       });
 
-      const data = await res.json();
+      const json = await res.json().catch(() => ({}));
 
-      if (!data.ok) {
-        setMsg("Errore: " + data.error);
-      } else {
-        setMsg("Visita registrata! +" + data.points + " punti");
+      if (!res.ok || !json?.ok) {
+        setMsg(`Errore: ${json?.error || "scan_failed"}`);
+        return;
       }
 
-    } catch (e) {
-      setMsg("Errore di rete");
+      setMsg(`+${json.points ?? 0} punti`);
+    } catch (e: any) {
+      setMsg(`Errore: ${e?.message || "network_error"}`);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
-    <div>
-      <button className="btn" onClick={handleScan} disabled={loading}>
-        {loading ? "Registrazione..." : "Registra visita"}
+    <div style={{ display: "grid", gap: 10 }}>
+      <button className="btn" onClick={onScan} disabled={loading}>
+        {loading ? "Registrando..." : "Registra visita"}
       </button>
 
-      {msg && (
-        <div className="notice" style={{ marginTop: 10 }}>
-          {msg}
-        </div>
-      )}
+      {msg ? <div className="notice">{msg}</div> : null}
     </div>
   );
 }

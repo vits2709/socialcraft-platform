@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
+import HomeLeaderboards from "@/components/HomeLeaderboards";
+import HomeScannerCTA from "@/components/HomeScannerCTA";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type LBRow = {
+export type LBRow = {
   id: string;
   name: string | null;
   score: number | null;
@@ -14,7 +16,7 @@ type LBRow = {
 export default async function HomePage() {
   const supabase = await createSupabaseServerClientReadOnly();
 
-  const [{ data: venues, error: vErr }, { data: users, error: uErr }] = await Promise.all([
+  const [{ data: spots, error: sErr }, { data: explorers, error: eErr }] = await Promise.all([
     supabase
       .from("leaderboard_venues")
       .select("id,name,score,meta")
@@ -28,99 +30,81 @@ export default async function HomePage() {
   ]);
 
   return (
-    <div className="card">
-      <div className="cardHead">
-        <div>
-          <h1 className="h1" style={{ marginBottom: 6 }}>
-            Leaderboard
-          </h1>
-          <p className="muted" style={{ margin: 0 }}>
-            Venues + Users
-          </p>
+    <div className="page">
+      {/* HERO */}
+      <div className="hero card">
+        <div className="heroTop">
+          <div>
+            <h1 className="heroTitle">SocialCraft</h1>
+            <p className="heroSubtitle">
+              Scala la classifica degli <b>Esploratori</b> e fai salire gli <b>Spot</b>.
+            </p>
+          </div>
+
+          {/* ✅ CTA: aggiunto Scanner (senza rompere animazioni/leaderboard) */}
+          <div className="heroCtas">
+            <HomeScannerCTA />
+
+            <Link className="btn primary" href="/me">
+              Il mio profilo
+            </Link>
+
+            <Link className="btn" href="/login">
+              Accedi
+            </Link>
+          </div>
         </div>
+
+        {/* HOW IT WORKS */}
+        <div className="howGrid">
+          <div className="howCard">
+            <div className="howIcon">📍</div>
+            <div className="howBody">
+              <div className="howTitle">Scansiona il QR dello Spot</div>
+              <div className="howText">Registra la visita e guadagni punti subito.</div>
+            </div>
+          </div>
+
+          <div className="howCard">
+            <div className="howIcon">🧑‍🚀</div>
+            <div className="howBody">
+              <div className="howTitle">Diventa un Esploratore leggendario</div>
+              <div className="howText">Sblocca livelli goliardici e badge (in arrivo).</div>
+            </div>
+          </div>
+
+          <div className="howCard">
+            <div className="howIcon">🔥</div>
+            <div className="howBody">
+              <div className="howTitle">Fai salire lo Spot</div>
+              <div className="howText">Ogni scan aiuta lo Spot a scalare la classifica.</div>
+            </div>
+          </div>
+        </div>
+
+        {(sErr || eErr) && (
+          <div className="notice" style={{ marginTop: 10 }}>
+            {sErr ? <div>Errore Spot: {sErr.message}</div> : null}
+            {eErr ? <div>Errore Esploratori: {eErr.message}</div> : null}
+          </div>
+        )}
       </div>
 
-      {/* VENUES */}
-      <section style={{ marginTop: 12 }}>
-        <div className="notice" style={{ marginBottom: 12 }}>
-          <b>Venues</b>
+      {/* LEADERBOARDS (tabs mobile + 2col desktop) */}
+      <HomeLeaderboards spots={(spots ?? []) as LBRow[]} explorers={(explorers ?? []) as LBRow[]} />
+
+      {/* FOOT NOTES */}
+      <div className="card soft" style={{ marginTop: 14 }}>
+        <div className="softRow">
+          <div>
+            <div className="softTitle">Sei uno Spot?</div>
+            <div className="softText">Accedi come Spot e gestisci promo, stats e QR dalla dashboard.</div>
+          </div>
+          <Link className="btn" href="/venue">
+            Dashboard Spot →
+          </Link>
         </div>
-
-        {vErr ? (
-          <div className="notice">Errore venues: {vErr.message}</div>
-        ) : (
-          <table className="table" aria-label="Leaderboard venues">
-            <thead>
-              <tr>
-                <th className="rank">#</th>
-                <th>Nome</th>
-                <th className="score">Score</th>
-                <th style={{ textAlign: "right" }}>Apri</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(venues ?? []).map((v: LBRow, i: number) => {
-                const slugMatch = String(v.meta ?? "").match(/slug=([a-z0-9-]+)/i);
-                const slug = slugMatch?.[1] ?? null;
-
-                return (
-                  <tr key={v.id}>
-                    <td className="rank">{i + 1}</td>
-                    <td>
-                      <b>{v.name ?? "—"}</b>
-                      <div className="muted">ID: {v.id}</div>
-                      {slug ? <div className="muted">slug: {slug}</div> : null}
-                    </td>
-                    <td className="score">{Number(v.score ?? 0).toLocaleString("it-IT")}</td>
-                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      {slug ? (
-                        <Link className="btn" href={`/v/${slug}`} target="_blank">
-                          Apri
-                        </Link>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      {/* USERS */}
-      <section id="users" style={{ marginTop: 18 }}>
-        <div className="notice" style={{ marginBottom: 12 }}>
-          <b>Users</b>
-        </div>
-
-        {uErr ? (
-          <div className="notice">Errore users: {uErr.message}</div>
-        ) : (
-          <table className="table" aria-label="Leaderboard users">
-            <thead>
-              <tr>
-                <th className="rank">#</th>
-                <th>Utente</th>
-                <th className="score">Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(users ?? []).map((u: LBRow, i: number) => (
-                <tr key={u.id}>
-                  <td className="rank">{i + 1}</td>
-                  <td>
-                    <b>{u.name ?? "utente"}</b>
-                    <div className="muted">ID: {u.id}</div>
-                  </td>
-                  <td className="score">{Number(u.score ?? 0).toLocaleString("it-IT")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      </div>
     </div>
   );
 }
