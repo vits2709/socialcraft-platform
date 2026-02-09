@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
   venueId: string;
@@ -25,10 +25,13 @@ export default function VisitFlow({ venueId, slug }: Props) {
   const [loadingRate, setLoadingRate] = useState(false);
 
   const [verificationId, setVerificationId] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
 
   // rating (facoltativo, 0 punti)
   const [rating, setRating] = useState<number>(0);
+
+  // input refs (camera / gallery)
+  const cameraRef = useRef<HTMLInputElement | null>(null);
+  const galleryRef = useRef<HTMLInputElement | null>(null);
 
   // -----------------------------
   // Restore state (localStorage)
@@ -63,7 +66,6 @@ export default function VisitFlow({ venueId, slug }: Props) {
     localStorage.removeItem(storageKey);
     setStep("idle");
     setVerificationId(null);
-    setFile(null);
     setRating(0);
     setMsg(null);
   }
@@ -101,14 +103,11 @@ export default function VisitFlow({ venueId, slug }: Props) {
 
   // -----------------------------
   // STEP 2: Upload receipt
+  // (NON cambiamo endpoint)
   // -----------------------------
-  async function handleUpload() {
+  async function uploadReceipt(file: File) {
     if (step === "idle") {
       setMsg("Prima registra la visita (Step 1).");
-      return;
-    }
-    if (!file) {
-      setMsg("Seleziona prima una foto dello scontrino.");
       return;
     }
 
@@ -145,6 +144,16 @@ export default function VisitFlow({ venueId, slug }: Props) {
     }
 
     setLoadingUpload(false);
+  }
+
+  // input handlers: auto-upload
+  async function handlePickedFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null;
+    // reset value per poter ricaricare lo stesso file/nome
+    e.currentTarget.value = "";
+    if (!f) return;
+
+    await uploadReceipt(f);
   }
 
   // -----------------------------
@@ -187,13 +196,12 @@ export default function VisitFlow({ venueId, slug }: Props) {
     setLoadingStatus(false);
   }
 
-  // auto-poll leggero mentre pending (solo se uploaded e non approved/rejected)
+  // auto-poll leggero mentre pending
   useEffect(() => {
     if (step !== "uploaded") return;
     if (!verificationId) return;
 
     const t = setInterval(() => {
-      // silent refresh: non spammiamo messaggi
       refreshStatus(true);
     }, 6000);
 
@@ -202,7 +210,7 @@ export default function VisitFlow({ venueId, slug }: Props) {
   }, [step, verificationId]);
 
   // -----------------------------
-  // STEP 4: Rating (facoltativo)
+  // STEP 4: Rating (facoltativo, 0 punti)
   // -----------------------------
   async function handleRateSubmit() {
     if (step !== "approved") {
@@ -244,11 +252,30 @@ export default function VisitFlow({ venueId, slug }: Props) {
   // UI helpers
   // -----------------------------
   const canUpload = step !== "idle";
-  const canCheck = Boolean(verificationId) && (step === "uploaded");
+  const canCheck = Boolean(verificationId) && step === "uploaded";
   const canRate = step === "approved";
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
+      {/* hidden inputs (camera + gallery) */}
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: "none" }}
+        onChange={handlePickedFile}
+        disabled={!canUpload || loadingUpload}
+      />
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handlePickedFile}
+        disabled={!canUpload || loadingUpload}
+      />
+
       {/* STEP 1 */}
       <div className="notice" style={{ padding: 14 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
@@ -275,35 +302,43 @@ export default function VisitFlow({ venueId, slug }: Props) {
       <div className="notice" style={{ padding: 14 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <div style={{ fontWeight: 800 }}>2) Carica scontrino (consumazione)</div>
+            <div style={{ fontWeight: 800 }}>2) Consumazione (+8)</div>
             <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
-              Carica la foto dello scontrino. Va in revisione manuale: quando l’admin approva ricevi <b>+8 punti</b>.
+              Scatta la foto dello scontrino: va in revisione manuale. Quando l’admin approva ricevi <b>+8 punti</b>.
             </div>
           </div>
 
           <span className="badge" title="Step 2">
             <span className="dot" />{" "}
-            {step === "uploaded" ? "in revisione" : step === "approved" ? "approvato" : step === "rejected" ? "rifiutato" : "—"}
+            {step === "uploaded"
+              ? "in revisione"
+              : step === "approved"
+              ? "approvato"
+              : step === "rejected"
+              ? "rifiutato"
+              : "—"}
           </span>
         </div>
 
         <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-          <input
-            className="input"
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            disabled={!canUpload}
-          />
-
+          {/* CTA principali: camera + gallery */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button className="btn" onClick={handleUpload} disabled={loadingUpload || !canUpload}>
-              {loadingUpload ? "Caricamento..." : "Carica scontrino"}
+            <button
+              className="btn primary"
+              type="button"
+              disabled={!canUpload || loadingUpload}
+              onClick={() => cameraRef.current?.click()}
+            >
+              {loadingUpload ? "Caricamento..." : "📸 Scatta scontrino (+8)"}
             </button>
 
-            {/* NIENTE “Verifica consumazione” */}
-            <button className="btn" onClick={() => refreshStatus(false)} disabled={loadingStatus || !canCheck}>
-              {loadingStatus ? "Aggiorno..." : "Aggiorna stato"}
+            <button
+              className="btn"
+              type="button"
+              disabled={!canUpload || loadingUpload}
+              onClick={() => galleryRef.current?.click()}
+            >
+              Carica da galleria
             </button>
 
             <button className="btn" onClick={resetFlow} type="button">
@@ -311,9 +346,25 @@ export default function VisitFlow({ venueId, slug }: Props) {
             </button>
           </div>
 
-          {verificationId ? (
-            <div className="muted" style={{ marginTop: 2 }}>
-              ID verifica: <b>{verificationId}</b>
+          {/* status actions */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <button className="btn" onClick={() => refreshStatus(false)} disabled={loadingStatus || !canCheck}>
+              {loadingStatus ? "Aggiorno..." : "Aggiorna stato"}
+            </button>
+
+            {verificationId ? (
+              <div className="muted">
+                ID verifica: <b>{verificationId}</b>
+              </div>
+            ) : (
+              <div className="muted">Dopo il caricamento vedrai qui l’ID della verifica.</div>
+            )}
+          </div>
+
+          {/* hint */}
+          {!canUpload ? (
+            <div className="muted">
+              ⚠️ Prima fai <b>Registra visita</b> (Step 1), poi puoi caricare lo scontrino.
             </div>
           ) : null}
         </div>
