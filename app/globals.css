@@ -529,3 +529,298 @@ a { color: inherit; text-decoration: none; }
   .collapse { padding: 12px 12px; }
   .collapse summary { padding: 4px 0; }
 }
+/* =========================
+   PROFILE ( /me ) ONLY
+   ========================= */
+
+.profilePage {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.profileTopCard {
+  padding: 18px;
+}
+
+.profileHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profileTitle {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.6px;
+}
+
+.profileSubtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.profileActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.profileGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.profileCol {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.profileSectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.profileSectionTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.2px;
+}
+
+.profileSectionHint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Stats */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.statCard {
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.72);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.04);
+  min-width: 0;
+}
+
+.statLabel {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.statValue {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.twoColCards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* Badges */
+.badgeGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.badgeCard {
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.72);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.04);
+  min-width: 0;
+}
+
+.badgeTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.badgeTitle {
+  font-weight: 900;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badgeSub {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.badgeHint {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.badgeProgressRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.badgeBar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(15,23,42,0.06);
+  overflow: hidden;
+  margin-top: 6px;
+  position: relative;
+}
+
+.badgeBarFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(99,102,241,0.95), rgba(236,72,153,0.92));
+}
+
+/* Nickname */
+.nickBox {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.nickInput {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.78);
+  outline: none;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.03);
+}
+
+.nickInput:focus {
+  border-color: rgba(99,102,241,0.35);
+  box-shadow: 0 10px 22px rgba(99,102,241,0.10);
+}
+
+.nickBtn {
+  white-space: nowrap;
+  padding: 11px 14px;
+}
+
+/* Tips */
+.tipsList {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.tipRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid rgba(15,23,42,0.08);
+  background: rgba(255,255,255,0.62);
+  border-radius: 16px;
+  padding: 10px 12px;
+}
+
+.tipIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(15,23,42,0.04);
+  flex: 0 0 auto;
+}
+
+.tipBody { min-width: 0; }
+
+.tipTitle {
+  font-weight: 900;
+  letter-spacing: -0.2px;
+}
+
+.tipText {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Recent */
+.recentList {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.recentRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(255,255,255,0.72);
+}
+
+.recentTitle {
+  font-weight: 900;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentTime {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.recentPts {
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .profileGrid { grid-template-columns: 1fr; }
+  .profileTitle { font-size: 24px; }
+}
+
+@media (max-width: 520px) {
+  .statsGrid { grid-template-columns: 1fr; }
+  .nickBox { grid-template-columns: 1fr; }
+  .nickBtn { width: 100%; }
+}

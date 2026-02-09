@@ -50,12 +50,6 @@ function clamp01(n: number) {
   return Math.max(0, Math.min(1, n));
 }
 
-function levelFromProgress(p: number): BadgeLevel {
-  if (p >= 1) return "GOLD";
-  if (p >= 0.66) return "SILVER";
-  return "BRONZE";
-}
-
 export default function MePage() {
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState<MePayload | null>(null);
@@ -63,6 +57,7 @@ export default function MePage() {
 
   const [nameInput, setNameInput] = useState("");
   const [saving, setSaving] = useState(false);
+
   const [openRecent, setOpenRecent] = useState(false);
 
   async function load() {
@@ -71,7 +66,6 @@ export default function MePage() {
     try {
       const res = await fetch("/api/me", { cache: "no-store" });
 
-      // se per qualsiasi motivo non torna JSON, mostriamo errore chiaro
       const ct = res.headers.get("content-type") || "";
       if (!ct.includes("application/json")) {
         const txt = await res.text();
@@ -80,6 +74,7 @@ export default function MePage() {
 
       const j = (await res.json()) as MePayload;
       if (!j.ok) throw new Error("api_me_failed");
+
       setPayload(j);
       setNameInput(j.user.name ?? "");
     } catch (e: any) {
@@ -96,7 +91,7 @@ export default function MePage() {
 
   const canEditName = useMemo(() => {
     if (!payload) return false;
-    // nickname modificabile solo se NON lockato e non già valorizzato
+    // modificabile solo se NON lockato e non già valorizzato
     return !payload.user.nickname_locked && !payload.user.name;
   }, [payload]);
 
@@ -123,6 +118,7 @@ export default function MePage() {
         const txt = await res.text();
         throw new Error(`Risposta non JSON (status ${res.status}). ${txt.slice(0, 80)}`);
       }
+
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || "save_failed");
       await load();
@@ -133,187 +129,185 @@ export default function MePage() {
     }
   }
 
+  const displayName = payload?.user.name ?? "—";
+
   return (
-    <div className="card" style={{ maxWidth: 980, margin: "0 auto" }}>
-      <div className="cardHead" style={{ alignItems: "flex-start" }}>
-        <div>
-          <h1 className="h1" style={{ marginBottom: 6 }}>
-            Profilo
-          </h1>
-          <p className="muted" style={{ margin: 0 }}>
-            Statistiche + badge
-          </p>
+    <div className="profilePage">
+      <div className="card profileTopCard">
+        <div className="profileHeader">
+          <div>
+            <h1 className="profileTitle">Profilo Esploratore</h1>
+            <p className="profileSubtitle">Statistiche, badge e attività recente.</p>
+          </div>
+
+          <div className="profileActions">
+            <button className="btn" onClick={load} disabled={loading}>
+              {loading ? "Aggiorno..." : "Aggiorna"}
+            </button>
+          </div>
         </div>
 
-        <button className="btn" onClick={load} disabled={loading}>
-          Aggiorna
-        </button>
+        {err ? (
+          <div className="notice" style={{ marginTop: 12 }}>
+            Errore: {err}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="notice" style={{ marginTop: 12 }}>
+            Caricamento…
+          </div>
+        ) : null}
       </div>
 
-      {err ? (
-        <div className="notice" style={{ marginTop: 12 }}>
-          Errore: {err}
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div className="notice" style={{ marginTop: 12 }}>
-          Caricamento…
-        </div>
-      ) : null}
-
       {payload ? (
-        <>
-          {/* STATS */}
-          <section style={{ marginTop: 14 }}>
-            <div className="notice" style={{ marginBottom: 12 }}>
-              <b>Overview</b>
-            </div>
+        <div className="profileGrid">
+          {/* COL SINISTRA: Overview + Badge + Attività */}
+          <div className="profileCol">
+            {/* OVERVIEW */}
+            <section className="card">
+              <div className="profileSectionHead">
+                <h2 className="profileSectionTitle">Overview</h2>
+                <span className="profileSectionHint">dati principali</span>
+              </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                gap: 12,
-              }}
-            >
-              <div className="card" style={{ padding: 14 }}>
-                <div className="muted">Nickname</div>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>
-                  {payload.user.name ?? "—"}
+              <div className="statsGrid">
+                <div className="statCard">
+                  <div className="statLabel">Nickname</div>
+                  <div className="statValue">{displayName}</div>
+                </div>
+
+                <div className="statCard">
+                  <div className="statLabel">Punti totali</div>
+                  <div className="statValue">{payload.stats.points_total.toLocaleString("it-IT")}</div>
+                </div>
+
+                <div className="statCard">
+                  <div className="statLabel">Scan totali</div>
+                  <div className="statValue">{payload.stats.scans_total.toLocaleString("it-IT")}</div>
+                </div>
+
+                <div className="statCard">
+                  <div className="statLabel">Spot visitati</div>
+                  <div className="statValue">{payload.stats.venues_distinct.toLocaleString("it-IT")}</div>
                 </div>
               </div>
 
-              <div className="card" style={{ padding: 14 }}>
-                <div className="muted">Punti totali</div>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>
-                  {payload.stats.points_total.toLocaleString("it-IT")}
-                </div>
-              </div>
-
-              <div className="card" style={{ padding: 14 }}>
-                <div className="muted">Scan totali</div>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>
-                  {payload.stats.scans_total.toLocaleString("it-IT")}
-                </div>
-              </div>
-
-              <div className="card" style={{ padding: 14 }}>
-                <div className="muted">Venue diverse</div>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>
-                  {payload.stats.venues_distinct.toLocaleString("it-IT")}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div className="card" style={{ padding: 14 }}>
-                <div className="muted">Venue preferita</div>
-                <div style={{ fontSize: 16, fontWeight: 800 }}>
-                  {payload.stats.favorite_venue ? payload.stats.favorite_venue.name : "—"}
-                </div>
-              </div>
-
-              <div className="card" style={{ padding: 14 }}>
-                <div className="muted">Attivo ultimi 7 giorni</div>
-                <div style={{ fontSize: 16, fontWeight: 800 }}>
-                  {payload.stats.active_days_7d}/7 giorni • {payload.stats.last_7d_scans} scan •{" "}
-                  {payload.stats.last_7d_points} punti
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* BADGES */}
-          <section style={{ marginTop: 18 }}>
-            <div className="notice" style={{ marginBottom: 12 }}>
-              <b>Badge</b> <span className="muted">• Bronzo / Silver / Gold</span>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                gap: 12,
-              }}
-            >
-              {payload.badges.map((b) => (
-                <div key={b.key} className="card" style={{ padding: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                    <div>
-                      <div style={{ fontWeight: 900 }}>{b.title}</div>
-                      <div className="muted">{b.subtitle}</div>
-                    </div>
-
-                    <span className="badge" style={{ fontWeight: 800 }}>
-                      {b.level}
-                    </span>
-                  </div>
-
-                  <div className="muted" style={{ marginTop: 10 }}>
-                    {b.hint}
-                  </div>
-
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span className="muted">
-                        {b.current}/{b.target}
-                      </span>
-                      <span className="muted">{Math.round(clamp01(b.progress) * 100)}%</span>
-                    </div>
-
-                    <div
-                      style={{
-                        height: 10,
-                        borderRadius: 999,
-                        background: "rgba(0,0,0,0.06)",
-                        overflow: "hidden",
-                        marginTop: 6,
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: "100%",
-                          width: `${Math.round(clamp01(b.progress) * 100)}%`,
-                          background: "linear-gradient(90deg, #7c3aed, #ec4899)",
-                        }}
-                      />
-                    </div>
+              <div className="twoColCards" style={{ marginTop: 12 }}>
+                <div className="statCard">
+                  <div className="statLabel">Spot preferito</div>
+                  <div className="statValue" style={{ fontSize: 16 }}>
+                    {payload.stats.favorite_venue ? payload.stats.favorite_venue.name : "—"}
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
 
-          {/* NICKNAME (ONE TIME) */}
-          <section style={{ marginTop: 18 }}>
-            <div className="notice" style={{ marginBottom: 12 }}>
-              <b>Nickname</b>
-              <span className="muted"> • modificabile una sola volta</span>
-            </div>
+                <div className="statCard">
+                  <div className="statLabel">Ultimi 7 giorni</div>
+                  <div className="statValue" style={{ fontSize: 16 }}>
+                    {payload.stats.active_days_7d}/7 • {payload.stats.last_7d_scans} scan •{" "}
+                    {payload.stats.last_7d_points} punti
+                  </div>
+                </div>
+              </div>
+            </section>
 
-            <div className="card" style={{ padding: 14 }}>
-              <div className="muted" style={{ marginBottom: 8 }}>
-                Come vuoi comparire in classifica
+            {/* BADGES */}
+            <section className="card">
+              <div className="profileSectionHead">
+                <h2 className="profileSectionTitle">Badge</h2>
+                <span className="profileSectionHint">Bronzo / Silver / Gold</span>
               </div>
 
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div className="badgeGrid">
+                {payload.badges.map((b) => {
+                  const pct = Math.round(clamp01(b.progress) * 100);
+                  return (
+                    <div key={b.key} className="badgeCard">
+                      <div className="badgeTop">
+                        <div style={{ minWidth: 0 }}>
+                          <div className="badgeTitle">{b.title}</div>
+                          <div className="badgeSub">{b.subtitle}</div>
+                        </div>
+                        <span className="badge" style={{ fontWeight: 900 }}>
+                          {b.level}
+                        </span>
+                      </div>
+
+                      <div className="badgeHint">{b.hint}</div>
+
+                      <div style={{ marginTop: 10 }}>
+                        <div className="badgeProgressRow">
+                          <span className="muted">
+                            {b.current}/{b.target}
+                          </span>
+                          <span className="muted">{pct}%</span>
+                        </div>
+
+                        <div className="badgeBar">
+                          <div className="badgeBarFill" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* RECENT (collassabile) */}
+            <section className="card">
+              <div className="profileSectionHead">
+                <h2 className="profileSectionTitle">Attività recente</h2>
+                <span className="profileSectionHint">{payload.recent.length} eventi</span>
+              </div>
+
+              <button className="btn" onClick={() => setOpenRecent((s) => !s)}>
+                {openRecent ? "Nascondi attività" : "Mostra attività"}
+              </button>
+
+              {openRecent ? (
+                <div className="recentList">
+                  {payload.recent.map((ev) => (
+                    <div key={ev.id} className="recentRow">
+                      <div style={{ minWidth: 0 }}>
+                        <div className="recentTitle">
+                          {ev.event_type}
+                          {ev.venue_name ? <span className="muted"> • {ev.venue_name}</span> : null}
+                        </div>
+                        <div className="recentTime">{new Date(ev.created_at).toLocaleString("it-IT")}</div>
+                      </div>
+
+                      <div className="recentPts">{ev.points ? `+${ev.points}` : "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          </div>
+
+          {/* COL DESTRA: Nickname (one time) + tips */}
+          <div className="profileCol">
+            {/* NICKNAME (ONE TIME) */}
+            <section className="card">
+              <div className="profileSectionHead">
+                <h2 className="profileSectionTitle">Nickname</h2>
+                <span className="profileSectionHint">una sola volta</span>
+              </div>
+
+              <div className="muted" style={{ marginBottom: 10, lineHeight: 1.35 }}>
+                Questo nickname comparirà in classifica e non sarà più modificabile.
+              </div>
+
+              <div className="nickBox">
                 <input
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   disabled={!canEditName || saving}
                   placeholder="Es: Vits"
-                  style={{
-                    flex: 1,
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    outline: "none",
-                  }}
+                  className="nickInput"
                 />
 
-                <button className="btn" onClick={saveNicknameOnce} disabled={!canEditName || saving}>
-                  {saving ? "Salvo…" : "Salva nickname"}
+                <button className="btn primary nickBtn" onClick={saveNicknameOnce} disabled={!canEditName || saving}>
+                  {saving ? "Salvo…" : "Salva"}
                 </button>
               </div>
 
@@ -326,55 +320,43 @@ export default function MePage() {
                   “Guest / utente” non è consentito. Max 24 caratteri.
                 </div>
               )}
-            </div>
-          </section>
+            </section>
 
-          {/* RECENT (collassabile) */}
-          <section style={{ marginTop: 18 }}>
-            <div className="notice" style={{ marginBottom: 12 }}>
-              <b>Attività recente</b>{" "}
-              <span className="muted">• {payload.recent.length}</span>
-            </div>
+            {/* QUICK TIPS */}
+            <section className="card">
+              <div className="profileSectionHead">
+                <h2 className="profileSectionTitle">Tip veloci</h2>
+                <span className="profileSectionHint">per salire</span>
+              </div>
 
-            <div className="card" style={{ padding: 14 }}>
-              <button className="btn" onClick={() => setOpenRecent((s) => !s)}>
-                {openRecent ? "Nascondi" : "Mostra"} attività
-              </button>
-
-              {openRecent ? (
-                <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                  {payload.recent.map((ev) => (
-                    <div
-                      key={ev.id}
-                      style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.10)",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 800 }}>
-                          {ev.event_type}
-                          {ev.venue_name ? <span className="muted"> • {ev.venue_name}</span> : null}
-                        </div>
-                        <div className="muted">
-                          {new Date(ev.created_at).toLocaleString("it-IT")}
-                        </div>
-                      </div>
-
-                      <div style={{ fontWeight: 900 }}>
-                        {ev.points ? `+${ev.points}` : "—"}
-                      </div>
-                    </div>
-                  ))}
+              <div className="tipsList">
+                <div className="tipRow">
+                  <div className="tipIcon">📍</div>
+                  <div className="tipBody">
+                    <div className="tipTitle">Fai scan in più Spot</div>
+                    <div className="tipText">Più Spot visiti, più sali in classifica.</div>
+                  </div>
                 </div>
-              ) : null}
-            </div>
-          </section>
-        </>
+
+                <div className="tipRow">
+                  <div className="tipIcon">🧾</div>
+                  <div className="tipBody">
+                    <div className="tipTitle">Carica scontrini</div>
+                    <div className="tipText">Se approvati, ottieni punti extra (consumazione).</div>
+                  </div>
+                </div>
+
+                <div className="tipRow">
+                  <div className="tipIcon">⭐</div>
+                  <div className="tipBody">
+                    <div className="tipTitle">Lascia un voto</div>
+                    <div className="tipText">Aiuta lo Spot (e migliora il rating).</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
       ) : null}
     </div>
   );
