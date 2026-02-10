@@ -4,6 +4,10 @@ export const runtime = "nodejs";
 
 export async function POST() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("sc_admin_uid", "", { path: "/", maxAge: 0 });
+
+  // cancella cookie admin
+  res.cookies.set("admin_uid", "", { path: "/", maxAge: 0 });
+  res.cookies.set("admin_email", "", { path: "/", maxAge: 0 });
+
   return res;
 }
