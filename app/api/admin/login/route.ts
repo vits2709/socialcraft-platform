@@ -1,43 +1,30 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server"; // <-- NON read-only
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({} as any));
-    const email = String(body?.email ?? "").trim();
+    const email = String(body?.email ?? "").trim().toLowerCase();
     const password = String(body?.password ?? "");
 
-    if (!email || !password) {
-      return NextResponse.json({ ok: false, error: "missing_fields" }, { status: 400 });
-    }
+    if (!email) return NextResponse.json({ ok: false, error: "missing_email" }, { status: 400 });
+    if (!password) return NextResponse.json({ ok: false, error: "missing_password" }, { status: 400 });
 
-    // ✅ login supabase auth (setta i cookie sb-* automaticamente tramite server client)
+    // ✅ usa il client "server" (quello che gestisce i cookie di sessione)
     const supabase = await createSupabaseServerClient();
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error || !data?.user) {
-      return NextResponse.json({ ok: false, error: error?.message ?? "login_failed" }, { status: 401 });
+    if (error) {
+      return NextResponse.json({ ok: false, error: `admin_login_failed:${error.message}` }, { status: 401 });
     }
 
-    // ✅ opzionale ma consigliato: verifica che sia admin (tabella admins)
-    const { data: adminRow, error: aErr } = await supabase
-      .from("admins")
-      .select("user_id")
-      .eq("user_id", data.user.id)
-      .maybeSingle();
-
-    if (aErr) {
-      return NextResponse.json({ ok: false, error: `admins_check_failed:${aErr.message}` }, { status: 500 });
-    }
-    if (!adminRow) {
-      // logout immediato se non admin
-      await supabase.auth.signOut();
-      return NextResponse.json({ ok: false, error: "not_admin" }, { status: 403 });
-    }
-
-    return NextResponse.json({ ok: true });
+    // Se vuoi: ritorna anche user id/email per debug
+    return NextResponse.json({
+      ok: true,
+      user: data.user ? { id: data.user.id, email: data.user.email } : null,
+    });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown_error" }, { status: 500 });
   }

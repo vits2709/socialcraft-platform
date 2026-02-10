@@ -45,7 +45,7 @@ export function middleware(req: NextRequest) {
   }
 
   // ✅ Proteggi Admin con login dedicato
-  if (pathname.startsWith("/admin")) {
+  if (pathname.startsWith("/api/admin")) {
     // IMPORTANT: questo check dipende da come fai sessione admin/spot.
     // Se usi Supabase Auth, spesso trovi cookie tipo sb-... (varia col progetto).
     // Metto un check "generico" che funziona in tanti casi: se non trovi nulla -> /admin/login.
