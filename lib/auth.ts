@@ -1,22 +1,24 @@
-import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-export type SessionUser = {
-  id: string;
-  email?: string | null;
-};
+export type SessionUser = { id: string };
 
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const supabase = await createSupabaseServerClientReadOnly();
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return null;
-  const u = data.user;
-  if (!u) return null;
-  return { id: u.id, email: u.email ?? null };
+  const cookieStore = await cookies();
+
+  // ✅ priorità admin
+  const adminId = cookieStore.get("sc_admin_uid")?.value?.trim();
+  if (adminId) return { id: adminId };
+
+  // ✅ fallback explorer
+  const uid = cookieStore.get("sc_uid")?.value?.trim();
+  if (uid) return { id: uid };
+
+  return null;
 }
 
 export async function isAdmin(userId: string): Promise<boolean> {
-  const supabase = await createSupabaseServerClientReadOnly();
-
+  const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("admins")
     .select("user_id")
@@ -24,18 +26,5 @@ export async function isAdmin(userId: string): Promise<boolean> {
     .maybeSingle();
 
   if (error) return false;
-  return !!data?.user_id;
-}
-
-export async function getVenueByOwner(userId: string) {
-  const supabase = await createSupabaseServerClientReadOnly();
-
-  const { data, error } = await supabase
-    .from("venues")
-    .select("id,name,city,owner_user_id")
-    .eq("owner_user_id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  return data ?? null;
+  return Boolean(data?.user_id);
 }
