@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-export default function SignupPage() {
-  const [displayName, setDisplayName] = useState("");
+export default function SpotLoginPage() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,16 +12,14 @@ export default function SignupPage() {
   async function submit() {
     setLoading(true);
     setMsg(null);
-
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          role: "explorer",
-          display_name: displayName.trim(),
           email: email.trim(),
           password: pass,
+          expected_role: "spot",
         }),
       });
 
@@ -33,10 +30,9 @@ export default function SignupPage() {
       }
 
       const j = await res.json();
-      if (!j.ok) throw new Error(j.error || "signup_failed");
+      if (!j.ok) throw new Error(j.error || "login_failed");
 
-      // dopo signup: vai a login (così è chiaro e non dipende da conferma mail)
-      window.location.assign("/login");
+      window.location.assign("/venue"); // o /spot/dashboard se ce l’hai
     } catch (e: any) {
       setMsg(`Errore: ${e?.message || "unknown"}`);
     } finally {
@@ -46,22 +42,21 @@ export default function SignupPage() {
 
   return (
     <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
-      <h1 className="h1">Crea profilo Esploratore</h1>
-      <p className="muted">Email + password. Il nickname è solo come compari in classifica.</p>
+      <h1 className="h1">Accedi (Spot)</h1>
+      <p className="muted">Login dedicato per gestire promo, QR e stats.</p>
 
       {msg ? <div className="notice" style={{ marginTop: 12 }}>{msg}</div> : null}
 
       <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        <input className="input" placeholder="Nickname (es. Vits)" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         <input className="input" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" autoCapitalize="none" autoCorrect="off" />
-        <input className="input" placeholder="Password (min 6)" type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
+        <input className="input" placeholder="Password" type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
 
         <button className="btn primary" onClick={submit} disabled={loading}>
-          {loading ? "Creazione..." : "Crea account"}
+          {loading ? "Accesso..." : "Accedi"}
         </button>
 
-        <div className="muted">
-          Hai già un account? <Link href="/login"><b>Accedi</b></Link>
+        <div className="muted" style={{ textAlign: "center" }}>
+          <Link href="/"><b>torna alla home</b></Link>
         </div>
       </div>
     </div>

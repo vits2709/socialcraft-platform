@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 export async function POST() {
-  const cookieStore = await cookies();
-
-  cookieStore.set("sc_uid", "", {
-    path: "/",
-    maxAge: 0,
-  });
-
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
   return NextResponse.json({ ok: true });
 }

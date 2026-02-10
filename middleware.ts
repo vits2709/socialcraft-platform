@@ -1,43 +1,64 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+"use client";
 
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/logout", "/admin/login"];
+import Link from "next/link";
+import { useState } from "react";
 
-function isAlwaysAllowed(pathname: string) {
-  if (PUBLIC_PATHS.includes(pathname)) return true;
+export default function AdminLoginPage() {
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  if (pathname.startsWith("/_next/")) return true;
-  if (pathname.startsWith("/favicon")) return true;
-  if (pathname.startsWith("/robots.txt")) return true;
-  if (pathname.startsWith("/sitemap")) return true;
+  async function submit() {
+    setLoading(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: pass,
+          expected_role: "admin",
+        }),
+      });
 
-  // ✅ auth explorer + admin login endpoint devono passare SEMPRE
-  if (pathname.startsWith("/api/auth/")) return true;
-  if (pathname === "/api/admin/login") return true;
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        const txt = await res.text();
+        throw new Error(`Risposta non JSON (${res.status}): ${txt.slice(0, 120)}`);
+      }
 
-  return false;
-}
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || "login_failed");
 
-export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
-
-  if (isAlwaysAllowed(pathname)) return NextResponse.next();
-
-  // ✅ Explorer cookie
-  const scUid = req.cookies.get("sc_uid")?.value?.trim();
-
-  // ✅ proteggi SOLO profilo explorer e pagine pubbliche utenti
-  if (pathname.startsWith("/me") || pathname.startsWith("/u")) {
-    if (!scUid) {
-      const url = req.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
+      window.location.assign("/admin");
+    } catch (e: any) {
+      setMsg(`Errore: ${e?.message || "unknown"}`);
+    } finally {
+      setLoading(false);
     }
   }
 
-  return NextResponse.next();
-}
+  return (
+    <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
+      <h1 className="h1">Login Admin</h1>
+      <p className="muted">Accesso riservato.</p>
 
-export const config = {
-  matcher: ["/((?!_next|favicon.ico).*)"],
-};
+      {msg ? <div className="notice" style={{ marginTop: 12 }}>{msg}</div> : null}
+
+      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+        <input className="input" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" autoCapitalize="none" autoCorrect="off" />
+        <input className="input" placeholder="Password" type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
+
+        <button className="btn primary" onClick={submit} disabled={loading}>
+          {loading ? "Accesso..." : "Accedi Admin"}
+        </button>
+
+        <div className="muted" style={{ textAlign: "center" }}>
+          <Link href="/"><b>torna alla home</b></Link>
+        </div>
+      </div>
+    </div>
+  );
+}
