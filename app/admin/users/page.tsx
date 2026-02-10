@@ -17,7 +17,7 @@ type LBUser = {
 
 export default async function AdminUsersPage() {
   const u = await getSessionUser();
-  if (!u) redirect("/login");
+  if (!u) redirect("/admin/login");
   if (!(await isAdmin(u.id))) redirect("/venue");
 
   const supabase = await createSupabaseServerClientReadOnly();

@@ -43,7 +43,7 @@ async function createPromoAction(formData: FormData) {
   if (!venueId) throw new Error("missing_venue_id");
 
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/admin/login");
   if (!(await isAdmin(user.id))) redirect("/venue");
 
   const title = mustStr(formData, "title");
@@ -83,7 +83,7 @@ async function deactivateAllPromosAction(formData: FormData) {
   if (!venueId) throw new Error("missing_venue_id");
 
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/admin/login");
   if (!(await isAdmin(user.id))) redirect("/venue");
 
   const supabase = createSupabaseAdminClient();
@@ -98,7 +98,7 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
   const { venueId } = await props.params;
 
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/admin/login");
   if (!(await isAdmin(user.id))) redirect("/venue");
 
   const supabaseRO = await createSupabaseServerClientReadOnly();

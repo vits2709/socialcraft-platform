@@ -78,7 +78,7 @@ function fmtDateTime(iso: string) {
 
 export default async function SpotDashboardPage() {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/admin/login");
 
   const admin = await isAdmin(user.id);
   if (admin) redirect("/admin");

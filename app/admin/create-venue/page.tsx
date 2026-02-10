@@ -5,7 +5,7 @@ import { createVenueAction } from "./actions";
 
 export default async function CreateVenuePage() {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/admin/login");
   if (!(await isAdmin(user.id))) redirect("/venue");
 
   return (

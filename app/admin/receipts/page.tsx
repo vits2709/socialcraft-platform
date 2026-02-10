@@ -20,7 +20,7 @@ type ReceiptRow = {
 
 export default async function AdminReceiptsPage() {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/admin/login");
   if (!(await isAdmin(user.id))) redirect("/venue");
 
   const supabase = createSupabaseAdminClient();

@@ -62,7 +62,7 @@ function fmt(n: number) {
 
 export default async function AdminDashboard() {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/admin/login");
   if (!(await isAdmin(user.id))) redirect("/venue");
 
   const venues = await getVenueLeaderboard(500);

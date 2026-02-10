@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const PUBLIC_PATHS = [
-  "/",        // home
-  "/login",   // login esploratori
-  "/signup",  // signup esploratori  ✅ FIX
-  "/logout",  // logout (se esiste)
+  "/",           // home
+  "/login",      // login esploratori
+  "/signup",     // signup esploratori
+  "/logout",     // logout esploratori (se esiste)
+  "/admin/login" // ✅ login admin
 ];
 
-// roba che deve sempre passare (assets + api auth)
 function isAlwaysAllowed(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true;
 
@@ -18,8 +18,11 @@ function isAlwaysAllowed(pathname: string) {
   if (pathname.startsWith("/robots.txt")) return true;
   if (pathname.startsWith("/sitemap")) return true;
 
-  // api auth (signup/login/logout)
+  // api auth (explorer)
   if (pathname.startsWith("/api/auth/")) return true;
+
+  // api admin auth (se lo aggiungi)
+  if (pathname.startsWith("/api/admin/auth/")) return true;
 
   return false;
 }
@@ -27,15 +30,12 @@ function isAlwaysAllowed(pathname: string) {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ✅ lascia passare tutto ciò che è pubblico
-  if (isAlwaysAllowed(pathname)) {
-    return NextResponse.next();
-  }
+  if (isAlwaysAllowed(pathname)) return NextResponse.next();
 
-  // Cookie esploratore (sc_uid)
+  // --- Explorer cookie
   const scUid = req.cookies.get("sc_uid")?.value?.trim();
 
-  // ✅ Proteggi SOLO le pagine explorer che richiedono profilo
+  // ✅ Proteggi SOLO Explorer pages
   if (pathname.startsWith("/me") || pathname.startsWith("/u")) {
     if (!scUid) {
       const url = req.nextUrl.clone();
@@ -44,9 +44,22 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // Admin/Spot: qui NON tocchiamo niente.
-  // Le tue pagine server-side già fanno redirect("/login") se non c’è sessione admin/spot.
-  // Quindi il middleware non deve bloccarle per forza.
+  // ✅ Proteggi Admin con login dedicato
+  if (pathname.startsWith("/admin")) {
+    // IMPORTANT: questo check dipende da come fai sessione admin/spot.
+    // Se usi Supabase Auth, spesso trovi cookie tipo sb-... (varia col progetto).
+    // Metto un check "generico" che funziona in tanti casi: se non trovi nulla -> /admin/login.
+    const hasAdminSession =
+      Boolean(req.cookies.get("sb-access-token")?.value) ||
+      Boolean(req.cookies.get("sb:token")?.value) ||
+      Boolean(req.cookies.get("sb-refresh-token")?.value);
+
+    if (!hasAdminSession && pathname !== "/admin/login") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/admin/login";
+      return NextResponse.redirect(url);
+    }
+  }
 
   return NextResponse.next();
 }
