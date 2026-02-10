@@ -1,3 +1,4 @@
+// lib/supabase/server.ts
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -14,14 +15,19 @@ export async function createSupabaseServerClient() {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
           } catch {
-            // in alcuni contesti server non si può settare: ok
+            // server components: ok ignorare
           }
         },
       },
     }
   );
+}
+
+// ✅ alias per non rompere tutto il progetto
+export async function createSupabaseServerClientReadOnly() {
+  return createSupabaseServerClient();
 }
