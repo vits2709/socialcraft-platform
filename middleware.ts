@@ -2,21 +2,27 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const PUBLIC_PATHS = [
-  "/",            // home
-  "/login",       // login esploratori
-  "/signup",      // signup esploratori
-  "/logout",      // logout esploratori (se esiste)
-  "/admin/login", // login admin
+  "/",
+  "/login",
+  "/signup",
+  "/logout",
+  "/admin/login",
 ];
 
 function isAlwaysAllowed(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true;
 
-  // Next internals / static
   if (pathname.startsWith("/_next/")) return true;
   if (pathname.startsWith("/favicon")) return true;
   if (pathname.startsWith("/robots.txt")) return true;
   if (pathname.startsWith("/sitemap")) return true;
+
+  // explorer auth
+  if (pathname.startsWith("/api/auth/")) return true;
+
+  // admin login endpoint
+  if (pathname === "/api/admin/login") return true;
+  if (pathname === "/api/admin/logout") return true;
 
   return false;
 }
@@ -24,21 +30,12 @@ function isAlwaysAllowed(pathname: string) {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ✅ IMPORTANTISSIMO: MAI fare redirect sulle API
-  // altrimenti le POST diventano 307 verso pagine HTML e rompi tutto.
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
+  if (isAlwaysAllowed(pathname)) return NextResponse.next();
 
-  // ✅ pubblico
-  if (isAlwaysAllowed(pathname)) {
-    return NextResponse.next();
-  }
-
-  // --- Explorer cookie (sc_uid)
+  // Explorer cookie
   const scUid = req.cookies.get("sc_uid")?.value?.trim();
 
-  // ✅ Proteggi SOLO Explorer pages
+  // Protect explorer pages only
   if (pathname.startsWith("/me") || pathname.startsWith("/u")) {
     if (!scUid) {
       const url = req.nextUrl.clone();
@@ -47,11 +44,16 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // ✅ Admin pages: NON gestiamo sessione qui (evitiamo loop e cookie “fantasma”)
-  // Le pagine server-side admin hanno già i loro redirect/check.
-  // Quindi qui lasciamo passare.
-  if (pathname.startsWith("/admin")) {
-    return NextResponse.next();
+  // Admin cookie (separato!)
+  const adminUid = req.cookies.get("sc_admin_uid")?.value?.trim();
+
+  // Protect /admin (pages + api admin, tranne login)
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+    if (!adminUid && pathname !== "/admin/login" && pathname !== "/api/admin/login") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/admin/login";
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.next();
