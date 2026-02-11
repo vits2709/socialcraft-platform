@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
 
-    // 1) venue
+    // venue
     const { data: venue, error: vErr } = await supabase
       .from("venues")
       .select("id, slug, name")
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (vErr) return NextResponse.json({ ok: false, error: vErr.message }, { status: 500 });
     if (!venue) return NextResponse.json({ ok: false, error: "venue_not_found" }, { status: 404 });
 
-    // 2) user (cookie explorer)
+    // explorer user (cookie)
     const scUid = req.cookies.get("sc_uid")?.value?.trim();
     if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
 
@@ -40,15 +40,17 @@ export async function POST(req: NextRequest) {
     if (uErr) return NextResponse.json({ ok: false, error: uErr.message }, { status: 500 });
     if (!user) return NextResponse.json({ ok: false, error: "profile_missing" }, { status: 404 });
 
-    // 3) 1/day check (solo su event_type + data)
-    const since = startOfTodayISO();
+    // ✅ IMPORTANT: usa un event_type ammesso dal CHECK
+    const EVENT_TYPE = "visit";
 
+    // 1/day check
+    const since = startOfTodayISO();
     const { data: alreadyEv, error: aErr } = await supabase
       .from("user_events")
       .select("id")
       .eq("user_id", user.id)
       .eq("venue_id", venue.id)
-      .eq("event_type", "scan_visit")
+      .eq("event_type", EVENT_TYPE)
       .gte("created_at", since)
       .limit(1);
 
@@ -63,16 +65,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4) INSERT MINIMALE (solo colonne che esistono sicuramente)
+    // insert minimale
     const { error: insErr } = await supabase.from("user_events").insert({
       user_id: user.id,
       venue_id: venue.id,
-      event_type: "scan_visit",
+      event_type: EVENT_TYPE,
     });
 
     if (insErr) return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
 
-    // punti “logici” (il DB non li salva qui)
     return NextResponse.json({
       ok: true,
       already: false,
