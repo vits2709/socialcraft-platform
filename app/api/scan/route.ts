@@ -1,159 +1,164 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-function isUuid(v: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+function startOfTodayISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
 }
 
-function normalizeName(n: string | null | undefined) {
-  return String(n ?? "").trim();
-}
+export async function POST(req: NextRequest) {
+  try {
+    const { slug } = await req.json().catch(() => ({} as any));
 
-function isPlaceholderName(n: string) {
-  const s = n.trim().toLowerCase();
-  return !s || s === "guest" || s === "utente" || s === "user";
-}
+    if (!slug) {
+      return NextResponse.json(
+        { ok: false, error: "missing_slug" },
+        { status: 400 }
+      );
+    }
 
-async function ensureScUser(supabase: ReturnType<typeof createSupabaseAdminClient>, userId: string) {
-  // NON sovrascrivere mai il nome se esiste già
-  const { data: existing, error: selErr } = await supabase
-    .from("sc_users")
-    .select("id,name")
-    .eq("id", userId)
-    .maybeSingle();
+    const supabase = createSupabaseAdminClient();
 
-  if (selErr) throw new Error(`ensure_sc_user_failed: ${selErr.message}`);
-  if (existing?.id) return { id: String(existing.id), name: normalizeName(existing.name) || "Guest" };
-
-  const { data: created, error: insErr } = await supabase
-    .from("sc_users")
-    .insert({ id: userId, name: "Guest" })
-    .select("id,name")
-    .single();
-
-  if (insErr) throw new Error(`ensure_sc_user_failed: ${insErr.message}`);
-  return { id: String(created.id), name: normalizeName(created.name) || "Guest" };
-}
-
-export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("sc_uid")?.value;
-
-  if (!userId) {
-    return NextResponse.json({ ok: false, error: "missing_sc_uid_cookie" }, { status: 401 });
-  }
-
-  const body = (await req.json().catch(() => ({} as any))) as any;
-  const venueIdRaw = String(body?.venue_id ?? "").trim();
-  const slugRaw = String(body?.slug ?? "").trim();
-
-  const supabase = createSupabaseAdminClient();
-
-  // 0) resolve venue_id (da slug o diretto)
-  let venueId = venueIdRaw;
-
-  if (!venueId && slugRaw) {
-    const { data: v, error: vErr } = await supabase
+    // 1) Trova venue
+    const { data: venue, error: vErr } = await supabase
       .from("venues")
-      .select("id")
-      .eq("slug", slugRaw)
+      .select("id, slug, name")
+      .eq("slug", slug)
       .maybeSingle();
 
-    if (vErr) return NextResponse.json({ ok: false, error: `venue_lookup_failed: ${vErr.message}` }, { status: 500 });
-    if (!v?.id) return NextResponse.json({ ok: false, error: "missing_venue_id" }, { status: 400 });
-    venueId = String(v.id);
-  }
+    if (vErr) {
+      return NextResponse.json(
+        { ok: false, error: vErr.message },
+        { status: 500 }
+      );
+    }
 
-  if (!venueId) {
-    return NextResponse.json({ ok: false, error: "missing_venue_id" }, { status: 400 });
-  }
+    if (!venue) {
+      return NextResponse.json(
+        { ok: false, error: "venue_not_found" },
+        { status: 404 }
+      );
+    }
 
-  if (!isUuid(venueId)) {
-    return NextResponse.json({ ok: false, error: "venue_id_not_uuid" }, { status: 400 });
-  }
+    // 2) User dal cookie
+    const scUid = req.cookies.get("sc_uid")?.value?.trim();
 
-  // 1) ensure profilo (sc_users)
-  let scName = "Guest";
-  try {
-    const ensured = await ensureScUser(supabase, userId);
-    scName = ensured.name || "Guest";
+    if (!scUid) {
+      return NextResponse.json(
+        { ok: false, error: "not_logged" },
+        { status: 401 }
+      );
+    }
+
+    const { data: user, error: uErr } = await supabase
+      .from("sc_users")
+      .select("id, points")
+      .eq("id", scUid)
+      .maybeSingle();
+
+    if (uErr) {
+      return NextResponse.json(
+        { ok: false, error: uErr.message },
+        { status: 500 }
+      );
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: "profile_missing" },
+        { status: 404 }
+      );
+    }
+
+    // 3) Controllo presenza già oggi
+    const since = startOfTodayISO();
+
+    const { data: alreadyEv, error: aErr } = await supabase
+      .from("user_events")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("venue_id", venue.id)
+      .eq("event_type", "confirmed_visit")
+      .gte("created_at", since)
+      .limit(1);
+
+    if (aErr) {
+      return NextResponse.json(
+        { ok: false, error: aErr.message },
+        { status: 500 }
+      );
+    }
+
+    if (alreadyEv && alreadyEv.length > 0) {
+      return NextResponse.json({
+        ok: true,
+        already: true,
+        points_awarded: 0,
+        message:
+          "Presenza già registrata oggi ✅ Carica lo scontrino per guadagnare altri punti.",
+      });
+    }
+
+    // 4) Assegna punti
+    const pointsAward = 2;
+
+    const { error: evErr1 } = await supabase.from("user_events").insert({
+      user_id: user.id,
+      venue_id: venue.id,
+      event_type: "scan_visit",
+      points_delta: pointsAward,
+      meta: { slug },
+    });
+
+    if (evErr1) {
+      return NextResponse.json(
+        { ok: false, error: evErr1.message },
+        { status: 500 }
+      );
+    }
+
+    const { error: upErr } = await supabase
+      .from("sc_users")
+      .update({ points: (user.points || 0) + pointsAward })
+      .eq("id", user.id);
+
+    if (upErr) {
+      return NextResponse.json(
+        { ok: false, error: upErr.message },
+        { status: 500 }
+      );
+    }
+
+    const { error: evErr2 } = await supabase.from("user_events").insert({
+      user_id: user.id,
+      venue_id: venue.id,
+      event_type: "confirmed_visit",
+      points_delta: 0,
+      meta: { slug },
+    });
+
+    if (evErr2) {
+      return NextResponse.json(
+        { ok: false, error: evErr2.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      already: false,
+      points_awarded: pointsAward,
+      message: `Presenza registrata ✅ +${pointsAward} punti`,
+    });
+
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "ensure_sc_user_failed" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message || "unknown" },
+      { status: 500 }
+    );
   }
-
-  // ✅ IMPORTANTISSIMO:
-  // Non passiamo un placeholder all'RPC, altrimenti sovrascrive il nickname in leaderboard_users.
-  const nameForLeaderboard: string | null = isPlaceholderName(scName) ? null : scName;
-
-  // 2) info venue (per RPC venue lunga non ambigua)
-  const { data: venueRow, error: vInfoErr } = await supabase
-    .from("venues")
-    .select("id,name,slug")
-    .eq("id", venueId)
-    .maybeSingle();
-
-  if (vInfoErr) {
-    return NextResponse.json({ ok: false, error: `venue_info_failed: ${vInfoErr.message}` }, { status: 500 });
-  }
-
-  const venueName = String(venueRow?.name ?? "Venue");
-  const venueSlug = String(venueRow?.slug ?? "");
-  const venueMeta = venueSlug ? `slug=${venueSlug}` : `venue_uuid=${venueId}`;
-
-  // 3) salva evento scan
-  const { error: evErr } = await supabase.from("venue_events").insert({
-    venue_id: venueId,
-    user_id: userId,
-    event_type: "scan",
-  });
-
-  if (evErr) return NextResponse.json({ ok: false, error: evErr.message }, { status: 500 });
-
-  // 4) punti base scan
-  const points = 2;
-
-  const { error: ueErr } = await supabase.from("user_events").insert({
-    user_id: userId,
-    venue_id: venueId,
-    event_type: "scan",
-    points,
-  });
-
-  if (ueErr) return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
-
-  // 5) Leaderboard users (chiamiamo sempre la variante lunga → NO ambiguità)
-  //    Ma con p_name = null NON sovrascrive il nome esistente.
-  const { error: uRpcErr } = await supabase.rpc("increment_user_score_text", {
-    p_user_id: String(userId),
-    p_points: points,
-    p_name: nameForLeaderboard, // ✅ null se Guest/utente
-  });
-
-  if (uRpcErr) {
-    return NextResponse.json({ ok: false, error: `increment_user_failed: ${uRpcErr.message}` }, { status: 500 });
-  }
-
-  // 6) Leaderboard venues (sempre variante lunga → NO ambiguità)
-  const { error: vRpcErr } = await supabase.rpc("increment_venue_score_uuid", {
-    p_venue_id: venueId,
-    p_points: points,
-    p_name: venueName,
-    p_meta: venueMeta,
-  });
-
-  if (vRpcErr) {
-    return NextResponse.json({ ok: false, error: `increment_venue_failed: ${vRpcErr.message}` }, { status: 500 });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    venue_id: venueId,
-    points,
-    sc_user_name: scName,
-    leaderboard_name_sent: nameForLeaderboard,
-    venue_name: venueName,
-  });
 }
