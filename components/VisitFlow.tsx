@@ -13,6 +13,13 @@ type ProcessResp =
   | { ok: false; error: string }
   | { ok: true; status: "pending" | "approved" | "rejected"; reason?: string | null };
 
+function getQrContext() {
+  if (typeof window === "undefined") return { isQr: false, qrKey: null as string | null };
+  const u = new URL(window.location.href);
+  const qrKey = (u.searchParams.get("k") ?? "").trim() || null; // futuro QR
+  return { isQr: Boolean(qrKey), qrKey };
+}
+
 export default function VisitFlow({ venueId, slug }: Props) {
   const storageKey = useMemo(() => `sc_visit_${venueId}`, [venueId]);
 
@@ -25,17 +32,15 @@ export default function VisitFlow({ venueId, slug }: Props) {
   const [loadingRate, setLoadingRate] = useState(false);
 
   const [verificationId, setVerificationId] = useState<string | null>(null);
-
-  // rating (facoltativo, 0 punti)
   const [rating, setRating] = useState<number>(0);
 
-  // input refs (camera / gallery)
+  const [isQr, setIsQr] = useState(false);
+  const [qrKey, setQrKey] = useState<string | null>(null);
+
   const cameraRef = useRef<HTMLInputElement | null>(null);
   const galleryRef = useRef<HTMLInputElement | null>(null);
 
-  // -----------------------------
   // Restore state (localStorage)
-  // -----------------------------
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -52,6 +57,13 @@ export default function VisitFlow({ venueId, slug }: Props) {
       // ignore
     }
   }, [storageKey]);
+
+  // Detect QR context
+  useEffect(() => {
+    const ctx = getQrContext();
+    setIsQr(ctx.isQr);
+    setQrKey(ctx.qrKey);
+  }, []);
 
   function persist(next: Partial<{ step: Step; verificationId: string | null; rating: number }>) {
     const payload = {
@@ -70,44 +82,51 @@ export default function VisitFlow({ venueId, slug }: Props) {
     setMsg(null);
   }
 
-  // -----------------------------
-  // STEP 1: Scan
-  // -----------------------------
-  async function handleScan() {
+  // STEP 1: Scan (presenza)
+  async function handleScan(opts?: { silent?: boolean }) {
+    const silent = Boolean(opts?.silent);
+
     setLoadingScan(true);
-    setMsg(null);
+    if (!silent) setMsg(null);
 
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }), // ✅ logica esistente: scan via slug
+        body: JSON.stringify({ slug }), // ✅ niente key obbligatoria
       });
 
       const data = await res.json();
 
       if (!data?.ok) {
-        setMsg("Errore: " + (data?.error ?? "scan_failed"));
+        if (!silent) setMsg("Errore: " + (data?.error ?? "scan_failed"));
       } else {
-        const pts = Number(data?.points ?? 2);
-        setMsg(`Visita registrata ✅ +${pts} punti`);
         setStep("scanned");
         persist({ step: "scanned" });
+
+        const pts = Number(data?.points ?? 0);
+        if (!silent) setMsg(data?.message ?? (pts ? `Presenza registrata ✅ +${pts} punti` : "Presenza ok ✅"));
       }
     } catch {
-      setMsg("Errore di rete (scan)");
+      if (!silent) setMsg("Errore di rete (scan)");
     }
 
     setLoadingScan(false);
   }
 
-  // -----------------------------
+  // Auto-scan se arrivo da QR (?k=...)
+  useEffect(() => {
+    if (step !== "idle") return;
+    if (!isQr) return;
+    // non ci serve mandare k, per ora è solo UX
+    handleScan({ silent: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isQr, step]);
+
   // STEP 2: Upload receipt
-  // (NON cambiamo endpoint)
-  // -----------------------------
   async function uploadReceipt(file: File) {
     if (step === "idle") {
-      setMsg("Prima registra la visita (Step 1).");
+      setMsg("Prima registra la presenza.");
       return;
     }
 
@@ -146,19 +165,14 @@ export default function VisitFlow({ venueId, slug }: Props) {
     setLoadingUpload(false);
   }
 
-  // input handlers: auto-upload
   async function handlePickedFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
-    // reset value per poter ricaricare lo stesso file/nome
     e.currentTarget.value = "";
     if (!f) return;
-
     await uploadReceipt(f);
   }
 
-  // -----------------------------
   // STEP 3: Check status (process)
-  // -----------------------------
   async function refreshStatus(silent = false) {
     if (!verificationId) {
       if (!silent) setMsg("Manca verification_id.");
@@ -180,13 +194,12 @@ export default function VisitFlow({ venueId, slug }: Props) {
       } else if (data.status === "approved") {
         setStep("approved");
         persist({ step: "approved" });
-        if (!silent) setMsg("Consumazione approvata ✅ +8 punti assegnati (da admin). Ora puoi votare (facoltativo).");
+        if (!silent) setMsg("Consumazione approvata ✅ Punti assegnati. Ora puoi lasciare un voto (facoltativo).");
       } else if (data.status === "rejected") {
         setStep("rejected");
         persist({ step: "rejected" });
         if (!silent) setMsg(`Scontrino rifiutato ❌${data.reason ? ` (${data.reason})` : ""}`);
       } else {
-        // pending
         if (!silent) setMsg("Ancora in revisione ⏳ (admin deve approvare)");
       }
     } catch {
@@ -209,9 +222,7 @@ export default function VisitFlow({ venueId, slug }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, verificationId]);
 
-  // -----------------------------
   // STEP 4: Rating (facoltativo, 0 punti)
-  // -----------------------------
   async function handleRateSubmit() {
     if (step !== "approved") {
       setMsg("Il voto si sblocca dopo approvazione.");
@@ -248,16 +259,15 @@ export default function VisitFlow({ venueId, slug }: Props) {
     setLoadingRate(false);
   }
 
-  // -----------------------------
-  // UI helpers
-  // -----------------------------
   const canUpload = step !== "idle";
   const canCheck = Boolean(verificationId) && step === "uploaded";
   const canRate = step === "approved";
 
+  const showStep1 = step === "idle";
+  const showQrWarning = !isQr;
+
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      {/* hidden inputs (camera + gallery) */}
       <input
         ref={cameraRef}
         type="file"
@@ -276,39 +286,62 @@ export default function VisitFlow({ venueId, slug }: Props) {
         disabled={!canUpload || loadingUpload}
       />
 
-      {/* STEP 1 */}
+      {showStep1 ? (
+        <div className="notice" style={{ padding: 14 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Presenza (+2)</div>
+              <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
+                Registra la presenza allo Spot. <b>1 volta al giorno</b>.
+              </div>
+              {showQrWarning ? (
+                <div className="muted" style={{ marginTop: 8, lineHeight: 1.35 }}>
+                  ⚠️ Consiglio: questa azione dovrebbe avvenire tramite <b>QR</b> (altrimenti da casa è “cheat”).
+                </div>
+              ) : (
+                <div className="muted" style={{ marginTop: 8, lineHeight: 1.35 }}>
+                  QR rilevato ✅ (k={qrKey})
+                </div>
+              )}
+            </div>
+
+            <span className="badge" title="Presenza">
+              <span className="dot" /> da fare
+            </span>
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <button className="btn primary" onClick={() => handleScan()} disabled={loadingScan}>
+              {loadingScan ? "Registrazione..." : "Registra presenza (+2)"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="notice" style={{ padding: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Presenza</div>
+              <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
+                Presenza ok ✅ {isQr ? "(da QR)" : "(da browser)"} — ora puoi caricare lo scontrino.
+              </div>
+            </div>
+            <button className="btn" onClick={resetFlow} type="button">
+              Reset
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="notice" style={{ padding: 14 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <div style={{ fontWeight: 800 }}>1) Registra visita</div>
+            <div style={{ fontWeight: 800 }}>Scontrino</div>
             <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
-              Premi per registrare la visita allo Spot. (Punti base: <b>+2</b>)
+              Scatta la foto dello scontrino: va in revisione manuale. Quando l’admin approva ricevi punti extra.
             </div>
           </div>
 
-          <span className="badge" title="Step 1">
-            <span className="dot" /> {step === "idle" ? "da fare" : "ok"}
-          </span>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <button className="btn primary" onClick={handleScan} disabled={loadingScan}>
-            {loadingScan ? "Registrazione..." : "Registra visita (+2)"}
-          </button>
-        </div>
-      </div>
-
-      {/* STEP 2 */}
-      <div className="notice" style={{ padding: 14 }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <div style={{ fontWeight: 800 }}>2) Consumazione (+8)</div>
-            <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
-              Scatta la foto dello scontrino: va in revisione manuale. Quando l’admin approva ricevi <b>+8 punti</b>.
-            </div>
-          </div>
-
-          <span className="badge" title="Step 2">
+          <span className="badge" title="Scontrino">
             <span className="dot" />{" "}
             {step === "uploaded"
               ? "in revisione"
@@ -316,12 +349,13 @@ export default function VisitFlow({ venueId, slug }: Props) {
               ? "approvato"
               : step === "rejected"
               ? "rifiutato"
-              : "—"}
+              : canUpload
+              ? "pronto"
+              : "bloccato"}
           </span>
         </div>
 
         <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-          {/* CTA principali: camera + gallery */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               className="btn primary"
@@ -329,7 +363,7 @@ export default function VisitFlow({ venueId, slug }: Props) {
               disabled={!canUpload || loadingUpload}
               onClick={() => cameraRef.current?.click()}
             >
-              {loadingUpload ? "Caricamento..." : "📸 Scatta scontrino (+8)"}
+              {loadingUpload ? "Caricamento..." : "📸 Scatta scontrino"}
             </button>
 
             <button
@@ -340,13 +374,8 @@ export default function VisitFlow({ venueId, slug }: Props) {
             >
               Carica da galleria
             </button>
-
-            <button className="btn" onClick={resetFlow} type="button">
-              Reset
-            </button>
           </div>
 
-          {/* status actions */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button className="btn" onClick={() => refreshStatus(false)} disabled={loadingStatus || !canCheck}>
               {loadingStatus ? "Aggiorno..." : "Aggiorna stato"}
@@ -361,26 +390,24 @@ export default function VisitFlow({ venueId, slug }: Props) {
             )}
           </div>
 
-          {/* hint */}
           {!canUpload ? (
             <div className="muted">
-              ⚠️ Prima fai <b>Registra visita</b> (Step 1), poi puoi caricare lo scontrino.
+              ⚠️ Prima registra la <b>presenza</b>, poi puoi caricare lo scontrino.
             </div>
           ) : null}
         </div>
       </div>
 
-      {/* STEP 3 */}
       <div className="notice" style={{ padding: 14 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <div style={{ fontWeight: 800 }}>3) Vota lo Spot (facoltativo)</div>
+            <div style={{ fontWeight: 800 }}>Voto (facoltativo)</div>
             <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
               Dopo approvazione puoi lasciare un voto da 1 a 5. <b>(0 punti)</b>
             </div>
           </div>
 
-          <span className="badge" title="Step 3">
+          <span className="badge" title="Voto">
             <span className="dot" /> {step === "rated" ? "votato" : canRate ? "sbloccato" : "bloccato"}
           </span>
         </div>
@@ -407,7 +434,6 @@ export default function VisitFlow({ venueId, slug }: Props) {
         </div>
       </div>
 
-      {/* MSG */}
       {msg ? (
         <div className="notice" style={{ padding: 14 }}>
           {msg}
