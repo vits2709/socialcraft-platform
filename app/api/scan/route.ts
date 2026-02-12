@@ -12,7 +12,7 @@ function startOfTodayISO() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { slug } = await req.json().catch(() => ({} as any));
+    const { slug } = (await req.json().catch(() => ({}))) as { slug?: string };
     if (!slug) return NextResponse.json({ ok: false, error: "missing_slug" }, { status: 400 });
 
     const supabase = createSupabaseAdminClient();
@@ -27,16 +27,16 @@ export async function POST(req: NextRequest) {
     if (vErr) return NextResponse.json({ ok: false, error: vErr.message }, { status: 500 });
     if (!venue) return NextResponse.json({ ok: false, error: "venue_not_found" }, { status: 404 });
 
-    // 2) user (explorer cookie)
-    const scUid = req.cookies.get("sc_uid")?.value?.trim();
-    if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
+    // 2) explorer user (cookie)
+    const uid = req.cookies.get("sc_uid")?.value?.trim();
+    if (!uid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
 
-    // 3) 1/day check: esiste già uno scan oggi per questo venue?
+    // 3) ✅ 1/day check: already scanned today for this venue?
     const since = startOfTodayISO();
-    const { data: alreadyEv, error: aErr } = await supabase
+    const { data: already, error: aErr } = await supabase
       .from("user_events")
       .select("id")
-      .eq("user_id", scUid)
+      .eq("user_id", uid)
       .eq("venue_id", venue.id)
       .eq("event_type", "scan")
       .gte("created_at", since)
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     if (aErr) return NextResponse.json({ ok: false, error: aErr.message }, { status: 500 });
 
-    if (alreadyEv && alreadyEv.length > 0) {
+    if (already && already.length > 0) {
       return NextResponse.json({
         ok: true,
         already: true,
@@ -53,56 +53,62 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4) award points (scan)
+    // 4) award +2 (schema compatibile)
     const points = 2;
 
-    // ✅ usa SOLO event_type ammesso dal vincolo: "scan"
+    // a) venue_events (serve per upload scontrino: controllo scan recente)
+    const { error: veErr } = await supabase.from("venue_events").insert({
+      venue_id: venue.id,
+      event_type: "scan",
+      points,
+      user_id: uid,
+    });
+    if (veErr) return NextResponse.json({ ok: false, error: veErr.message }, { status: 500 });
+
+    // b) user_events (serve per profilo/punti/statistiche)
     const { error: ueErr } = await supabase.from("user_events").insert({
-      user_id: scUid,
+      user_id: uid,
       venue_id: venue.id,
       event_type: "scan",
       points,
     });
     if (ueErr) return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
 
-    // evento spot (se vuoi tenerlo)
-    const { error: veErr } = await supabase.from("venue_events").insert({
-      venue_id: venue.id,
-      user_id: scUid,
-      event_type: "scan",
-      points,
-    });
-    if (veErr) {
-      // non blocchiamo tutto se venue_events fallisce
-      console.warn("venue_events insert failed:", veErr.message);
-    }
+    // c) leaderboard_users (score)
+    // (se la tabella non ha name, lascia solo score; qui uso update/insert semplice)
+    const { data: lbUser, error: lbReadErr } = await supabase
+      .from("leaderboard_users")
+      .select("id, score")
+      .eq("id", uid)
+      .maybeSingle();
 
-    // leaderboard increment: usa RPC esistenti (già in repo)
-    // - increment_user_score_text è quello usato dalla tua scan route “vecchia”
-    // - fallback su increment_user_score se presente
-    let rpcOk = true;
-
-    const { error: rpcErr1 } = await supabase.rpc("increment_user_score_text", {
-      p_user_id_text: String(scUid),
-      p_points: points,
-    });
-
-    if (rpcErr1) {
-      const { error: rpcErr2 } = await supabase.rpc("increment_user_score", {
-        p_user_id: scUid,
-        p_points: points,
-      });
-      if (rpcErr2) {
-        rpcOk = false;
-        console.warn("RPC increment failed:", rpcErr1.message, rpcErr2.message);
+    if (!lbReadErr) {
+      if (lbUser) {
+        const { error: lbUpErr } = await supabase
+          .from("leaderboard_users")
+          .update({ score: Number(lbUser.score ?? 0) + points })
+          .eq("id", uid);
+        if (lbUpErr) return NextResponse.json({ ok: false, error: lbUpErr.message }, { status: 500 });
+      } else {
+        const { error: lbInsErr } = await supabase.from("leaderboard_users").insert({
+          id: uid,
+          score: points,
+        });
+        if (lbInsErr) return NextResponse.json({ ok: false, error: lbInsErr.message }, { status: 500 });
       }
     }
+
+    // d) rpc (se esiste, meglio: non deve rompere se manca)
+    await supabase.rpc("increment_user_score_text", {
+      p_user_id: uid,
+      p_points: points,
+      p_name: null,
+    });
 
     return NextResponse.json({
       ok: true,
       already: false,
       points,
-      rpcOk,
       message: `Presenza registrata ✅ +${points} punti`,
     });
   } catch (e: any) {
