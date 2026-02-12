@@ -17,7 +17,11 @@ export async function POST(req: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
 
-    // 1) venue by slug
+    // user (explorer) da cookie
+    const scUid = req.cookies.get("sc_uid")?.value?.trim();
+    if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
+
+    // venue by slug
     const { data: venue, error: vErr } = await supabase
       .from("venues")
       .select("id, slug, name")
@@ -27,20 +31,17 @@ export async function POST(req: NextRequest) {
     if (vErr) return NextResponse.json({ ok: false, error: vErr.message }, { status: 500 });
     if (!venue) return NextResponse.json({ ok: false, error: "venue_not_found" }, { status: 404 });
 
-    // 2) user from explorer cookie
-    const scUid = req.cookies.get("sc_uid")?.value?.trim();
-    if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
-
+    // user points
     const { data: user, error: uErr } = await supabase
       .from("sc_users")
-      .select("id, points")
+      .select("id, points, name")
       .eq("id", scUid)
       .maybeSingle();
 
     if (uErr) return NextResponse.json({ ok: false, error: uErr.message }, { status: 500 });
     if (!user) return NextResponse.json({ ok: false, error: "profile_missing" }, { status: 404 });
 
-    // 3) 1/day check on user_events (event_type = 'scan')
+    // 1/day check (event_type deve essere 'scan')
     const since = startOfTodayISO();
     const { data: already, error: aErr } = await supabase
       .from("user_events")
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
     if (aErr) return NextResponse.json({ ok: false, error: aErr.message }, { status: 500 });
 
     if (already && already.length > 0) {
+      // già fatto oggi: nessun punto
       return NextResponse.json({
         ok: true,
         already: true,
@@ -63,16 +65,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4) award points
+    // award +2
     const pointsAward = 2;
     const current = Number(user.points ?? 0);
     const newTotal = current + pointsAward;
 
-    // Update user points
+    // aggiorna sc_users.points
     const { error: upErr } = await supabase.from("sc_users").update({ points: newTotal }).eq("id", user.id);
     if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
 
-    // Log in user_events (allowed: scan|vote|receipt)
+    // log user_events (constraint: scan|vote|receipt)
     const { error: ueErr } = await supabase.from("user_events").insert({
       user_id: user.id,
       venue_id: venue.id,
@@ -80,23 +82,28 @@ export async function POST(req: NextRequest) {
       points: newTotal,
       points_delta: pointsAward,
     });
-
     if (ueErr) return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
 
-    // Log in venue_events (allowed: scan|vote)
+    // log venue_events (constraint: scan|vote)
     const { error: veErr } = await supabase.from("venue_events").insert({
       venue_id: venue.id,
       user_id: user.id,
       event_type: "scan",
     });
-
     if (veErr) return NextResponse.json({ ok: false, error: veErr.message }, { status: 500 });
 
-    // Optional: increment visits_count (non obbligatorio, ma carino)
-    await supabase
-      .from("venues")
-      .update({ visits_count: (Number((venue as any).visits_count ?? 0) || 0) + 1 })
-      .eq("id", venue.id);
+    // ✅ aggiorna leaderboard_users (upsert)
+    const displayName = (user.name ?? "Guest").toString();
+    const { error: lbErr } = await supabase.from("leaderboard_users").upsert(
+      {
+        id: user.id,
+        name: displayName,
+        score: newTotal,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
+    if (lbErr) return NextResponse.json({ ok: false, error: lbErr.message }, { status: 500 });
 
     return NextResponse.json({
       ok: true,
