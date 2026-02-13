@@ -1,21 +1,28 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = await createSupabaseServerClientReadOnly();
+  const supabase = createSupabaseAdminClient();
 
+  // ✅ Source of truth: sc_users.points
   const { data, error } = await supabase
-    .from("leaderboard_users")
-    .select("id,name,score,meta,updated_at")
-    .order("score", { ascending: false })
-    .limit(200);
+    .from("sc_users")
+    .select("id, name, full_name, points, updated_at")
+    .order("points", { ascending: false })
+    .limit(20);
 
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, rows: data ?? [] });
+  const rows = (data ?? []).map((u) => ({
+    id: String(u.id), // leaderboard usa string
+    name: (u.full_name?.trim() || u.name?.trim() || "Guest") as string,
+    score: Number(u.points ?? 0),
+    meta: null,
+    updated_at: u.updated_at ?? null,
+  }));
+
+  return NextResponse.json({ ok: true, rows });
 }

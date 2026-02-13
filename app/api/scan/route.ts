@@ -12,41 +12,41 @@ function startOfTodayISO() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { slug } = await req.json().catch(() => ({} as any));
+    const { slug } = (await req.json().catch(() => ({}))) as { slug?: string };
     if (!slug) return NextResponse.json({ ok: false, error: "missing_slug" }, { status: 400 });
-
-    // ✅ Explorer session: cookie sc_uid (NON supabase auth user)
-    const scUid = req.cookies.get("sc_uid")?.value?.trim();
-    if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
 
     const supabase = createSupabaseAdminClient();
 
-    // 1) venue by slug
+    // ✅ user da cookie (explorer)
+    const scUid = req.cookies.get("sc_uid")?.value?.trim();
+    if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
+
+    // ✅ venue
     const { data: venue, error: vErr } = await supabase
       .from("venues")
-      .select("id, slug")
+      .select("id, slug, name")
       .eq("slug", slug)
       .maybeSingle();
 
     if (vErr) return NextResponse.json({ ok: false, error: vErr.message }, { status: 500 });
     if (!venue) return NextResponse.json({ ok: false, error: "venue_not_found" }, { status: 404 });
 
-    // 2) sc_user profile
-    const { data: scUser, error: uErr } = await supabase
+    // ✅ user profile (sc_users)
+    const { data: user, error: uErr } = await supabase
       .from("sc_users")
       .select("id, points")
       .eq("id", scUid)
       .maybeSingle();
 
     if (uErr) return NextResponse.json({ ok: false, error: uErr.message }, { status: 500 });
-    if (!scUser) return NextResponse.json({ ok: false, error: "user_not_found" }, { status: 404 });
+    if (!user) return NextResponse.json({ ok: false, error: "user_not_found" }, { status: 404 });
 
-    // 3) 1/day check (event_type MUST be 'scan' per tuo CHECK)
+    // ✅ 1 al giorno: controlliamo user_events(event_type='scan') da inizio giornata
     const since = startOfTodayISO();
     const { data: already, error: aErr } = await supabase
       .from("user_events")
       .select("id")
-      .eq("user_id", scUser.id)
+      .eq("user_id", user.id)
       .eq("venue_id", venue.id)
       .eq("event_type", "scan")
       .gte("created_at", since)
@@ -59,36 +59,43 @@ export async function POST(req: NextRequest) {
         ok: true,
         already: true,
         points_awarded: 0,
-        total_points: Number(scUser.points ?? 0),
-        message: "Presenza già registrata oggi ✅ Carica lo scontrino per +8.",
+        total_points: Number(user.points ?? 0),
+        message: "Presenza già registrata oggi ✅ Carica lo scontrino per guadagnare altri punti.",
       });
     }
 
-    // 4) award +2
-    const award = 2;
-    const total = Number(scUser.points ?? 0) + award;
+    const pointsAward = 2;
 
-    // insert event
-    const { error: evErr } = await supabase.from("user_events").insert({
-      user_id: scUser.id,
+    // 1) evento venue (solo scan/vote consentiti)
+    const { error: veErr } = await supabase.from("venue_events").insert({
+      venue_id: venue.id,
+      user_id: user.id,
+      event_type: "scan",
+    });
+    if (veErr) return NextResponse.json({ ok: false, error: veErr.message }, { status: 500 });
+
+    // 2) evento utente (scan/receipt/vote consentiti)
+    const { error: ueErr } = await supabase.from("user_events").insert({
+      user_id: user.id,
       venue_id: venue.id,
       event_type: "scan",
-      points: award,        // ✅ colonna esiste
-      points_delta: award,  // ✅ colonna esiste
+      points: pointsAward,
+      points_delta: pointsAward,
     });
+    if (ueErr) return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
 
-    if (evErr) return NextResponse.json({ ok: false, error: evErr.message }, { status: 500 });
+    // 3) aggiorna punti reali
+    const newTotal = Number(user.points ?? 0) + pointsAward;
 
-    // update user total points
-    const { error: upErr } = await supabase.from("sc_users").update({ points: total }).eq("id", scUser.id);
+    const { error: upErr } = await supabase.from("sc_users").update({ points: newTotal }).eq("id", user.id);
     if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
 
     return NextResponse.json({
       ok: true,
       already: false,
-      points_awarded: award,
-      total_points: total,
-      message: `Presenza registrata ✅ +${award} punti`,
+      points_awarded: pointsAward,
+      total_points: newTotal,
+      message: `Presenza registrata ✅ +${pointsAward} punti`,
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 });
