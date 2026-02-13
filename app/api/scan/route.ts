@@ -17,21 +17,20 @@ export async function POST(req: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
 
-    // user (explorer) da cookie
     const scUid = req.cookies.get("sc_uid")?.value?.trim();
     if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
 
-    // venue by slug
+    // venue
     const { data: venue, error: vErr } = await supabase
       .from("venues")
-      .select("id, slug, name")
+      .select("id, slug")
       .eq("slug", slug)
       .maybeSingle();
 
     if (vErr) return NextResponse.json({ ok: false, error: vErr.message }, { status: 500 });
     if (!venue) return NextResponse.json({ ok: false, error: "venue_not_found" }, { status: 404 });
 
-    // user points
+    // user
     const { data: user, error: uErr } = await supabase
       .from("sc_users")
       .select("id, points, name")
@@ -41,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (uErr) return NextResponse.json({ ok: false, error: uErr.message }, { status: 500 });
     if (!user) return NextResponse.json({ ok: false, error: "profile_missing" }, { status: 404 });
 
-    // 1/day check (event_type deve essere 'scan')
+    // 1/day: se già esiste scan oggi -> niente punti
     const since = startOfTodayISO();
     const { data: already, error: aErr } = await supabase
       .from("user_events")
@@ -55,7 +54,6 @@ export async function POST(req: NextRequest) {
     if (aErr) return NextResponse.json({ ok: false, error: aErr.message }, { status: 500 });
 
     if (already && already.length > 0) {
-      // già fatto oggi: nessun punto
       return NextResponse.json({
         ok: true,
         already: true,
@@ -65,12 +63,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // award +2
+    // ✅ SOLO +2
     const pointsAward = 2;
     const current = Number(user.points ?? 0);
     const newTotal = current + pointsAward;
 
-    // aggiorna sc_users.points
+    // update sc_users total
     const { error: upErr } = await supabase.from("sc_users").update({ points: newTotal }).eq("id", user.id);
     if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
 
@@ -92,17 +90,30 @@ export async function POST(req: NextRequest) {
     });
     if (veErr) return NextResponse.json({ ok: false, error: veErr.message }, { status: 500 });
 
-    // ✅ aggiorna leaderboard_users (upsert)
+    // ✅ leaderboard: NON deve mai “resettare”.
+    // Prendiamo score attuale e scriviamo il massimo tra attuale e newTotal.
+    const { data: lbCur, error: lbReadErr } = await supabase
+      .from("leaderboard_users")
+      .select("score")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (lbReadErr) return NextResponse.json({ ok: false, error: lbReadErr.message }, { status: 500 });
+
+    const curScore = Number(lbCur?.score ?? 0);
+    const safeScore = Math.max(curScore, newTotal);
+
     const displayName = (user.name ?? "Guest").toString();
     const { error: lbErr } = await supabase.from("leaderboard_users").upsert(
       {
         id: user.id,
         name: displayName,
-        score: newTotal,
+        score: safeScore,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "id" }
     );
+
     if (lbErr) return NextResponse.json({ ok: false, error: lbErr.message }, { status: 500 });
 
     return NextResponse.json({
