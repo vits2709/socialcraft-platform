@@ -8,7 +8,7 @@ export async function GET() {
   const supabase = createSupabaseAdminClient();
 
   const { data, error } = await supabase
-    .from("leaderboard_users") // <-- ora è una VIEW (da sc_users)
+    .from("v_leaderboard_users") // <-- ora è una VIEW (da sc_users)
     .select("id,name,score,updated_at")
     .order("score", { ascending: false })
     .limit(50);
