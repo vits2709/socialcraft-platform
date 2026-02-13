@@ -1,31 +1,19 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  try {
-    const supabase = await createSupabaseServerClientReadOnly();
+  const supabase = createSupabaseAdminClient();
 
-    // Fonte unica: sc_users.points
-    const { data, error } = await supabase
-      .from("sc_users")
-      .select("id,name,points,updated_at")
-      .order("points", { ascending: false })
-      .limit(100);
+  const { data, error } = await supabase
+    .from("leaderboard_users") // <-- ora è una VIEW (da sc_users)
+    .select("id,name,score,updated_at")
+    .order("score", { ascending: false })
+    .limit(50);
 
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    const rows = (data ?? []).map((u) => ({
-      id: String(u.id),
-      name: u.name ?? "Guest",
-      score: Number(u.points ?? 0),
-      updated_at: u.updated_at ?? null,
-    }));
-
-    return NextResponse.json({ ok: true, rows });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 });
-  }
+  return NextResponse.json({ ok: true, users: data ?? [] });
 }

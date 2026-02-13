@@ -40,14 +40,60 @@ export async function POST(req: NextRequest) {
         image_path: imagePath,
         image_hash: hash,
       })
-      .select("id")
+      // ... dopo che hai: user_id, venue_id, image_path, image_hash
+
+const { data: inserted, error: insErr } = await supabase
+  .from("receipt_verifications")
+  .insert({
+    user_id,
+    venue_id,
+    status: "pending",
+    image_path,
+    image_hash,
+  })
+  .select("id,status,reason")
+  .maybeSingle();
+
+if (insErr) {
+  // duplicate key -> stessa immagine già caricata da questo utente
+  if ((insErr as any).code === "23505") {
+    const { data: existing, error: selErr } = await supabase
+      .from("receipt_verifications")
+      .select("id,status,reason")
+      .eq("user_id", user_id)
+      .eq("image_hash", image_hash)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    if (!row?.id) return NextResponse.json({ ok: false, error: "missing_verification_id" }, { status: 500 });
+    if (selErr) {
+      return NextResponse.json({ ok: false, error: selErr.message }, { status: 500 });
+    }
 
-    return NextResponse.json({ ok: true, verification_id: row.id });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 });
+    if (!existing) {
+      return NextResponse.json({ ok: false, error: "duplicate_but_not_found" }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      duplicate: true,
+      verification_id: existing.id,
+      status: existing.status,
+      message:
+        existing.status === "pending"
+          ? "Questo scontrino è già stato caricato ✅ (è ancora in revisione)."
+          : existing.status === "approved"
+          ? "Questo scontrino era già stato approvato ✅"
+          : "Questo scontrino era già stato rifiutato ❌",
+    });
   }
+
+  return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
 }
+
+// normale
+return NextResponse.json({
+  ok: true,
+  duplicate: false,
+  verification_id: inserted?.id,
+});
