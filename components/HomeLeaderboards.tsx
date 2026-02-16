@@ -8,14 +8,15 @@ function toInt(n: any) {
   const x = Number(n ?? 0);
   return Number.isFinite(x) ? x : 0;
 }
+
 function toNum(n: any) {
   const x = Number(n);
   return Number.isFinite(x) ? x : NaN;
 }
+
 function fmtRating(avg: any) {
   const n = toNum(avg);
   if (!Number.isFinite(n)) return null;
-  // 1 decimale (4.2)
   return Math.round(n * 10) / 10;
 }
 
@@ -48,6 +49,7 @@ function prevAtForExplorer(label: string) {
   if (label === "Frequentatore") return 150;
   return 400;
 }
+
 function prevAtForSpot(label: string) {
   if (label === "Nuovo") return 0;
   if (label === "In Crescita") return 20;
@@ -87,6 +89,7 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
           >
             📍 Spot <span className="pill">{props.spots.length}</span>
           </button>
+
           <button
             className={`tab ${tab === "explorers" ? "active" : ""}`}
             onClick={() => setTab("explorers")}
@@ -101,6 +104,7 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
         {/* SPOTS */}
         <section className={`leaderCol ${tab !== "spots" ? "mobileHidden" : ""}`}>
           <div className="colTitle">📍 Spot</div>
+
           <div className="colList">
             {topSpots.map((v, i) => {
               const score = toInt(v.score);
@@ -111,7 +115,6 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
               const slugMatch = String(v.meta ?? "").match(/slug=([a-z0-9-]+)/i);
               const slug = slugMatch?.[1] ?? null;
 
-              // ✅ Rating
               const avg = fmtRating(v.avg_rating);
               const cnt = toInt(v.ratings_count);
 
@@ -124,14 +127,12 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
                       <div className="rowName">{v.name ?? "Spot"}</div>
                       <div className="rowMeta">
                         {lvl.emoji} {lvl.label} • <b>{score}</b> pt
-                        {/* ✅ rating in meta (senza rivelare chi ha votato) */}
-                        {avg != null ? (
+                        {avg != null && (
                           <span>
-                            {" "}
-                            • ⭐ <b>{avg}</b>
-                            {cnt > 0 ? <span className="muted"> ({cnt})</span> : null}
+                            {" "}• ⭐ <b>{avg}</b>
+                            {cnt > 0 && <span className="muted"> ({cnt})</span>}
                           </span>
-                        ) : null}
+                        )}
                       </div>
                     </div>
 
@@ -149,6 +150,7 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
                   <div className="bar">
                     <div className="barFill spot" style={{ width: `${pct}%` }} />
                   </div>
+
                   <div className="barText">
                     Prossimo: {lvl.nextAt == null ? <b>MAX</b> : <b>{lvl.nextAt} pt</b>} • {pct}%
                   </div>
@@ -161,6 +163,7 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
         {/* EXPLORERS */}
         <section className={`leaderCol ${tab !== "explorers" ? "mobileHidden" : ""}`}>
           <div className="colTitle">🧑‍🚀 Esploratori</div>
+
           <div className="colList">
             {topExplorers.map((u, i) => {
               const score = toInt(u.score);
@@ -172,6 +175,7 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
                 <div className="rowCard" key={u.id}>
                   <div className="rowTop">
                     <div className="rankBox">{i + 1}</div>
+
                     <div className="rowMain">
                       <div className="rowName">{u.name ?? "Esploratore"}</div>
                       <div className="rowMeta">
@@ -181,8 +185,6 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
 
                     <div className="rowRight">
                       <Link className="btn mini" href="/me">
-  Profilo
-</Link>
                         Profilo
                       </Link>
                     </div>
@@ -191,6 +193,7 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
                   <div className="bar">
                     <div className="barFill user" style={{ width: `${pct}%` }} />
                   </div>
+
                   <div className="barText">
                     Prossimo: {lvl.nextAt == null ? <b>MAX</b> : <b>{lvl.nextAt} pt</b>} • {pct}%
                   </div>
