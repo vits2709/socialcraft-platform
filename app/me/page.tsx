@@ -2,400 +2,418 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type MePayload = {
-  ok: boolean;
-  user?: {
-    id: string;
-    name?: string | null;
-    points?: number | null;
-    created_at?: string | null;
-  };
-  stats?: {
-    points_total?: number;
-    scans_today?: number;
-    receipts_today?: number;
-    votes_today?: number;
-  };
-  error?: string;
+type StatsPayload =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      stats: {
+        points_total: number;
+
+        scans_today: number;
+        receipts_today: number;
+        votes_today: number;
+
+        scans_total: number;
+        venues_visited: number;
+
+        streak_days: number;
+        best_streak_days: number;
+        last_scan_day: string | null;
+
+        last7_days: number;
+        last7_scans: number;
+        last7_points: number;
+      };
+    };
+
+type MePayload =
+  | { ok: false; error: string }
+  | { ok: true; id: string; name: string | null; points: number };
+
+type Level = {
+  key: string;
+  name: string;
+  min: number;
+  // opzionale: descrizione breve
+  desc?: string;
 };
 
-type ProfileStatsPayload = {
-  ok: boolean;
-  stats?: {
-    // punti
-    points_total?: number;
+const LEVELS: Level[] = [
+  { key: "new", name: "Nuovo", min: 0, desc: "Appena arrivato" },
+  { key: "curioso", name: "Curioso", min: 20, desc: "In esplorazione" },
+  { key: "explorer", name: "Explorer", min: 60, desc: "Gira gli spot" },
+  { key: "regular", name: "Regular", min: 120, desc: "Presenza costante" },
+  { key: "veteran", name: "Veterano", min: 200, desc: "Ormai di casa" },
+  { key: "legend", name: "Leggenda", min: 320, desc: "Top player" },
+];
 
-    // oggi
-    scans_today?: number;
-    receipts_today?: number;
-    votes_today?: number;
-
-    // totali
-    scans_total?: number;
-    venues_visited?: number;
-    favorite_venue_name?: string | null;
-
-    // streak
-    streak_days?: number;
-    best_streak_days?: number;
-    last_scan_day?: string | null; // "2026-02-16"
-
-    // livelli
-    level?: number;
-    level_title?: string | null;
-    level_current?: number; // punti dentro al livello
-    level_next?: number; // soglia pross. livello
-    level_progress?: number; // 0..1 (se già calcolato lato backend)
-
-    // ultimi 7 giorni
-    last7_days?: number;
-    last7_scans?: number;
-    last7_points?: number;
-  };
-  error?: string;
-};
-
-function n(v: unknown, fallback = 0) {
-  const x = Number(v);
-  return Number.isFinite(x) ? x : fallback;
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
 }
 
-function clamp01(x: number) {
-  if (x < 0) return 0;
-  if (x > 1) return 1;
-  return x;
+function formatInt(n: number) {
+  return (Number(n) || 0).toLocaleString("it-IT");
 }
 
-// fallback livelli (se backend non manda nulla)
-// puoi cambiare queste soglie come vuoi
-function computeLevelFromPoints(pointsTotal: number) {
-  // soglie cumulative
-  const thresholds = [0, 20, 60, 120, 200, 300, 450, 650, 900, 1200];
-  let lvl = 1;
-  for (let i = 0; i < thresholds.length; i++) {
-    if (pointsTotal >= thresholds[i]) lvl = i + 1;
+function getLevel(points: number) {
+  const p = Number(points) || 0;
+  let current = LEVELS[0];
+  for (const lvl of LEVELS) {
+    if (p >= lvl.min) current = lvl;
   }
-  const curBase = thresholds[Math.max(0, lvl - 1)] ?? 0;
-  const nextBase = thresholds[Math.min(thresholds.length - 1, lvl)] ?? (curBase + 200);
-  const inLevel = pointsTotal - curBase;
-  const toNext = Math.max(0, nextBase - pointsTotal);
-  const progress = nextBase > curBase ? inLevel / (nextBase - curBase) : 1;
+  const idx = LEVELS.findIndex((l) => l.key === current.key);
+  const next = idx >= 0 && idx < LEVELS.length - 1 ? LEVELS[idx + 1] : null;
+
+  const curMin = current.min;
+  const nextMin = next?.min ?? current.min;
+  const span = Math.max(1, nextMin - curMin);
+  const inLevel = clamp(p - curMin, 0, span);
+  const progress = next ? clamp((inLevel / span) * 100, 0, 100) : 100;
+
   return {
-    level: lvl,
-    title: lvl >= 6 ? "Veterano" : lvl >= 3 ? "Explorer" : "Rookie",
-    level_current: inLevel,
-    level_next: nextBase - curBase,
-    points_to_next: toNext,
-    progress: clamp01(progress),
+    current,
+    next,
+    progress,
+    toNext: next ? Math.max(0, next.min - p) : 0,
+    curMin,
+    nextMin,
   };
+}
+
+function Badge({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+}) {
+  return (
+    <div
+      className="badge"
+      title={hint}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 10px",
+        borderRadius: 999,
+        border: "1px solid rgba(0,0,0,0.08)",
+        background: "rgba(255,255,255,0.7)",
+        fontSize: 13,
+        lineHeight: 1,
+      }}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 99,
+          background: "linear-gradient(90deg, #6b7cff, #ff4fb8)",
+          display: "inline-block",
+        }}
+      />
+      <b style={{ fontWeight: 800 }}>{label}:</b>
+      <span style={{ opacity: 0.85, fontWeight: 700 }}>{value}</span>
+    </div>
+  );
+}
+
+function Card({
+  title,
+  value,
+  subtitle,
+}: {
+  title: string;
+  value: string;
+  subtitle?: string;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid rgba(0,0,0,0.06)",
+        background: "rgba(255,255,255,0.75)",
+        borderRadius: 16,
+        padding: 14,
+        minHeight: 88,
+        display: "grid",
+        gap: 8,
+      }}
+    >
+      <div style={{ fontWeight: 800, opacity: 0.75 }}>{title}</div>
+      <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: -0.5 }}>{value}</div>
+      {subtitle ? <div style={{ fontSize: 13, opacity: 0.7 }}>{subtitle}</div> : null}
+    </div>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  right,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="notice"
+      style={{
+        padding: 16,
+        borderRadius: 18,
+        border: "1px dashed rgba(0,0,0,0.12)",
+        background: "rgba(255,255,255,0.6)",
+        display: "grid",
+        gap: 12,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 16 }}>{title}</div>
+          {subtitle ? <div style={{ opacity: 0.7, marginTop: 4 }}>{subtitle}</div> : null}
+        </div>
+        {right ?? null}
+      </div>
+      {children}
+    </div>
+  );
 }
 
 export default function MePage() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
   const [me, setMe] = useState<MePayload | null>(null);
-  const [ps, setPs] = useState<ProfileStatsPayload | null>(null);
+  const [stats, setStats] = useState<StatsPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  async function load() {
-    setLoading(true);
-    setErr(null);
+  const points = useMemo(() => {
+    if (stats && stats.ok) return Number(stats.stats.points_total ?? 0) || 0;
+    if (me && me.ok) return Number(me.points ?? 0) || 0;
+    return 0;
+  }, [me, stats]);
+
+  const levelInfo = useMemo(() => getLevel(points), [points]);
+
+  async function loadAll(silent = false) {
+    if (!silent) {
+      setLoading(true);
+      setErr(null);
+    } else {
+      setRefreshing(true);
+      setErr(null);
+    }
 
     try {
-      const [meRes, psRes] = await Promise.all([
-        fetch("/api/me", { method: "GET", cache: "no-store" }).catch(() => null),
-        fetch("/api/profile/stats", { method: "GET", cache: "no-store" }).catch(() => null),
+      const [meRes, stRes] = await Promise.all([
+        fetch("/api/me", { cache: "no-store" }),
+        fetch("/api/profile/stats", { cache: "no-store" }),
       ]);
 
-      const meData: MePayload =
-        (meRes && (await meRes.json().catch(() => ({ ok: false, error: "bad_json_me" })))) ||
-        ({ ok: false, error: "network_me" } as any);
+      const meJson = (await meRes.json()) as MePayload;
+      const stJson = (await stRes.json()) as StatsPayload;
 
-      const psData: ProfileStatsPayload =
-        (psRes && (await psRes.json().catch(() => ({ ok: false, error: "bad_json_profile_stats" })))) ||
-        ({ ok: false, error: "network_profile_stats" } as any);
+      setMe(meJson);
+      setStats(stJson);
 
-      if (!meData?.ok) {
-        setMe(null);
-        setPs(null);
-        setErr(meData?.error ?? "load_failed");
-      } else {
-        setMe(meData);
-        setPs(psData?.ok ? psData : null);
-      }
-    } catch {
-      setMe(null);
-      setPs(null);
-      setErr("network_error");
+      if (!meJson?.ok) setErr(meJson?.error ?? "Errore /api/me");
+      else if (!stJson?.ok) setErr(stJson?.error ?? "Errore /api/profile/stats");
+      else setErr(null);
+    } catch (e: any) {
+      setErr(e?.message ?? "Errore di rete");
     }
 
     setLoading(false);
+    setRefreshing(false);
   }
 
   useEffect(() => {
-    load();
+    loadAll(false);
   }, []);
 
-  const user = useMemo(() => {
-    const u = me?.user;
-    return {
-      id: u?.id ?? "",
-      name: (u?.name ?? "Guest").toString(),
-      points: n(u?.points, 0),
-      created_at: u?.created_at ?? null,
-    };
-  }, [me]);
+  const s = stats && stats.ok ? stats.stats : null;
 
-  const merged = useMemo(() => {
-    const a = ps?.stats ?? {};
-    const b = me?.stats ?? {};
-
-    const scansToday = n(a.scans_today, n(b.scans_today, 0));
-    const receiptsToday = n(a.receipts_today, n(b.receipts_today, 0));
-    const votesToday = n(a.votes_today, n(b.votes_today, 0));
-
-    const pointsTotal = n(a.points_total, n(b.points_total, user.points));
-
-    const streak = n(a.streak_days, 0);
-    const bestStreak = n(a.best_streak_days, 0);
-
-    const levelFromBackend = {
-      level: n(a.level, 0),
-      title: (a.level_title ?? "").toString(),
-      level_current: n(a.level_current, 0),
-      level_next: n(a.level_next, 0),
-      level_progress: Number.isFinite(Number(a.level_progress)) ? clamp01(Number(a.level_progress)) : null,
-    };
-
-    const fallbackLvl = computeLevelFromPoints(pointsTotal);
-
-    const level =
-      levelFromBackend.level > 0 ? levelFromBackend.level : fallbackLvl.level;
-
-    const levelTitle =
-      levelFromBackend.title?.trim()
-        ? levelFromBackend.title
-        : fallbackLvl.title;
-
-    // progress:
-    let progress = fallbackLvl.progress;
-    let pointsToNext = fallbackLvl.points_to_next;
-    let levelCurrent = fallbackLvl.level_current;
-    let levelNext = fallbackLvl.level_next;
-
-    if (levelFromBackend.level_next > 0) {
-      levelCurrent = levelFromBackend.level_current;
-      levelNext = levelFromBackend.level_next;
-      pointsToNext = Math.max(0, levelNext - levelCurrent);
-      progress =
-        levelFromBackend.level_progress !== null
-          ? levelFromBackend.level_progress
-          : (levelNext > 0 ? clamp01(levelCurrent / levelNext) : 0);
-    }
-
-    return {
-      // base
-      points_total: pointsTotal,
-      scans_today: scansToday,
-      receipts_today: receiptsToday,
-      votes_today: votesToday,
-
-      scans_total: n(a.scans_total, 0),
-      venues_visited: n(a.venues_visited, 0),
-      favorite_venue_name: (a.favorite_venue_name ?? null) as string | null,
-
-      // streak
-      streak_days: streak,
-      best_streak_days: bestStreak,
-      last_scan_day: (a.last_scan_day ?? null) as string | null,
-
-      // level
-      level,
-      level_title: levelTitle,
-      level_current: levelCurrent,
-      level_next: levelNext,
-      points_to_next: pointsToNext,
-      level_progress: clamp01(progress),
-
-      // last7
-      last7_days: n(a.last7_days, 7),
-      last7_scans: n(a.last7_scans, 0),
-      last7_points: n(a.last7_points, 0),
-    };
-  }, [ps, me, user.points]);
+  const nickname = me && me.ok ? (me.name ?? "Guest") : "—";
+  const userId = me && me.ok ? me.id : "—";
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <div className="notice" style={{ padding: 14 }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <div style={{ fontWeight: 900, fontSize: 18 }}>Il mio profilo</div>
-            <div className="muted" style={{ marginTop: 6 }}>
-              Badge, streak, livelli e statistiche.
-            </div>
-          </div>
-
-          <button className="btn" onClick={load} disabled={loading}>
-            {loading ? "Carico..." : "Aggiorna"}
+    <div style={{ maxWidth: 980, margin: "0 auto", padding: "18px 14px", display: "grid", gap: 14 }}>
+      {/* Header */}
+      <Section
+        title="Il mio profilo"
+        subtitle="Badge, streak, livelli e statistiche."
+        right={
+          <button
+            className="btn"
+            onClick={() => loadAll(true)}
+            disabled={refreshing}
+            style={{ height: 38 }}
+          >
+            {refreshing ? "Aggiorno..." : "Aggiorna"}
           </button>
-        </div>
-      </div>
-
-      {err ? (
-        <div className="notice" style={{ padding: 14 }}>
-          <div style={{ fontWeight: 800 }}>Errore</div>
-          <div className="muted" style={{ marginTop: 6 }}>
-            {err}
-          </div>
-        </div>
-      ) : null}
-
-      {/* HEADER UTENTE */}
-      <div className="notice" style={{ padding: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontWeight: 800 }}>Utente</div>
-            <div className="muted" style={{ marginTop: 6 }}>
-              {loading ? "…" : user.name}{" "}
-              {user.id ? (
-                <span className="muted" style={{ marginLeft: 8 }}>
-                  (ID: <b>{user.id}</b>)
-                </span>
-              ) : null}
+        }
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <div style={{ display: "grid", gap: 4 }}>
+            <div style={{ fontWeight: 900, fontSize: 16 }}>Utente</div>
+            <div style={{ opacity: 0.75 }}>
+              <b>{nickname}</b> <span style={{ opacity: 0.6 }}>(ID: {userId})</span>
             </div>
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <div className="muted">Punti (profilo)</div>
-            <div style={{ fontWeight: 900, fontSize: 22 }}>
-              {loading ? "…" : user.points.toLocaleString("it-IT")}
-            </div>
+            <div style={{ opacity: 0.7, fontWeight: 800 }}>Punti (profilo)</div>
+            <div style={{ fontSize: 30, fontWeight: 950 }}>{formatInt(points)}</div>
           </div>
         </div>
-      </div>
 
-      {/* BADGE TOP (ripristino completo) */}
-      <div className="notice" style={{ padding: 14 }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <div style={{ fontWeight: 800 }}>Badge</div>
-            <div className="muted" style={{ marginTop: 6 }}>
-              Oggi, streak e livello.
-            </div>
+        {err ? (
+          <div className="notice" style={{ padding: 12, borderRadius: 14 }}>
+            Errore: {err}
           </div>
+        ) : null}
+      </Section>
 
-          <span className="badge" title="Punti totali">
-            <span className="dot" /> {loading ? "…" : `${merged.points_total.toLocaleString("it-IT")} pt`}
-          </span>
-        </div>
-
-        <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <span className="badge" title="Presenze oggi">
-            <span className="dot" /> Presenze oggi: <b style={{ marginLeft: 6 }}>{loading ? "…" : merged.scans_today}</b>
-          </span>
-          <span className="badge" title="Scontrini oggi">
-            <span className="dot" /> Scontrini oggi: <b style={{ marginLeft: 6 }}>{loading ? "…" : merged.receipts_today}</b>
-          </span>
-          <span className="badge" title="Voti oggi">
-            <span className="dot" /> Voti oggi: <b style={{ marginLeft: 6 }}>{loading ? "…" : merged.votes_today}</b>
-          </span>
-
-          <span className="badge" title="Streak attuale">
-            <span className="dot" /> Streak:{" "}
-            <b style={{ marginLeft: 6 }}>
-              {loading ? "…" : `${merged.streak_days}g`}
-            </b>
-          </span>
-
-          <span className="badge" title="Best streak">
-            <span className="dot" /> Best:{" "}
-            <b style={{ marginLeft: 6 }}>
-              {loading ? "…" : `${merged.best_streak_days}g`}
-            </b>
-          </span>
-
-          <span className="badge" title="Scan totali">
-            <span className="dot" /> Scan totali:{" "}
-            <b style={{ marginLeft: 6 }}>
-              {loading ? "…" : merged.scans_total.toLocaleString("it-IT")}
-            </b>
-          </span>
-
-          <span className="badge" title="Livello">
-            <span className="dot" /> Livello:{" "}
-            <b style={{ marginLeft: 6 }}>
-              {loading ? "…" : `${merged.level} · ${merged.level_title}`}
-            </b>
-          </span>
-        </div>
-
-        {/* PROGRESS LIVELLO */}
-        <div style={{ marginTop: 12 }}>
-          <div className="muted" style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-            <span>
-              Prossimo livello:{" "}
-              <b>{loading ? "…" : `${merged.points_to_next.toLocaleString("it-IT")} pt`}</b>
-            </span>
-            <span>
-              {loading
-                ? "…"
-                : `${merged.level_current.toLocaleString("it-IT")}/${merged.level_next.toLocaleString("it-IT")}`}
-            </span>
-          </div>
-
+      {/* Badges + Level */}
+      <Section
+        title="Badge"
+        subtitle="Oggi, streak e livello."
+        right={
           <div
             style={{
-              marginTop: 8,
-              height: 10,
+              display: "inline-flex",
+              gap: 10,
+              alignItems: "center",
+              padding: "8px 10px",
               borderRadius: 999,
-              background: "rgba(0,0,0,0.08)",
-              overflow: "hidden",
+              border: "1px solid rgba(0,0,0,0.08)",
+              background: "rgba(255,255,255,0.7)",
+              fontWeight: 900,
             }}
+            title="Punti totali"
           >
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 99,
+                background: "linear-gradient(90deg, #6b7cff, #ff4fb8)",
+                display: "inline-block",
+              }}
+            />
+            {formatInt(points)} pt
+          </div>
+        }
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <Badge label="Presenze oggi" value={s ? s.scans_today : "—"} />
+          <Badge label="Scontrini oggi" value={s ? s.receipts_today : "—"} />
+          <Badge label="Voti oggi" value={s ? s.votes_today : "—"} />
+
+          <Badge label="Streak" value={s ? `${s.streak_days}g` : "—"} hint="Giorni consecutivi con almeno 1 scan" />
+          <Badge label="Best" value={s ? `${s.best_streak_days}g` : "—"} hint="Miglior streak storico" />
+
+          <Badge label="Scan totali" value={s ? s.scans_total : "—"} />
+          <Badge label="Spot visitati" value={s ? s.venues_visited : "—"} />
+          <Badge
+            label="Livello"
+            value={`${LEVELS.findIndex((x) => x.key === levelInfo.current.key) + 1} • ${levelInfo.current.name}`}
+            hint={levelInfo.current.desc}
+          />
+        </div>
+
+        {/* Progress */}
+        <div style={{ marginTop: 6, display: "grid", gap: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", opacity: 0.8 }}>
+            <div style={{ fontWeight: 900 }}>
+              {levelInfo.next ? (
+                <>
+                  Prossimo livello: <b>{formatInt(levelInfo.toNext)} pt</b>
+                </>
+              ) : (
+                <>Livello massimo raggiunto ✅</>
+              )}
+            </div>
+            <div style={{ fontWeight: 900 }}>
+              {levelInfo.next ? (
+                <>
+                  {formatInt(points - levelInfo.curMin)}/{formatInt(levelInfo.nextMin - levelInfo.curMin)}
+                </>
+              ) : (
+                <>100%</>
+              )}
+            </div>
+          </div>
+
+          <div style={{ height: 10, borderRadius: 999, background: "rgba(0,0,0,0.08)", overflow: "hidden" }}>
             <div
               style={{
-                width: `${Math.round(merged.level_progress * 100)}%`,
+                width: `${levelInfo.progress}%`,
                 height: "100%",
                 borderRadius: 999,
-                background: "linear-gradient(90deg, #6D5BFF, #FF4FB5)",
+                background: "linear-gradient(90deg, #6b7cff, #ff4fb8)",
               }}
             />
           </div>
+
+          {levelInfo.next ? (
+            <div style={{ fontSize: 13, opacity: 0.7 }}>
+              Ora: <b>{levelInfo.current.name}</b> → Prossimo: <b>{levelInfo.next.name}</b> (da {formatInt(levelInfo.next.min)} pt)
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, opacity: 0.7 }}>
+              Sei al top: <b>{levelInfo.current.name}</b>. 🔥
+            </div>
+          )}
         </div>
-      </div>
+      </Section>
 
-      {/* OVERVIEW */}
-      <div className="notice" style={{ padding: 14 }}>
-        <div style={{ fontWeight: 800, marginBottom: 10 }}>Overview</div>
+      {/* Overview cards */}
+      <Section title="Overview" subtitle="Dati principali">
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <Card title="Punti totali" value={formatInt(points)} subtitle="Dal profilo (sc_users.points)" />
+          <Card title="Scan totali" value={formatInt(s?.scans_total ?? 0)} subtitle="Eventi tipo scan" />
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-          <div className="card">
-            <div className="muted">Punti totali</div>
-            <div className="statValue">{loading ? "…" : merged.points_total.toLocaleString("it-IT")}</div>
-          </div>
-
-          <div className="card">
-            <div className="muted">Scan totali</div>
-            <div className="statValue">{loading ? "…" : merged.scans_total.toLocaleString("it-IT")}</div>
-          </div>
-
-          <div className="card">
-            <div className="muted">Spot visitati</div>
-            <div className="statValue">{loading ? "…" : merged.venues_visited.toLocaleString("it-IT")}</div>
-          </div>
-
-          <div className="card">
-            <div className="muted">Spot preferito</div>
-            <div className="statValue">{loading ? "…" : merged.favorite_venue_name || "—"}</div>
-          </div>
+          <Card title="Spot visitati" value={formatInt(s?.venues_visited ?? 0)} subtitle="Distinct venue_id sugli scan" />
+          <Card
+            title="Ultimi 7 giorni"
+            value={`${formatInt(s?.last7_scans ?? 0)} scan • ${formatInt(s?.last7_points ?? 0)} pt`}
+            subtitle="Somma points_delta (tutti eventi)"
+          />
         </div>
 
-        <div className="muted" style={{ marginTop: 10 }}>
-          Ultimi {merged.last7_days} giorni:{" "}
-          <b>
-            {loading ? "…" : `${merged.last7_scans} scan · ${merged.last7_points} punti`}
-          </b>
+        <div style={{ marginTop: 4, fontSize: 13, opacity: 0.7 }}>
+          Nota: “Punti totali” viene da <code>/api/profile/stats</code> (campo <code>stats.points_total</code>).
         </div>
-      </div>
+      </Section>
+
+      {/* Quick actions / info */}
+      <Section title="Azioni rapide" subtitle="Se qualcosa non torna, qui trovi i dati grezzi.">
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <a className="btn" href="/api/profile/stats" target="_blank" rel="noreferrer">
+            Apri JSON stats
+          </a>
+          <a className="btn" href="/api/me" target="_blank" rel="noreferrer">
+            Apri JSON me
+          </a>
+        </div>
+
+        {loading ? <div className="muted">Caricamento...</div> : null}
+      </Section>
+
+      <div style={{ textAlign: "center", opacity: 0.65, padding: "10px 0" }}>© 2026 SocialCraft</div>
     </div>
   );
 }
