@@ -2,16 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type Props = {
-  venueId: string;
-  slug: string;
-};
-
+type Props = { venueId: string; slug: string };
 type Step = "idle" | "scanned" | "uploaded" | "approved" | "rejected" | "rated";
 
 type ProcessResp =
   | { ok: false; error: string }
-  | { ok: true; status: "pending" | "approved" | "rejected"; reason?: string | null };
+  | { ok: true; status: "pending" | "approved" | "rejected"; reason?: string | null; points_awarded?: number; total_points?: number };
 
 export default function VisitFlow({ venueId, slug }: Props) {
   const storageKey = useMemo(() => `sc_visit_${venueId}`, [venueId]);
@@ -25,7 +21,6 @@ export default function VisitFlow({ venueId, slug }: Props) {
   const [loadingRate, setLoadingRate] = useState(false);
 
   const [verificationId, setVerificationId] = useState<string | null>(null);
-
   const [rating, setRating] = useState<number>(0);
 
   const cameraRef = useRef<HTMLInputElement | null>(null);
@@ -35,17 +30,11 @@ export default function VisitFlow({ venueId, slug }: Props) {
     try {
       const raw = localStorage.getItem(storageKey);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        step?: Step;
-        verificationId?: string | null;
-        rating?: number;
-      };
+      const parsed = JSON.parse(raw) as { step?: Step; verificationId?: string | null; rating?: number };
       if (parsed.step) setStep(parsed.step);
       if (parsed.verificationId) setVerificationId(parsed.verificationId);
       if (typeof parsed.rating === "number") setRating(parsed.rating);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [storageKey]);
 
   function persist(next: Partial<{ step: Step; verificationId: string | null; rating: number }>) {
@@ -65,45 +54,34 @@ export default function VisitFlow({ venueId, slug }: Props) {
     setMsg(null);
   }
 
-  // -----------------------------
-  // STEP 1: Presenza (+2)
-  // -----------------------------
   async function handleScan() {
     setLoadingScan(true);
     setMsg(null);
-
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug }),
       });
-
       const data = await res.json();
 
       if (!data?.ok) {
         setMsg("Errore: " + (data?.error ?? "scan_failed"));
       } else {
-        const pts = Number(data?.points_awarded ?? 0);
         setStep("scanned");
         persist({ step: "scanned" });
-
-        // messaggio server-first
+        const pts = Number(data?.points_awarded ?? 2);
         setMsg(data?.message ?? `Presenza registrata ✅ +${pts} punti`);
       }
     } catch {
       setMsg("Errore di rete (scan)");
     }
-
     setLoadingScan(false);
   }
 
-  // -----------------------------
-  // STEP 2: Upload receipt
-  // -----------------------------
   async function uploadReceipt(file: File) {
     if (step === "idle") {
-      setMsg("Prima registra la presenza (+2).");
+      setMsg("Prima registra la presenza.");
       return;
     }
 
@@ -115,21 +93,8 @@ export default function VisitFlow({ venueId, slug }: Props) {
       fd.append("venue_id", venueId);
       fd.append("file", file);
 
-      const res = await fetch("/api/receipt/upload", {
-        method: "POST",
-        body: fd,
-      });
-
-      // se il server crasha e non manda JSON, qui esplode: gestiamo
-      const text = await res.text();
-      let data: any = null;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        setMsg("Errore upload: risposta non valida dal server.");
-        setLoadingUpload(false);
-        return;
-      }
+      const res = await fetch("/api/receipt/upload", { method: "POST", body: fd });
+      const data = await res.json();
 
       if (!data?.ok) {
         setMsg("Errore: " + (data?.error ?? "upload_failed"));
@@ -141,7 +106,7 @@ export default function VisitFlow({ venueId, slug }: Props) {
           setVerificationId(vid);
           setStep("uploaded");
           persist({ step: "uploaded", verificationId: vid });
-          setMsg("Scontrino caricato ✅ Ora è in revisione (manuale).");
+          setMsg(data?.duplicate ? "Scontrino già caricato ✅ (riprendo la verifica)" : "Scontrino caricato ✅ Ora è in revisione.");
         }
       }
     } catch {
@@ -158,9 +123,6 @@ export default function VisitFlow({ venueId, slug }: Props) {
     await uploadReceipt(f);
   }
 
-  // -----------------------------
-  // STEP 3: Check status (process)
-  // -----------------------------
   async function refreshStatus(silent = false) {
     if (!verificationId) {
       if (!silent) setMsg("Manca verification_id.");
@@ -171,10 +133,7 @@ export default function VisitFlow({ venueId, slug }: Props) {
     if (!silent) setMsg(null);
 
     try {
-      const res = await fetch(`/api/receipt/process?id=${encodeURIComponent(verificationId)}`, {
-        method: "POST",
-      });
-
+      const res = await fetch(`/api/receipt/process?id=${encodeURIComponent(verificationId)}`, { method: "POST" });
       const data: ProcessResp = await res.json();
 
       if (!data?.ok) {
@@ -182,13 +141,14 @@ export default function VisitFlow({ venueId, slug }: Props) {
       } else if (data.status === "approved") {
         setStep("approved");
         persist({ step: "approved" });
-        if (!silent) setMsg("Consumazione approvata ✅ +8 punti assegnati. Ora puoi votare (facoltativo).");
+        const awarded = Number(data.points_awarded ?? 0);
+        if (!silent) setMsg(awarded > 0 ? `Consumazione approvata ✅ +${awarded} punti` : "Consumazione approvata ✅");
       } else if (data.status === "rejected") {
         setStep("rejected");
         persist({ step: "rejected" });
         if (!silent) setMsg(`Scontrino rifiutato ❌${data.reason ? ` (${data.reason})` : ""}`);
       } else {
-        if (!silent) setMsg("Ancora in revisione ⏳ (admin deve approvare)");
+        if (!silent) setMsg("Ancora in revisione ⏳");
       }
     } catch {
       if (!silent) setMsg("Errore di rete (status)");
@@ -200,18 +160,11 @@ export default function VisitFlow({ venueId, slug }: Props) {
   useEffect(() => {
     if (step !== "uploaded") return;
     if (!verificationId) return;
-
-    const t = setInterval(() => {
-      refreshStatus(true);
-    }, 6000);
-
+    const t = setInterval(() => refreshStatus(true), 6000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, verificationId]);
 
-  // -----------------------------
-  // STEP 4: Rating (facoltativo, 0 punti)
-  // -----------------------------
   async function handleRateSubmit() {
     if (step !== "approved") {
       setMsg("Il voto si sblocca dopo approvazione.");
@@ -233,7 +186,6 @@ export default function VisitFlow({ venueId, slug }: Props) {
       });
 
       const data = await res.json();
-
       if (!data?.ok) {
         setMsg("Errore: " + (data?.error ?? "rate_failed"));
       } else {
@@ -254,23 +206,8 @@ export default function VisitFlow({ venueId, slug }: Props) {
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: "none" }}
-        onChange={handlePickedFile}
-        disabled={!canUpload || loadingUpload}
-      />
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handlePickedFile}
-        disabled={!canUpload || loadingUpload}
-      />
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handlePickedFile} disabled={!canUpload || loadingUpload} />
+      <input ref={galleryRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePickedFile} disabled={!canUpload || loadingUpload} />
 
       {/* STEP 1 */}
       <div className="notice" style={{ padding: 14 }}>
@@ -278,21 +215,17 @@ export default function VisitFlow({ venueId, slug }: Props) {
           <div>
             <div style={{ fontWeight: 800 }}>1) Presenza (+2)</div>
             <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
-              1 volta al giorno.
+              Registra la presenza allo Spot. <b>1 volta al giorno</b>.
             </div>
           </div>
-
           <span className="badge" title="Step 1">
             <span className="dot" /> {step === "idle" ? "da fare" : "ok"}
           </span>
         </div>
 
-        <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ marginTop: 12 }}>
           <button className="btn primary" onClick={handleScan} disabled={loadingScan}>
             {loadingScan ? "Registrazione..." : "Registra presenza (+2)"}
-          </button>
-          <button className="btn" onClick={resetFlow} type="button">
-            Reset
           </button>
         </div>
       </div>
@@ -303,58 +236,43 @@ export default function VisitFlow({ venueId, slug }: Props) {
           <div>
             <div style={{ fontWeight: 800 }}>2) Scontrino (+8)</div>
             <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
-              Foto scontrino → revisione admin → se approvato: <b>+8</b>.
+              Carica la foto dello scontrino: va in revisione manuale. Quando l’admin approva ricevi <b>+8 punti</b>.
             </div>
           </div>
-
           <span className="badge" title="Step 2">
             <span className="dot" />{" "}
-            {step === "uploaded"
-              ? "in revisione"
-              : step === "approved"
-              ? "approvato"
-              : step === "rejected"
-              ? "rifiutato"
-              : canUpload
-              ? "pronto"
-              : "bloccato"}
+            {step === "uploaded" ? "in revisione" : step === "approved" ? "approvato" : step === "rejected" ? "rifiutato" : canUpload ? "pronto" : "bloccato"}
           </span>
         </div>
 
         <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              className="btn primary"
-              type="button"
-              disabled={!canUpload || loadingUpload}
-              onClick={() => cameraRef.current?.click()}
-            >
+            <button className="btn primary" type="button" disabled={!canUpload || loadingUpload} onClick={() => cameraRef.current?.click()}>
               {loadingUpload ? "Caricamento..." : "📸 Scatta scontrino (+8)"}
             </button>
-
-            <button
-              className="btn"
-              type="button"
-              disabled={!canUpload || loadingUpload}
-              onClick={() => galleryRef.current?.click()}
-            >
+            <button className="btn" type="button" disabled={!canUpload || loadingUpload} onClick={() => galleryRef.current?.click()}>
               Carica da galleria
             </button>
-
-            <button className="btn" onClick={() => refreshStatus(false)} disabled={loadingStatus || !canCheck}>
-              {loadingStatus ? "Aggiorno..." : "Aggiorna stato"}
+            <button className="btn" onClick={resetFlow} type="button">
+              Reset
             </button>
           </div>
 
-          {verificationId ? (
-            <div className="muted">
-              ID verifica: <b>{verificationId}</b>
-            </div>
-          ) : (
-            <div className="muted">Dopo il caricamento vedrai qui l’ID verifica.</div>
-          )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <button className="btn" onClick={() => refreshStatus(false)} disabled={loadingStatus || !canCheck}>
+              {loadingStatus ? "Aggiorno..." : "Aggiorna stato"}
+            </button>
 
-          {!canUpload ? <div className="muted">⚠️ Prima registra la presenza.</div> : null}
+            {verificationId ? (
+              <div className="muted">
+                ID verifica: <b>{verificationId}</b>
+              </div>
+            ) : (
+              <div className="muted">Dopo il caricamento vedrai qui l’ID della verifica.</div>
+            )}
+          </div>
+
+          {!canUpload ? <div className="muted">⚠️ Prima registra la <b>presenza</b>, poi puoi caricare lo scontrino.</div> : null}
         </div>
       </div>
 
@@ -364,7 +282,7 @@ export default function VisitFlow({ venueId, slug }: Props) {
           <div>
             <div style={{ fontWeight: 800 }}>3) Voto (facoltativo)</div>
             <div className="muted" style={{ marginTop: 6, lineHeight: 1.35 }}>
-              Si sblocca dopo approvazione. (0 punti)
+              Dopo approvazione puoi lasciare un voto da 1 a 5. <b>(0 punti)</b>
             </div>
           </div>
 
@@ -374,10 +292,16 @@ export default function VisitFlow({ venueId, slug }: Props) {
         </div>
 
         <div style={{ marginTop: 12 }}>
-          <StarPicker value={rating} onChange={setRating} disabled={!canRate} />
+          <StarPicker value={rating} onChange={(v) => setRating(v)} disabled={!canRate} />
           <button className="btn" onClick={handleRateSubmit} disabled={loadingRate || !canRate}>
             {loadingRate ? "Invio..." : "Invia voto"}
           </button>
+
+          {!canRate ? (
+            <div className="muted" style={{ marginTop: 10 }}>
+              (Si sblocca solo quando lo scontrino viene <b>approvato</b>)
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -390,15 +314,7 @@ export default function VisitFlow({ venueId, slug }: Props) {
   );
 }
 
-function StarPicker({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-}) {
+function StarPicker({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -408,11 +324,8 @@ function StarPicker({
           className="btn"
           onClick={() => onChange(n)}
           disabled={disabled}
-          style={{
-            padding: "10px 12px",
-            opacity: disabled ? 0.55 : 1,
-            transform: value === n ? "scale(1.03)" : "none",
-          }}
+          style={{ padding: "10px 12px", opacity: disabled ? 0.55 : 1, transform: value === n ? "scale(1.03)" : "none" }}
+          title={`${n} stelle`}
         >
           {n <= value ? "⭐" : "☆"}
         </button>

@@ -12,16 +12,15 @@ function startOfTodayISO() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { slug } = (await req.json().catch(() => ({}))) as { slug?: string };
+    const { slug } = await req.json().catch(() => ({} as any));
     if (!slug) return NextResponse.json({ ok: false, error: "missing_slug" }, { status: 400 });
 
-    const supabase = createSupabaseAdminClient();
-
-    // ✅ user da cookie (explorer)
     const scUid = req.cookies.get("sc_uid")?.value?.trim();
     if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
 
-    // ✅ venue
+    const supabase = createSupabaseAdminClient();
+
+    // venue
     const { data: venue, error: vErr } = await supabase
       .from("venues")
       .select("id, slug, name")
@@ -31,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (vErr) return NextResponse.json({ ok: false, error: vErr.message }, { status: 500 });
     if (!venue) return NextResponse.json({ ok: false, error: "venue_not_found" }, { status: 404 });
 
-    // ✅ user profile (sc_users)
+    // user
     const { data: user, error: uErr } = await supabase
       .from("sc_users")
       .select("id, points")
@@ -39,9 +38,9 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (uErr) return NextResponse.json({ ok: false, error: uErr.message }, { status: 500 });
-    if (!user) return NextResponse.json({ ok: false, error: "user_not_found" }, { status: 404 });
+    if (!user) return NextResponse.json({ ok: false, error: "profile_missing" }, { status: 404 });
 
-    // ✅ 1 al giorno: controlliamo user_events(event_type='scan') da inizio giornata
+    // 1/day check
     const since = startOfTodayISO();
     const { data: already, error: aErr } = await supabase
       .from("user_events")
@@ -59,43 +58,35 @@ export async function POST(req: NextRequest) {
         ok: true,
         already: true,
         points_awarded: 0,
-        total_points: Number(user.points ?? 0),
-        message: "Presenza già registrata oggi ✅ Carica lo scontrino per guadagnare altri punti.",
+        total_points: user.points ?? 0,
+        message: "Presenza già registrata oggi ✅",
       });
     }
 
-    const pointsAward = 2;
+    const AWARD = 2;
+    const newTotal = (user.points ?? 0) + AWARD;
 
-    // 1) evento venue (solo scan/vote consentiti)
-    const { error: veErr } = await supabase.from("venue_events").insert({
-      venue_id: venue.id,
-      user_id: user.id,
-      event_type: "scan",
-    });
-    if (veErr) return NextResponse.json({ ok: false, error: veErr.message }, { status: 500 });
-
-    // 2) evento utente (scan/receipt/vote consentiti)
-    const { error: ueErr } = await supabase.from("user_events").insert({
-      user_id: user.id,
-      venue_id: venue.id,
-      event_type: "scan",
-      points: pointsAward,
-      points_delta: pointsAward,
-    });
-    if (ueErr) return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
-
-    // 3) aggiorna punti reali
-    const newTotal = Number(user.points ?? 0) + pointsAward;
-
-    const { error: upErr } = await supabase.from("sc_users").update({ points: newTotal }).eq("id", user.id);
+    // update points
+    const { error: upErr } = await supabase.from("sc_users").update({ points: newTotal, updated_at: new Date().toISOString() }).eq("id", user.id);
     if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
+
+    // event log
+    const { error: evErr } = await supabase.from("user_events").insert({
+      user_id: user.id,
+      venue_id: venue.id,
+      event_type: "scan",
+      points: AWARD,
+      points_delta: AWARD,
+    });
+
+    if (evErr) return NextResponse.json({ ok: false, error: evErr.message }, { status: 500 });
 
     return NextResponse.json({
       ok: true,
       already: false,
-      points_awarded: pointsAward,
+      points_awarded: AWARD,
       total_points: newTotal,
-      message: `Presenza registrata ✅ +${pointsAward} punti`,
+      message: `Presenza registrata ✅ +${AWARD} punti`,
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 });
