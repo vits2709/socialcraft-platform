@@ -180,7 +180,9 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
                     </div>
 
                     <div className="rowRight">
-                      <Link className="btn mini" href={`/u/${encodeURIComponent(u.id)}`} target="_blank">
+                      <Link className="btn mini" href="/me">
+  Profilo
+</Link>
                         Profilo
                       </Link>
                     </div>
