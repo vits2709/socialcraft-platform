@@ -4,82 +4,114 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function startOfTodayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+const AWARD = 2;
+
+function todayISODate() {
+  // YYYY-MM-DD in timezone server (ok per regola "1 al giorno")
+  return new Date().toISOString().slice(0, 10);
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { slug } = await req.json().catch(() => ({} as any));
-    if (!slug) return NextResponse.json({ ok: false, error: "missing_slug" }, { status: 400 });
-
-    const scUid = req.cookies.get("sc_uid")?.value?.trim();
-    if (!scUid) return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
-
     const supabase = createSupabaseAdminClient();
 
-    // venue
+    const scUid = req.cookies.get("sc_uid")?.value?.trim();
+    if (!scUid) {
+      return NextResponse.json({ ok: false, error: "not_logged" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const slug = String(body?.slug ?? "").trim();
+    if (!slug) {
+      return NextResponse.json({ ok: false, error: "missing_slug" }, { status: 400 });
+    }
+
+    // 1) trova venue
     const { data: venue, error: vErr } = await supabase
       .from("venues")
-      .select("id, slug, name")
+      .select("id, slug")
       .eq("slug", slug)
       .maybeSingle();
 
     if (vErr) return NextResponse.json({ ok: false, error: vErr.message }, { status: 500 });
     if (!venue) return NextResponse.json({ ok: false, error: "venue_not_found" }, { status: 404 });
 
-    // user
+    // 2) carica utente (punti reali stanno qui)
     const { data: user, error: uErr } = await supabase
       .from("sc_users")
-      .select("id, points")
+      .select("id, name, points")
       .eq("id", scUid)
       .maybeSingle();
 
     if (uErr) return NextResponse.json({ ok: false, error: uErr.message }, { status: 500 });
-    if (!user) return NextResponse.json({ ok: false, error: "profile_missing" }, { status: 404 });
+    if (!user) return NextResponse.json({ ok: false, error: "user_not_found" }, { status: 404 });
 
-    // 1/day check
-    const since = startOfTodayISO();
-    const { data: already, error: aErr } = await supabase
+    const day = todayISODate();
+
+    // 3) check "1 al giorno" (PER VENUE)
+    // user_events non ha colonna "day", quindi filtriamo su created_at (range giorno)
+    const start = `${day}T00:00:00.000Z`;
+    const end = `${day}T23:59:59.999Z`;
+
+    const { count: alreadyCount, error: aErr } = await supabase
       .from("user_events")
-      .select("id")
-      .eq("user_id", user.id)
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", scUid)
       .eq("venue_id", venue.id)
       .eq("event_type", "scan")
-      .gte("created_at", since)
-      .limit(1);
+      .gte("created_at", start)
+      .lte("created_at", end);
 
     if (aErr) return NextResponse.json({ ok: false, error: aErr.message }, { status: 500 });
 
-    if (already && already.length > 0) {
+    const already = (alreadyCount ?? 0) > 0;
+    if (already) {
       return NextResponse.json({
         ok: true,
         already: true,
         points_awarded: 0,
-        total_points: user.points ?? 0,
+        total_points: Number(user.points ?? 0),
         message: "Presenza già registrata oggi ✅",
       });
     }
 
-    const AWARD = 2;
-    const newTotal = (user.points ?? 0) + AWARD;
+    // 4) aggiorna punti su sc_users (UNICA fonte verità)
+    const newTotal = Number(user.points ?? 0) + AWARD;
 
-    // update points
-    const { error: upErr } = await supabase.from("sc_users").update({ points: newTotal, updated_at: new Date().toISOString() }).eq("id", user.id);
+    const { error: upErr } = await supabase
+      .from("sc_users")
+      .update({ points: newTotal, updated_at: new Date().toISOString() })
+      .eq("id", scUid);
+
     if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
 
-    // event log
-    const { error: evErr } = await supabase.from("user_events").insert({
-      user_id: user.id,
+    // 5) log evento utente (event_type valido: scan/vote/receipt)
+    const { error: ueErr } = await supabase.from("user_events").insert({
+      user_id: scUid,
       venue_id: venue.id,
       event_type: "scan",
-      points: AWARD,
-      points_delta: AWARD,
+      points: AWARD,        // puoi tenerlo come "punti dell'evento"
+      points_delta: AWARD,  // delta reale
     });
 
-    if (evErr) return NextResponse.json({ ok: false, error: evErr.message }, { status: 500 });
+    if (ueErr) {
+      // non blocchiamo l’utente se il log fallisce,
+      // ma meglio segnalare errore per debug
+      return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
+    }
+
+    // 6) log evento venue (NON esiste colonna points!)
+    const { error: veErr } = await supabase.from("venue_events").insert({
+      venue_id: venue.id,
+      user_id: scUid,
+      event_type: "scan",
+    });
+
+    if (veErr) {
+      // idem: non rompiamo i punti assegnati per un log venue fallito
+      // ma segnaliamo errore se vuoi essere rigidissimo:
+      // return NextResponse.json({ ok:false, error: veErr.message }, { status: 500 });
+    }
 
     return NextResponse.json({
       ok: true,
@@ -89,6 +121,6 @@ export async function POST(req: NextRequest) {
       message: `Presenza registrata ✅ +${AWARD} punti`,
     });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: e?.message ?? "unknown" }, { status: 500 });
   }
 }
