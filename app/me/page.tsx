@@ -2,28 +2,30 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+type Stats = {
+  points_total: number;
+
+  scans_today: number;
+  receipts_today: number;
+  votes_today: number;
+
+  scans_total: number;
+  venues_visited: number;
+
+  streak_days: number;
+  best_streak_days: number;
+  last_scan_day: string | null;
+
+  last7_days: number;
+  last7_scans: number;
+  last7_points: number;
+};
+
 type StatsPayload =
   | { ok: false; error: string }
   | {
       ok: true;
-      stats: {
-        points_total: number;
-
-        scans_today: number;
-        receipts_today: number;
-        votes_today: number;
-
-        scans_total: number;
-        venues_visited: number;
-
-        streak_days: number;
-        best_streak_days: number;
-        last_scan_day: string | null;
-
-        last7_days: number;
-        last7_scans: number;
-        last7_points: number;
-      };
+      stats: Stats;
     };
 
 type MePayload =
@@ -119,16 +121,12 @@ type BadgeDef = {
   id: string;
   title: string;
   desc: string;
-  icon: string; // emoji per ora
-  // ritorna progress (0..1), unlocked boolean e label
+  icon: string;
   compute: (s: Stats) => { progress01: number; unlocked: boolean; label: string };
   rarity?: "common" | "rare" | "epic";
 };
 
-type Stats = NonNullable<StatsPayload extends { ok: true; stats: infer T } ? T : never>;
-
 function rarityStyles(r?: BadgeDef["rarity"]) {
-  // no colors hardcoded? qui uso solo gradient neutro, ma differenzio bordi/shadow
   const base = {
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
@@ -138,13 +136,7 @@ function rarityStyles(r?: BadgeDef["rarity"]) {
   return base;
 }
 
-function BadgeCard({
-  def,
-  s,
-}: {
-  def: BadgeDef;
-  s: Stats;
-}) {
+function BadgeCard({ def, s }: { def: BadgeDef; s: Stats }) {
   const r = def.compute(s);
   const pct = Math.round(clamp(r.progress01 * 100, 0, 100));
 
@@ -164,7 +156,6 @@ function BadgeCard({
       }}
       title={r.unlocked ? "Badge sbloccato" : "Badge bloccato"}
     >
-      {/* top row */}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
           <div
@@ -204,7 +195,6 @@ function BadgeCard({
         </span>
       </div>
 
-      {/* progress */}
       <div style={{ display: "grid", gap: 7 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12, opacity: 0.75 }}>
           <div style={{ fontWeight: 900 }}>{r.label}</div>
@@ -223,7 +213,6 @@ function BadgeCard({
         </div>
       </div>
 
-      {/* subtle corner */}
       <div
         aria-hidden
         style={{
@@ -270,15 +259,7 @@ function StatChip({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function Card({
-  title,
-  value,
-  subtitle,
-}: {
-  title: string;
-  value: string;
-  subtitle?: string;
-}) {
+function Card({ title, value, subtitle }: { title: string; value: string; subtitle?: string }) {
   return (
     <div
       style={{
@@ -355,11 +336,10 @@ export default function MePage() {
   const nickname = me && me.ok ? (me.name ?? "Guest") : "—";
   const userId = me && me.ok ? me.id : "—";
 
-  // Badge definitions (REWARDS)
   const BADGES: BadgeDef[] = useMemo(() => {
     if (!s) return [];
 
-    const badgeList: BadgeDef[] = [
+    return [
       {
         id: "first_scan",
         title: "Primo Scan",
@@ -368,11 +348,7 @@ export default function MePage() {
         rarity: "common",
         compute: (st) => {
           const v = st.scans_total;
-          return {
-            progress01: clamp(v / 1, 0, 1),
-            unlocked: v >= 1,
-            label: `${v}/1 scan`,
-          };
+          return { progress01: clamp(v / 1, 0, 1), unlocked: v >= 1, label: `${v}/1 scan` };
         },
       },
       {
@@ -383,11 +359,7 @@ export default function MePage() {
         rarity: "common",
         compute: (st) => {
           const v = st.venues_visited;
-          return {
-            progress01: clamp(v / 5, 0, 1),
-            unlocked: v >= 5,
-            label: `${v}/5 spot`,
-          };
+          return { progress01: clamp(v / 5, 0, 1), unlocked: v >= 5, label: `${v}/5 spot` };
         },
       },
       {
@@ -398,11 +370,7 @@ export default function MePage() {
         rarity: "rare",
         compute: (st) => {
           const v = st.venues_visited;
-          return {
-            progress01: clamp(v / 10, 0, 1),
-            unlocked: v >= 10,
-            label: `${v}/10 spot`,
-          };
+          return { progress01: clamp(v / 10, 0, 1), unlocked: v >= 10, label: `${v}/10 spot` };
         },
       },
       {
@@ -413,11 +381,7 @@ export default function MePage() {
         rarity: "common",
         compute: (st) => {
           const v = st.streak_days;
-          return {
-            progress01: clamp(v / 3, 0, 1),
-            unlocked: v >= 3,
-            label: `${v}/3 giorni`,
-          };
+          return { progress01: clamp(v / 3, 0, 1), unlocked: v >= 3, label: `${v}/3 giorni` };
         },
       },
       {
@@ -428,11 +392,7 @@ export default function MePage() {
         rarity: "epic",
         compute: (st) => {
           const v = st.streak_days;
-          return {
-            progress01: clamp(v / 7, 0, 1),
-            unlocked: v >= 7,
-            label: `${v}/7 giorni`,
-          };
+          return { progress01: clamp(v / 7, 0, 1), unlocked: v >= 7, label: `${v}/7 giorni` };
         },
       },
       {
@@ -443,11 +403,7 @@ export default function MePage() {
         rarity: "rare",
         compute: (st) => {
           const v = st.last7_scans;
-          return {
-            progress01: clamp(v / 10, 0, 1),
-            unlocked: v >= 10,
-            label: `${v}/10 scan`,
-          };
+          return { progress01: clamp(v / 10, 0, 1), unlocked: v >= 10, label: `${v}/10 scan` };
         },
       },
       {
@@ -458,11 +414,7 @@ export default function MePage() {
         rarity: "rare",
         compute: (st) => {
           const v = st.points_total;
-          return {
-            progress01: clamp(v / 200, 0, 1),
-            unlocked: v >= 200,
-            label: `${formatInt(v)}/200 pt`,
-          };
+          return { progress01: clamp(v / 200, 0, 1), unlocked: v >= 200, label: `${formatInt(v)}/200 pt` };
         },
       },
       {
@@ -473,16 +425,10 @@ export default function MePage() {
         rarity: "epic",
         compute: (st) => {
           const v = st.points_total;
-          return {
-            progress01: clamp(v / 500, 0, 1),
-            unlocked: v >= 500,
-            label: `${formatInt(v)}/500 pt`,
-          };
+          return { progress01: clamp(v / 500, 0, 1), unlocked: v >= 500, label: `${formatInt(v)}/500 pt` };
         },
       },
     ];
-
-    return badgeList;
   }, [s]);
 
   const unlockedCount = useMemo(() => {
@@ -492,7 +438,6 @@ export default function MePage() {
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "18px 14px", display: "grid", gap: 14 }}>
-      {/* Header */}
       <Section
         title="Il mio profilo"
         subtitle="Rewards, streak, livelli e statistiche."
@@ -523,7 +468,6 @@ export default function MePage() {
         ) : null}
       </Section>
 
-      {/* Livello (card dedicata) */}
       <Section title="Livello" subtitle="Progress e prossimo livello.">
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -545,7 +489,9 @@ export default function MePage() {
           <div style={{ display: "flex", justifyContent: "space-between", opacity: 0.8 }}>
             <div style={{ fontWeight: 900 }}>
               {levelInfo.next ? (
-                <>Prossimo: <b>{levelInfo.next.name}</b> (da {formatInt(levelInfo.next.min)} pt)</>
+                <>
+                  Prossimo: <b>{levelInfo.next.name}</b> (da {formatInt(levelInfo.next.min)} pt)
+                </>
               ) : (
                 <>Livello massimo raggiunto ✅</>
               )}
@@ -574,7 +520,6 @@ export default function MePage() {
         </div>
       </Section>
 
-      {/* Rewards / Badge Cards */}
       <Section
         title="Badge (Rewards)"
         subtitle="Questi sono i tuoi obiettivi sbloccabili."
@@ -597,13 +542,7 @@ export default function MePage() {
         {!s ? (
           <div style={{ opacity: 0.7 }}>Caricamento badge...</div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            }}
-          >
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
             {BADGES.map((b) => (
               <BadgeCard key={b.id} def={b} s={s} />
             ))}
@@ -611,7 +550,6 @@ export default function MePage() {
         )}
       </Section>
 
-      {/* Oggi & Stats rapide (chips, NON badge) */}
       <Section title="Oggi & Stats rapide" subtitle="Solo numeri veloci (non rewards).">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <StatChip label="Presenze oggi" value={s ? s.scans_today : "—"} />
@@ -625,7 +563,6 @@ export default function MePage() {
         </div>
       </Section>
 
-      {/* Overview cards */}
       <Section title="Overview" subtitle="Dati principali">
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           <Card title="Punti totali" value={formatInt(points)} subtitle="Dal profilo (sc_users.points)" />
@@ -639,7 +576,6 @@ export default function MePage() {
         </div>
       </Section>
 
-      {/* Debug */}
       <Section title="Azioni rapide" subtitle="Dati grezzi (debug).">
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <a className="btn" href="/api/profile/stats" target="_blank" rel="noreferrer">
