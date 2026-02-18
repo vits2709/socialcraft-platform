@@ -32,10 +32,6 @@ export async function deleteUserAction(userId: string): Promise<void> {
     if (scErr) throw new Error(`delete_sc_users_failed: ${scErr.message}`);
   }
 
-  // 2) Sempre → pulizia leaderboard_users (anche per id test tipo "u_vitale")
-  const { error: lbErr } = await supabase.from("leaderboard_users").delete().eq("id", id);
-  if (lbErr) throw new Error(`delete_leaderboard_users_failed: ${lbErr.message}`);
-
   // refresh UI
   revalidatePath("/admin/users");
   revalidatePath("/");

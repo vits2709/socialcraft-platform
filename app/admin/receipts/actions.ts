@@ -64,22 +64,29 @@ export async function decideReceiptAction(receiptId: string, decision: "approved
     if (vRow?.city) spotMetaParts.push(`city=${vRow.city}`);
     const spotMeta = spotMetaParts.length ? spotMetaParts.join(" ") : null;
 
+    // aggiorna punti utente su sc_users (fonte unica di verità)
+    const { data: uPoints, error: uPointsErr } = await supabase
+      .from("sc_users")
+      .select("points")
+      .eq("id", r.user_id)
+      .maybeSingle();
+    if (uPointsErr) throw new Error(`load_user_points_failed:${uPointsErr.message}`);
+    const newPoints = (uPoints?.points ?? 0) + points;
+    const { error: upErr } = await supabase
+      .from("sc_users")
+      .update({ points: newPoints, updated_at: new Date().toISOString() })
+      .eq("id", r.user_id);
+    if (upErr) throw new Error(`update_user_points_failed:${upErr.message}`);
+
     // user_events: event_type corretto = receipt
     const { error: evErr } = await supabase.from("user_events").insert({
       user_id: r.user_id,
       venue_id: r.venue_id,
       event_type: "receipt",
       points,
+      points_delta: points,
     });
     if (evErr) throw new Error(`user_events_failed:${evErr.message}`);
-
-    // leaderboard_users: passa p_name reale (NO null)
-    const { error: incUserErr } = await supabase.rpc("increment_user_score_text", {
-      p_user_id: String(r.user_id), // la tua RPC è text user_id
-      p_points: points,
-      p_name: safeUserName,
-    });
-    if (incUserErr) throw new Error(`increment_user_failed:${incUserErr.message}`);
 
     // leaderboard_venues: passa p_name e p_meta reali (NO null)
     const { error: incVenueErr } = await supabase.rpc("increment_venue_score_uuid", {
