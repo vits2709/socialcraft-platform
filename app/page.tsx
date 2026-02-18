@@ -97,6 +97,30 @@ export default async function HomePage() {
           </div>
         </div>
 
+        <div className="howGrid" style={{ marginTop: 14 }}>
+          <div className="howCard">
+            <div className="howIcon">📷</div>
+            <div>
+              <div className="howTitle">Scansiona il QR</div>
+              <div className="howText">Inquadra il codice dello Spot e guadagna punti presenza ogni giorno.</div>
+            </div>
+          </div>
+          <div className="howCard">
+            <div className="howIcon">⭐</div>
+            <div>
+              <div className="howTitle">Vota gli Spot</div>
+              <div className="howText">Lascia una recensione dopo la visita e contribuisci alla classifica.</div>
+            </div>
+          </div>
+          <div className="howCard">
+            <div className="howIcon">🏆</div>
+            <div>
+              <div className="howTitle">Scala la classifica</div>
+              <div className="howText">Accumula punti, sblocca badge e diventa Leggenda Locale.</div>
+            </div>
+          </div>
+        </div>
+
         {(sErr || eErr) && (
           <div className="notice" style={{ marginTop: 10 }}>
             {sErr ? <div>Errore Spot: {sErr.message}</div> : null}
