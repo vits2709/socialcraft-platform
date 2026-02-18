@@ -339,14 +339,6 @@ export default function MePage() {
     loadAll(false);
   }, []);
 
-  if (loading) {
-    return (
-      <div style={{ maxWidth: 980, margin: "0 auto", padding: "80px 14px", textAlign: "center" }}>
-        <div style={{ opacity: 0.6, fontSize: 15 }}>Caricamento profilo...</div>
-      </div>
-    );
-  }
-
   const s = stats && stats.ok ? stats.stats : null;
 
   const points = useMemo(() => {
@@ -459,6 +451,14 @@ export default function MePage() {
     if (!s) return 0;
     return BADGES.filter((b) => b.compute(s).unlocked).length;
   }, [BADGES, s]);
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 980, margin: "0 auto", padding: "80px 14px", textAlign: "center" }}>
+        <div style={{ opacity: 0.6, fontSize: 15 }}>Caricamento profilo...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "18px 14px", display: "grid", gap: 14 }}>
