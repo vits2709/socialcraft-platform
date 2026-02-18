@@ -13,6 +13,8 @@ type VenueRow = {
   city: string | null;
   slug: string | null;
   owner_user_id: string | null;
+  is_active: boolean | null;
+  is_featured: boolean | null;
 };
 
 type PromoRow = {
@@ -105,7 +107,7 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
 
   const { data: venue, error: vErr } = await supabaseRO
     .from("venues")
-    .select("id,name,city,slug,owner_user_id")
+    .select("id,name,city,slug,owner_user_id,is_active,is_featured")
     .eq("id", venueId)
     .maybeSingle();
 
@@ -146,11 +148,31 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
             owner_user_id: {v.owner_user_id ?? "—"} <br />
             slug: {v.slug ?? "—"}
           </p>
+          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+            <span
+              className="badge"
+              style={{
+                background: v.is_active !== false ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.10)",
+                borderColor: v.is_active !== false ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.25)",
+                color: v.is_active !== false ? "#059669" : "#dc2626",
+              }}
+            >
+              {v.is_active !== false ? "✅ Attivo" : "❌ Disattivo"}
+            </span>
+            {v.is_featured && (
+              <span className="badge" style={{ background: "rgba(99,102,241,0.1)", borderColor: "rgba(99,102,241,0.3)", color: "#6366f1" }}>
+                🏅 Verificato
+              </span>
+            )}
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <Link className="btn" href="/admin">
             ← Admin
+          </Link>
+          <Link className="btn" href={`/admin/venues/${v.id}/edit`}>
+            ✏️ Modifica info spot
           </Link>
           {v.slug ? (
             <Link className="btn" href={`/v/${v.slug}`} target="_blank">

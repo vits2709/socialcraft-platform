@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     // forza la root della workspace esattamente a questa cartella progetto
     root: path.resolve(__dirname),
   },
+  transpilePackages: ["leaflet", "react-leaflet"],
 };
 
 export default nextConfig;
