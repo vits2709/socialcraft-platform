@@ -2,12 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type ScanResult = {
-  ok: boolean;
-  points?: number;
-  venue_id?: string;
-  error?: string;
-};
+type ScanResult =
+  | { ok: true; already: boolean; points_awarded: number; total_points: number; message: string }
+  | { ok: false; error: string };
 
 function extractSlugFromQrText(text: string): string | null {
   // Supporta QR con URL tipo:
@@ -55,13 +52,19 @@ export default function HomeScannerCTA() {
       const data = (await res.json()) as ScanResult;
 
       if (!data.ok) {
-        setMsg(`❌ ${data.error ?? "Errore scan"}`);
+        const friendly =
+          data.error === "not_logged"
+            ? "Accedi per registrare la presenza."
+            : data.error === "venue_not_found"
+              ? "Spot non trovato. Controlla il QR."
+              : "Errore. Riprova tra poco.";
+        setMsg(`❌ ${friendly}`);
         return;
       }
 
-      setMsg(`✅ +${data.points ?? 0} punti!`);
+      setMsg(data.message);
       // chiudi dopo un attimo
-      setTimeout(() => setOpen(false), 650);
+      setTimeout(() => setOpen(false), 1200);
     } catch (e: any) {
       setMsg(`❌ Errore rete`);
     } finally {

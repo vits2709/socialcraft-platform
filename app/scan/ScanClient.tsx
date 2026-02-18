@@ -4,15 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type ScanResult =
-  | { ok: true; venue_id: string; points: number }
+  | { ok: true; already: boolean; points_awarded: number; total_points: number; message: string }
   | { ok: false; error: string };
 
 export default function ScanClient() {
   const sp = useSearchParams();
 
   const venueId = useMemo(() => {
-    // supporta più chiavi: ?venue_id= oppure ?id=
-    return String(sp.get("venue_id") ?? sp.get("id") ?? "").trim();
+    return String(sp.get("slug") ?? "").trim();
   }, [sp]);
 
   const [loading, setLoading] = useState(false);
@@ -26,7 +25,7 @@ export default function ScanClient() {
       const r = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venue_id: venueId }),
+        body: JSON.stringify({ slug: venueId }),
       });
 
       const j = (await r.json()) as ScanResult;
@@ -65,10 +64,12 @@ export default function ScanClient() {
     return (
       <div className="notice" style={{ marginTop: 12 }}>
         {res.ok
-          ? "Presenza registrata ✅"
-          : res.error === "already_scanned_today" || res.error === "already"
-            ? "Hai già registrato la presenza oggi in questo spot ✅"
-            : "Qualcosa è andato storto. Riprova tra poco."}
+          ? res.message
+          : res.error === "not_logged"
+            ? "Accedi per registrare la presenza."
+            : res.error === "venue_not_found"
+              ? "Spot non trovato. Controlla il QR."
+              : "Qualcosa è andato storto. Riprova tra poco."}
       </div>
     );
   }

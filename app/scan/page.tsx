@@ -12,7 +12,7 @@ export default function ScanPage() {
             Scan
           </h1>
           <p className="muted" style={{ margin: 0 }}>
-            Pagina di scan (legge i parametri dall’URL).
+            Registra la tua presenza allo Spot.
           </p>
         </div>
       </div>
