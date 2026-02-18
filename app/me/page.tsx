@@ -104,7 +104,6 @@ function Section({
 }) {
   return (
     <div
-      className="notice"
       style={{
         padding: 16,
         borderRadius: 18,
@@ -534,7 +533,7 @@ export default function MePage() {
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontWeight: 950, fontSize: 16 }}>
-                {LEVELS.findIndex((x) => x.key === levelInfo.current.key) + 1} • {levelInfo.current.name}
+                {levelInfo.current.name}
               </div>
               <div style={{ opacity: 0.7, marginTop: 4 }}>{levelInfo.current.desc ?? ""}</div>
             </div>
@@ -624,7 +623,6 @@ export default function MePage() {
         </div>
       </Section>
 
-      <div style={{ textAlign: "center", opacity: 0.65, padding: "10px 0" }}>© 2026 SocialCraft</div>
     </div>
   );
 }

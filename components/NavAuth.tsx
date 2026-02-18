@@ -31,8 +31,9 @@ export default function NavAuth() {
     };
   }, []);
 
-  // mentre carica, non mostra nulla (così non “balla” la navbar)
-  if (logged !== true) return null;
+  // mentre carica, non mostra nulla per evitare layout shift
+  if (logged === null) return null;
 
+  if (!logged) return <Link href="/login">Login</Link>;
   return <Link href="/logout">Logout</Link>;
 }
