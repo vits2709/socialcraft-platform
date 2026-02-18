@@ -15,6 +15,7 @@ type SpotPin = {
   fascia_prezzo: number | null;
   is_featured: boolean;
   city: string | null;
+  indirizzo?: string | null;
   avg_rating?: number | null;
 };
 
@@ -54,6 +55,19 @@ function ratingStr(r: number | null | undefined): string {
   return `⭐ ${Number(r).toFixed(1)}`;
 }
 
+/** Estrae la città da: campo city → ultima parte dell'indirizzo → null */
+function extractCity(spot: SpotPin): string | null {
+  if (spot.city) return spot.city;
+  if (spot.indirizzo) {
+    // "Via Roma 1, Vasto (CH)" → "Vasto (CH)" → keep first word chunk after comma
+    const parts = spot.indirizzo.split(",");
+    if (parts.length >= 2) {
+      return parts[parts.length - 1].trim().replace(/\s*\(.*?\)/, "").trim();
+    }
+  }
+  return null;
+}
+
 export default function FullMap({ spots }: { spots: SpotPin[] }) {
   const [iconsReady, setIconsReady] = useState(false);
   const [categoriaFilter, setCategoriaFilter] = useState("");
@@ -67,17 +81,22 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
   // Only spots with valid coordinates
   const withCoords = spots.filter((s) => s.lat != null && s.lng != null);
 
-  // Unique categories and cities for filters
-  const categorie = Array.from(new Set(withCoords.map((s) => s.categoria).filter(Boolean))) as string[];
-  const citta = Array.from(new Set(withCoords.map((s) => s.city).filter(Boolean))) as string[];
+  // Unique categories
+  const categorie = Array.from(
+    new Set(withCoords.map((s) => s.categoria).filter(Boolean))
+  ) as string[];
+
+  // Cities from city field OR extracted from indirizzo
+  const citta = Array.from(
+    new Set(withCoords.map((s) => extractCity(s)).filter(Boolean))
+  ) as string[];
 
   const filtered = withCoords.filter((s) => {
     if (categoriaFilter && s.categoria !== categoriaFilter) return false;
-    if (cittaFilter && s.city !== cittaFilter) return false;
+    if (cittaFilter && extractCity(s) !== cittaFilter) return false;
     return true;
   });
 
-  // Default center: Italy
   const center: [number, number] =
     filtered.length > 0
       ? [filtered[0].lat, filtered[0].lng]
@@ -86,48 +105,72 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
   if (!iconsReady) return null;
 
   const selectStyle: React.CSSProperties = {
-    padding: "8px 12px",
-    borderRadius: 12,
+    padding: "10px 14px",
+    borderRadius: 14,
     border: "1px solid rgba(0,0,0,0.15)",
-    background: "rgba(255,255,255,0.9)",
-    fontSize: 13,
+    background: "rgba(255,255,255,0.95)",
+    fontSize: 14,
     outline: "none",
     cursor: "pointer",
-    backdropFilter: "blur(6px)",
+    backdropFilter: "blur(8px)",
+    boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+    WebkitAppearance: "none",
+    appearance: "none",
+    minWidth: 0,
+    flex: "1 1 auto",
+    maxWidth: 200,
+  };
+
+  const countBadgeStyle: React.CSSProperties = {
+    padding: "10px 14px",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.92)",
+    border: "1px solid rgba(0,0,0,0.10)",
+    fontSize: 13,
+    fontWeight: 700,
+    backdropFilter: "blur(8px)",
+    boxShadow: "0 4px 14px rgba(0,0,0,0.06)",
+    whiteSpace: "nowrap",
   };
 
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      {/* Filter controls */}
+      {/* ---- FILTRI OVERLAY ---- */}
       <div
         style={{
           position: "absolute",
           top: 12,
           left: 12,
+          right: 12,
           zIndex: 1000,
           display: "flex",
           gap: 8,
           flexWrap: "wrap",
+          alignItems: "center",
         }}
       >
-        <select
-          value={categoriaFilter}
-          onChange={(e) => setCategoriaFilter(e.target.value)}
-          style={selectStyle}
-        >
-          <option value="">Tutte le categorie</option>
-          {categorie.map((c) => (
-            <option key={c} value={c}>
-              {c.charAt(0).toUpperCase() + c.slice(1)}
-            </option>
-          ))}
-        </select>
+        {categorie.length > 0 && (
+          <select
+            value={categoriaFilter}
+            onChange={(e) => setCategoriaFilter(e.target.value)}
+            style={selectStyle}
+            aria-label="Filtra per categoria"
+          >
+            <option value="">Tutte le categorie</option>
+            {categorie.map((c) => (
+              <option key={c} value={c}>
+                {c.charAt(0).toUpperCase() + c.slice(1)}
+              </option>
+            ))}
+          </select>
+        )}
 
         {citta.length > 1 && (
           <select
             value={cittaFilter}
             onChange={(e) => setCittaFilter(e.target.value)}
             style={selectStyle}
+            aria-label="Filtra per città"
           >
             <option value="">Tutte le città</option>
             {citta.map((c) => (
@@ -138,21 +181,12 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
           </select>
         )}
 
-        <span
-          style={{
-            padding: "8px 12px",
-            borderRadius: 12,
-            background: "rgba(255,255,255,0.88)",
-            border: "1px solid rgba(0,0,0,0.1)",
-            fontSize: 12,
-            fontWeight: 700,
-            backdropFilter: "blur(6px)",
-          }}
-        >
+        <span style={countBadgeStyle}>
           {filtered.length} spot
         </span>
       </div>
 
+      {/* ---- MAPPA ---- */}
       <MapContainer
         center={center}
         zoom={filtered.length === 1 ? 15 : 10}
@@ -170,17 +204,20 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
             icon={s.is_featured ? featuredIcon() : undefined}
           >
             <Popup>
-              <div style={{ minWidth: 150 }}>
+              <div style={{ minWidth: 160, fontFamily: "system-ui, sans-serif" }}>
                 <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>
-                  {s.is_featured ? "🏅 " : ""}{s.name}
+                  {s.is_featured ? "🏅 " : ""}
+                  {s.name}
                 </div>
-                {s.categoria && (
-                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 2 }}>
-                    {s.categoria.charAt(0).toUpperCase() + s.categoria.slice(1)}
+                {(s.categoria || s.fascia_prezzo) && (
+                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 3 }}>
+                    {s.categoria
+                      ? s.categoria.charAt(0).toUpperCase() + s.categoria.slice(1)
+                      : ""}
                     {s.fascia_prezzo ? ` · ${prezzoStr(s.fascia_prezzo)}` : ""}
                   </div>
                 )}
-                <div style={{ fontSize: 12, marginBottom: 6 }}>
+                <div style={{ fontSize: 12, marginBottom: 8 }}>
                   {ratingStr(s.avg_rating)}
                 </div>
                 {s.slug && (
@@ -188,7 +225,7 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
                     href={`/v/${s.slug}`}
                     style={{
                       display: "inline-block",
-                      padding: "4px 10px",
+                      padding: "5px 11px",
                       borderRadius: 8,
                       background: "rgba(99,102,241,0.12)",
                       border: "1px solid rgba(99,102,241,0.25)",

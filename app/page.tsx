@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
 import HomeLeaderboards from "@/components/HomeLeaderboards";
 import HomeScannerCTA from "@/components/HomeScannerCTA";
+import HomeMapLoader from "@/components/HomeMapLoader";
+import type { HomeSpotPin } from "@/components/HomeMap";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -46,6 +48,41 @@ export default async function HomePage() {
       score: u.points ?? 0,
       meta: null,
     })) ?? [];
+
+  // -------- spot per la mappa (lat/lng non null) ----------
+  let mapSpots: HomeSpotPin[] = [];
+  try {
+    const { data: mapRaw } = await supabase
+      .from("venues")
+      .select("id,name,slug,lat,lng,categoria,fascia_prezzo,is_featured")
+      .eq("is_active", true)
+      .not("lat", "is", null)
+      .not("lng", "is", null);
+
+    if (mapRaw && mapRaw.length > 0) {
+      // Enrichment rating
+      const mapIds = mapRaw.map((v) => v.id);
+      const { data: mapRatings } = await supabase
+        .from("v_spot_ratings")
+        .select("venue_id,avg_rating")
+        .in("venue_id", mapIds);
+
+      const ratingMap = new Map<string, number>();
+      (mapRatings ?? []).forEach((r) => ratingMap.set(r.venue_id, r.avg_rating));
+
+      mapSpots = mapRaw.map((v) => ({
+        id: v.id,
+        name: v.name,
+        slug: v.slug,
+        lat: v.lat as number,
+        lng: v.lng as number,
+        categoria: v.categoria ?? null,
+        fascia_prezzo: v.fascia_prezzo ?? null,
+        is_featured: v.is_featured ?? false,
+        avg_rating: ratingMap.get(v.id) ?? null,
+      }));
+    }
+  } catch {}
 
   // -------- rating spot ----------
   let spots: LBRow[] = (spotsRaw ?? []) as LBRow[];
@@ -130,6 +167,79 @@ export default async function HomePage() {
       </div>
 
       <HomeLeaderboards spots={spots} explorers={explorers as LBRow[]} />
+
+      {/* ---- SEZIONE MAPPA ---- */}
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            padding: "14px 16px",
+            borderBottom: "1px solid rgba(15,23,42,0.07)",
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, letterSpacing: -0.2 }}>
+              🗺 Esplora gli Spot
+            </h2>
+            {mapSpots.length > 0 && (
+              <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>
+                {mapSpots.length} spot sulla mappa
+              </p>
+            )}
+          </div>
+          <Link className="btn" href="/map">
+            Vedi tutti →
+          </Link>
+        </div>
+
+        {/* Mappa */}
+        {mapSpots.length === 0 ? (
+          <div
+            style={{
+              height: 240,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(255,255,255,0.5)",
+            }}
+          >
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>📍</div>
+              <div className="muted" style={{ fontSize: 13 }}>
+                Nessuno spot geolocalizzato ancora.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ height: 340 }}>
+            <HomeMapLoader spots={mapSpots} />
+          </div>
+        )}
+
+        {/* Footer */}
+        {mapSpots.length > 0 && (
+          <div
+            style={{
+              padding: "10px 16px",
+              borderTop: "1px solid rgba(15,23,42,0.07)",
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Link
+              className="btn primary"
+              href="/map"
+              style={{ fontSize: 13 }}
+            >
+              Vedi tutti gli spot →
+            </Link>
+          </div>
+        )}
+      </div>
 
       <div className="card soft" style={{ marginTop: 14 }}>
         <div className="softRow">

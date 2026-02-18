@@ -14,6 +14,7 @@ type SpotPin = {
   fascia_prezzo: number | null;
   is_featured: boolean;
   city: string | null;
+  indirizzo?: string | null;
   avg_rating?: number | null;
 };
 
