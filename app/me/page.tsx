@@ -126,7 +126,6 @@ function Section({
   );
 }
 
-/** ---- Rewards / Badge Cards ---- */
 type BadgeDef = {
   id: string;
   title: string;
@@ -269,26 +268,6 @@ function StatChip({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function Card({ title, value, subtitle }: { title: string; value: string; subtitle?: string }) {
-  return (
-    <div
-      style={{
-        border: "1px solid rgba(0,0,0,0.06)",
-        background: "rgba(255,255,255,0.75)",
-        borderRadius: 16,
-        padding: 14,
-        minHeight: 88,
-        display: "grid",
-        gap: 8,
-      }}
-    >
-      <div style={{ fontWeight: 900, opacity: 0.75 }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 950, letterSpacing: -0.5 }}>{value}</div>
-      {subtitle ? <div style={{ fontSize: 13, opacity: 0.7 }}>{subtitle}</div> : null}
-    </div>
-  );
-}
-
 export default function MePage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -296,6 +275,10 @@ export default function MePage() {
   const [me, setMe] = useState<MePayload | null>(null);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  const [nickInput, setNickInput] = useState("");
+  const [nickSaving, setNickSaving] = useState(false);
+  const [nickErr, setNickErr] = useState<string | null>(null);
 
   async function loadAll(silent = false) {
     if (!silent) {
@@ -329,9 +312,40 @@ export default function MePage() {
     setRefreshing(false);
   }
 
+  async function saveNickname() {
+    const name = nickInput.trim();
+    if (name.length < 2) { setNickErr("Minimo 2 caratteri"); return; }
+    if (name.length > 24) { setNickErr("Massimo 24 caratteri"); return; }
+
+    setNickSaving(true);
+    setNickErr(null);
+    try {
+      const res = await fetch("/api/me/nickname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const json = await res.json();
+      if (!json.ok) { setNickErr(json.error ?? "Errore salvataggio"); return; }
+      await loadAll(true);
+    } catch (e: any) {
+      setNickErr(e?.message ?? "Errore di rete");
+    } finally {
+      setNickSaving(false);
+    }
+  }
+
   useEffect(() => {
     loadAll(false);
   }, []);
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 980, margin: "0 auto", padding: "80px 14px", textAlign: "center" }}>
+        <div style={{ opacity: 0.6, fontSize: 15 }}>Caricamento profilo...</div>
+      </div>
+    );
+  }
 
   const s = stats && stats.ok ? stats.stats : null;
 
@@ -343,8 +357,8 @@ export default function MePage() {
 
   const levelInfo = useMemo(() => getLevel(points), [points]);
 
-  const nickname = me && me.ok ? (me.user.name ?? "Guest") : "—";
-  const userId = me && me.ok ? me.user.id : "—";
+  const nickname = me && me.ok ? (me.user.name ?? null) : null;
+  const hasNickname = !!nickname;
 
   const BADGES: BadgeDef[] = useMemo(() => {
     if (!s) return [];
@@ -460,13 +474,50 @@ export default function MePage() {
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ display: "grid", gap: 4 }}>
             <div style={{ fontWeight: 950, fontSize: 16 }}>Utente</div>
-            <div style={{ opacity: 0.78 }}>
-              <b>{nickname}</b> <span style={{ opacity: 0.6 }}>(ID: {userId})</span>
-            </div>
+            {hasNickname ? (
+              <div style={{ opacity: 0.78 }}>
+                <b>{nickname}</b>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ opacity: 0.6, fontSize: 13 }}>Scegli il tuo nickname — non potrai cambiarlo in seguito.</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder="Il tuo nickname"
+                    value={nickInput}
+                    onChange={(e) => setNickInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") saveNickname(); }}
+                    maxLength={24}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.15)",
+                      fontSize: 14,
+                      fontWeight: 800,
+                      outline: "none",
+                      background: "rgba(255,255,255,0.9)",
+                      minWidth: 180,
+                    }}
+                  />
+                  <button
+                    className="btn"
+                    onClick={saveNickname}
+                    disabled={nickSaving || nickInput.trim().length < 2}
+                    style={{ height: 36 }}
+                  >
+                    {nickSaving ? "Salvo..." : "Salva"}
+                  </button>
+                </div>
+                {nickErr ? (
+                  <div style={{ fontSize: 13, color: "red", opacity: 0.8 }}>{nickErr}</div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <div style={{ opacity: 0.7, fontWeight: 900 }}>Punti (profilo)</div>
+            <div style={{ opacity: 0.7, fontWeight: 900 }}>Punti</div>
             <div style={{ fontSize: 30, fontWeight: 950 }}>{formatInt(points)}</div>
           </div>
         </div>
@@ -560,43 +611,17 @@ export default function MePage() {
         )}
       </Section>
 
-      <Section title="Oggi & Stats rapide" subtitle="Solo numeri veloci (non rewards).">
+      <Section title="Statistiche" subtitle="Le tue attività in sintesi.">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <StatChip label="Presenze oggi" value={s ? s.scans_today : "—"} />
           <StatChip label="Scontrini oggi" value={s ? s.receipts_today : "—"} />
           <StatChip label="Voti oggi" value={s ? s.votes_today : "—"} />
           <StatChip label="Streak" value={s ? `${s.streak_days}g` : "—"} />
-          <StatChip label="Best" value={s ? `${s.best_streak_days}g` : "—"} />
+          <StatChip label="Best streak" value={s ? `${s.best_streak_days}g` : "—"} />
           <StatChip label="Scan totali" value={s ? s.scans_total : "—"} />
           <StatChip label="Spot visitati" value={s ? s.venues_visited : "—"} />
           <StatChip label="Ultimi 7 giorni" value={s ? `${s.last7_scans} scan • ${s.last7_points} pt` : "—"} />
         </div>
-      </Section>
-
-      <Section title="Overview" subtitle="Dati principali">
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          <Card title="Punti totali" value={formatInt(points)} subtitle="Dal profilo (sc_users.points)" />
-          <Card title="Scan totali" value={formatInt(s?.scans_total ?? 0)} subtitle="Eventi tipo scan" />
-          <Card title="Spot visitati" value={formatInt(s?.venues_visited ?? 0)} subtitle="Distinct venue_id sugli scan" />
-          <Card
-            title="Ultimi 7 giorni"
-            value={`${formatInt(s?.last7_scans ?? 0)} scan • ${formatInt(s?.last7_points ?? 0)} pt`}
-            subtitle="Somma points_delta (tutti eventi)"
-          />
-        </div>
-      </Section>
-
-      <Section title="Azioni rapide" subtitle="Dati grezzi (debug).">
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <a className="btn" href="/api/profile/stats" target="_blank" rel="noreferrer">
-            Apri JSON stats
-          </a>
-          <a className="btn" href="/api/me" target="_blank" rel="noreferrer">
-            Apri JSON me
-          </a>
-        </div>
-
-        {loading ? <div style={{ opacity: 0.7 }}>Caricamento...</div> : null}
       </Section>
 
       <div style={{ textAlign: "center", opacity: 0.65, padding: "10px 0" }}>© 2026 SocialCraft</div>
