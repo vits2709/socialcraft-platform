@@ -22,17 +22,11 @@ export async function updateMyNameAction(formData: FormData): Promise<void> {
 
   const supabase = createSupabaseAdminClient();
 
-  // upsert su leaderboard_users (id = sc_uid)
+  // aggiorna nome su sc_users (fonte unica di verità)
   const { error } = await supabase
-    .from("leaderboard_users")
-    .upsert(
-      {
-        id: String(userId),
-        name,
-        // non tocchiamo score, meta: lasciamo quelli esistenti
-      },
-      { onConflict: "id" }
-    );
+    .from("sc_users")
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq("id", String(userId));
 
   if (error) throw new Error(error.message);
 
