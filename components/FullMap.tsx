@@ -5,6 +5,15 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
+// ✅ Fix icone Leaflet a livello modulo — sincrono, prima di qualsiasi render
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
 type SpotPin = {
   id: string;
   name: string;
@@ -19,15 +28,6 @@ type SpotPin = {
   avg_rating?: number | null;
 };
 
-function fixLeafletIcon() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  });
-}
 
 function featuredIcon() {
   return L.divIcon({
@@ -69,14 +69,12 @@ function extractCity(spot: SpotPin): string | null {
 }
 
 export default function FullMap({ spots }: { spots: SpotPin[] }) {
-  const [iconsReady, setIconsReady] = useState(false);
+  // Guard post-mount (Leaflet richiede il DOM)
+  const [mounted, setMounted] = useState(false);
   const [categoriaFilter, setCategoriaFilter] = useState("");
   const [cittaFilter, setCittaFilter] = useState("");
 
-  useEffect(() => {
-    fixLeafletIcon();
-    setIconsReady(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   // Only spots with valid coordinates
   const withCoords = spots.filter((s) => s.lat != null && s.lng != null);
@@ -102,7 +100,7 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
       ? [filtered[0].lat, filtered[0].lng]
       : [42.5, 14.0];
 
-  if (!iconsReady) return null;
+  if (!mounted) return null;
 
   const selectStyle: React.CSSProperties = {
     padding: "10px 14px",

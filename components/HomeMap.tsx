@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+
+// ✅ Fix icone Leaflet a livello modulo — sincrono, prima di qualsiasi render
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 export type HomeSpotPin = {
   id: string;
@@ -17,15 +26,6 @@ export type HomeSpotPin = {
   avg_rating?: number | null;
 };
 
-function fixLeafletIcon() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  });
-}
 
 function featuredIcon() {
   return L.divIcon({
@@ -64,9 +64,10 @@ function FitBounds({ spots }: { spots: HomeSpotPin[] }) {
 }
 
 export default function HomeMap({ spots }: { spots: HomeSpotPin[] }) {
-  useEffect(() => {
-    fixLeafletIcon();
-  }, []);
+  // Guard: non renderizzare nulla finché non siamo lato client (post-mount)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
 
   const center: [number, number] =
     spots.length > 0 ? [spots[0].lat, spots[0].lng] : [42.5, 14.0];
