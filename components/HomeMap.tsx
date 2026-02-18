@@ -5,15 +5,6 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-// ✅ Fix icone Leaflet a livello modulo — sincrono, prima di qualsiasi render
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
 export type HomeSpotPin = {
   id: string;
   name: string;
@@ -26,9 +17,20 @@ export type HomeSpotPin = {
   avg_rating?: number | null;
 };
 
+type Icons = { def: L.Icon; star: L.DivIcon };
 
-function featuredIcon() {
-  return L.divIcon({
+function buildIcons(): Icons {
+  const def = L.icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+
+  const star = L.divIcon({
     className: "",
     html: `<div style="
       width:34px;height:34px;border-radius:50%;
@@ -41,6 +43,8 @@ function featuredIcon() {
     iconAnchor: [17, 17],
     popupAnchor: [0, -20],
   });
+
+  return { def, star };
 }
 
 function prezzoStr(n: number | null): string {
@@ -48,7 +52,6 @@ function prezzoStr(n: number | null): string {
   return "€".repeat(n);
 }
 
-/** Adatta il viewport per mostrare tutti i pin */
 function FitBounds({ spots }: { spots: HomeSpotPin[] }) {
   const map = useMap();
   useEffect(() => {
@@ -64,10 +67,14 @@ function FitBounds({ spots }: { spots: HomeSpotPin[] }) {
 }
 
 export default function HomeMap({ spots }: { spots: HomeSpotPin[] }) {
-  // Guard: non renderizzare nulla finché non siamo lato client (post-mount)
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  if (!mounted) return null;
+  const [icons, setIcons] = useState<Icons | null>(null);
+
+  // Creiamo le icone solo dopo il mount (lato client, DOM disponibile)
+  useEffect(() => {
+    setIcons(buildIcons());
+  }, []);
+
+  if (!icons) return null;
 
   const center: [number, number] =
     spots.length > 0 ? [spots[0].lat, spots[0].lng] : [42.5, 14.0];
@@ -78,7 +85,6 @@ export default function HomeMap({ spots }: { spots: HomeSpotPin[] }) {
       zoom={10}
       style={{ height: "100%", width: "100%" }}
       scrollWheelZoom={false}
-      zoomControl={true}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -90,17 +96,14 @@ export default function HomeMap({ spots }: { spots: HomeSpotPin[] }) {
         <Marker
           key={s.id}
           position={[s.lat, s.lng]}
-          icon={s.is_featured ? featuredIcon() : undefined}
+          icon={s.is_featured ? icons.star : icons.def}
         >
           <Popup>
             <div style={{ minWidth: 160, fontFamily: "system-ui, sans-serif" }}>
-              {/* Nome */}
               <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 4 }}>
                 {s.is_featured ? "🏅 " : ""}
                 {s.name}
               </div>
-
-              {/* Categoria + prezzo */}
               {(s.categoria || s.fascia_prezzo) && (
                 <div style={{ fontSize: 12, color: "#64748b", marginBottom: 3 }}>
                   {s.categoria
@@ -109,15 +112,9 @@ export default function HomeMap({ spots }: { spots: HomeSpotPin[] }) {
                   {s.fascia_prezzo ? ` · ${prezzoStr(s.fascia_prezzo)}` : ""}
                 </div>
               )}
-
-              {/* Rating */}
               <div style={{ fontSize: 12, marginBottom: 8 }}>
-                {s.avg_rating
-                  ? `⭐ ${Number(s.avg_rating).toFixed(1)}`
-                  : "—"}
+                {s.avg_rating ? `⭐ ${Number(s.avg_rating).toFixed(1)}` : "—"}
               </div>
-
-              {/* Link */}
               {s.slug && (
                 <a
                   href={`/v/${s.slug}`}

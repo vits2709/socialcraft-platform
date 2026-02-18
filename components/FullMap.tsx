@@ -5,15 +5,6 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-// ✅ Fix icone Leaflet a livello modulo — sincrono, prima di qualsiasi render
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
 type SpotPin = {
   id: string;
   name: string;
@@ -28,9 +19,20 @@ type SpotPin = {
   avg_rating?: number | null;
 };
 
+type Icons = { def: L.Icon; star: L.DivIcon };
 
-function featuredIcon() {
-  return L.divIcon({
+function buildIcons(): Icons {
+  const def = L.icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+
+  const star = L.divIcon({
     className: "",
     html: `<div style="
       width:36px;height:36px;border-radius:50%;
@@ -43,6 +45,8 @@ function featuredIcon() {
     iconAnchor: [18, 18],
     popupAnchor: [0, -20],
   });
+
+  return { def, star };
 }
 
 function prezzoStr(n: number | null): string {
@@ -55,11 +59,9 @@ function ratingStr(r: number | null | undefined): string {
   return `⭐ ${Number(r).toFixed(1)}`;
 }
 
-/** Estrae la città da: campo city → ultima parte dell'indirizzo → null */
 function extractCity(spot: SpotPin): string | null {
   if (spot.city) return spot.city;
   if (spot.indirizzo) {
-    // "Via Roma 1, Vasto (CH)" → "Vasto (CH)" → keep first word chunk after comma
     const parts = spot.indirizzo.split(",");
     if (parts.length >= 2) {
       return parts[parts.length - 1].trim().replace(/\s*\(.*?\)/, "").trim();
@@ -69,22 +71,22 @@ function extractCity(spot: SpotPin): string | null {
 }
 
 export default function FullMap({ spots }: { spots: SpotPin[] }) {
-  // Guard post-mount (Leaflet richiede il DOM)
-  const [mounted, setMounted] = useState(false);
+  const [icons, setIcons] = useState<Icons | null>(null);
   const [categoriaFilter, setCategoriaFilter] = useState("");
   const [cittaFilter, setCittaFilter] = useState("");
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setIcons(buildIcons());
+  }, []);
 
-  // Only spots with valid coordinates
+  if (!icons) return null;
+
   const withCoords = spots.filter((s) => s.lat != null && s.lng != null);
 
-  // Unique categories
   const categorie = Array.from(
     new Set(withCoords.map((s) => s.categoria).filter(Boolean))
   ) as string[];
 
-  // Cities from city field OR extracted from indirizzo
   const citta = Array.from(
     new Set(withCoords.map((s) => extractCity(s)).filter(Boolean))
   ) as string[];
@@ -96,11 +98,7 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
   });
 
   const center: [number, number] =
-    filtered.length > 0
-      ? [filtered[0].lat, filtered[0].lng]
-      : [42.5, 14.0];
-
-  if (!mounted) return null;
+    filtered.length > 0 ? [filtered[0].lat, filtered[0].lng] : [42.5, 14.0];
 
   const selectStyle: React.CSSProperties = {
     padding: "10px 14px",
@@ -114,7 +112,6 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
     boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
     WebkitAppearance: "none",
     appearance: "none",
-    minWidth: 0,
     flex: "1 1 auto",
     maxWidth: 200,
   };
@@ -133,7 +130,7 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
 
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      {/* ---- FILTRI OVERLAY ---- */}
+      {/* Filtri overlay */}
       <div
         style={{
           position: "absolute",
@@ -172,19 +169,15 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
           >
             <option value="">Tutte le città</option>
             {citta.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
         )}
 
-        <span style={countBadgeStyle}>
-          {filtered.length} spot
-        </span>
+        <span style={countBadgeStyle}>{filtered.length} spot</span>
       </div>
 
-      {/* ---- MAPPA ---- */}
+      {/* Mappa */}
       <MapContainer
         center={center}
         zoom={filtered.length === 1 ? 15 : 10}
@@ -199,7 +192,7 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
           <Marker
             key={s.id}
             position={[s.lat, s.lng]}
-            icon={s.is_featured ? featuredIcon() : undefined}
+            icon={s.is_featured ? icons.star : icons.def}
           >
             <Popup>
               <div style={{ minWidth: 160, fontFamily: "system-ui, sans-serif" }}>
