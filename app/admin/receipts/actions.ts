@@ -78,6 +78,13 @@ export async function decideReceiptAction(receiptId: string, decision: "approved
       .eq("id", r.user_id);
     if (upErr) throw new Error(`update_user_points_failed:${upErr.message}`);
 
+    // segna points_awarded per evitare doppio award dal route /api/receipt/process
+    const { error: paErr } = await supabase
+      .from("receipt_verifications")
+      .update({ points_awarded: true })
+      .eq("id", receiptId);
+    if (paErr) throw new Error(`points_awarded_flag_failed:${paErr.message}`);
+
     // user_events: event_type corretto = receipt
     const { error: evErr } = await supabase.from("user_events").insert({
       user_id: r.user_id,
