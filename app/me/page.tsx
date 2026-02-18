@@ -30,7 +30,17 @@ type StatsPayload =
 
 type MePayload =
   | { ok: false; error: string }
-  | { ok: true; id: string; name: string | null; points: number };
+  | {
+      ok: true;
+      user: { id: string; name: string | null; points: number; updated_at: string };
+      last_events: Array<{
+        event_type: string;
+        points: number;
+        points_delta: number;
+        created_at: string;
+        venue_id: string | null;
+      }>;
+    };
 
 type Level = {
   key: string;
@@ -327,14 +337,14 @@ export default function MePage() {
 
   const points = useMemo(() => {
     if (s) return Number(s.points_total ?? 0) || 0;
-    if (me && me.ok) return Number(me.points ?? 0) || 0;
+    if (me && me.ok) return Number(me.user.points ?? 0) || 0;
     return 0;
   }, [s, me]);
 
   const levelInfo = useMemo(() => getLevel(points), [points]);
 
-  const nickname = me && me.ok ? (me.name ?? "Guest") : "—";
-  const userId = me && me.ok ? me.id : "—";
+  const nickname = me && me.ok ? (me.user.name ?? "Guest") : "—";
+  const userId = me && me.ok ? me.user.id : "—";
 
   const BADGES: BadgeDef[] = useMemo(() => {
     if (!s) return [];
