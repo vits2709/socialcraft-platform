@@ -100,18 +100,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
     }
 
-    // 6) log evento venue (NON esiste colonna points!)
+    // 6) log evento venue — non bloccante: i punti sono già assegnati
     const { error: veErr } = await supabase.from("venue_events").insert({
       venue_id: venue.id,
       user_id: scUid,
       event_type: "scan",
     });
-
-    if (veErr) {
-      // idem: non rompiamo i punti assegnati per un log venue fallito
-      // ma segnaliamo errore se vuoi essere rigidissimo:
-      // return NextResponse.json({ ok:false, error: veErr.message }, { status: 500 });
-    }
+    if (veErr) console.error("venue_events insert failed:", veErr.message);
 
     return NextResponse.json({
       ok: true,

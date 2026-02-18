@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,19 @@ export async function POST(req: Request) {
 
     if (upErr) {
       return NextResponse.json({ ok: false, error: `profile_update_failed:${upErr.message}` }, { status: 500 });
+    }
+
+    // crea riga sc_users (upsert per sicurezza in caso esista già da trigger)
+    const adminSupabase = createSupabaseAdminClient();
+    const { error: scErr } = await adminSupabase
+      .from("sc_users")
+      .upsert(
+        { id: data.user.id, name: displayName || null, points: 0 },
+        { onConflict: "id", ignoreDuplicates: true }
+      );
+
+    if (scErr) {
+      return NextResponse.json({ ok: false, error: `sc_users_failed:${scErr.message}` }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
