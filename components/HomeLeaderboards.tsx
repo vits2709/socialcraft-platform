@@ -137,12 +137,10 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
                     </div>
 
                     <div className="rowRight">
-                      {slug ? (
+                      {slug && (
                         <Link className="btn mini" href={`/v/${slug}`} target="_blank">
                           Apri
                         </Link>
-                      ) : (
-                        <span className="muted">—</span>
                       )}
                     </div>
                   </div>

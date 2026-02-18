@@ -45,32 +45,33 @@ export default function ScanClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venueId]);
 
-  return (
-    <div style={{ marginTop: 12 }}>
-      <div className="notice">
-        <b>venue_id:</b>{" "}
-        {venueId ? <code>{venueId}</code> : <span className="muted">mancante (aggiungi ?venue_id=...)</span>}
+  if (!venueId) {
+    return (
+      <div className="notice" style={{ marginTop: 12 }}>
+        QR non valido. Scansiona di nuovo il codice dello spot.
       </div>
+    );
+  }
 
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button className="btn" onClick={doScan} disabled={loading || !venueId}>
-          {loading ? "Sto registrando…" : "Registra scan"}
-        </button>
+  if (loading) {
+    return (
+      <div className="notice" style={{ marginTop: 12 }}>
+        Registrazione presenza in corso...
       </div>
+    );
+  }
 
-      {res ? (
-        <div className="notice" style={{ marginTop: 12 }}>
-          {res.ok ? (
-            <>
-              ✅ OK — punti: <b>{res.points}</b> — venue_id: <code>{res.venue_id}</code>
-            </>
-          ) : (
-            <>
-              ❌ ERRORE — <code>{res.error}</code>
-            </>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
+  if (res) {
+    return (
+      <div className="notice" style={{ marginTop: 12 }}>
+        {res.ok
+          ? "Presenza registrata ✅"
+          : res.error === "already_scanned_today" || res.error === "already"
+            ? "Hai già registrato la presenza oggi in questo spot ✅"
+            : "Qualcosa è andato storto. Riprova tra poco."}
+      </div>
+    );
+  }
+
+  return null;
 }

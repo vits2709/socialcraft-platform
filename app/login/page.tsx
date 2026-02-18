@@ -40,19 +40,6 @@ export default function ExplorerLoginPage() {
     }
   }
 
-  async function logout() {
-    setLoading(true);
-    setMsg(null);
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      setMsg("Logout ok ✅");
-    } catch {
-      setMsg("Errore logout");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
       <h1 className="h1">Accedi (Esploratori)</h1>
@@ -68,13 +55,8 @@ export default function ExplorerLoginPage() {
           {loading ? "Accesso..." : "Accedi"}
         </button>
 
-        {/* mobile-proof: form + assign */}
         <button type="button" className="btn" onClick={() => window.location.assign("/signup")} disabled={loading}>
           Crea profilo →
-        </button>
-
-        <button type="button" className="btn" onClick={logout} disabled={loading}>
-          Logout
         </button>
 
         <div className="muted" style={{ textAlign: "center" }}>

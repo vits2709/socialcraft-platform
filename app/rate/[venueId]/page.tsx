@@ -67,12 +67,13 @@ export default async function RateVenuePage({
           <input type="hidden" name="token" value={token} />
 
           <label className="label">Voto</label>
-          <select className="select" name="rating" defaultValue="5" required>
-            <option value="1">1 – pessimo</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5 – top</option>
+          <select className="select" name="rating" defaultValue="" required>
+            <option value="" disabled>Seleziona un voto</option>
+            <option value="1">⭐ 1 – Pessimo</option>
+            <option value="2">⭐⭐ 2 – Scarso</option>
+            <option value="3">⭐⭐⭐ 3 – Nella media</option>
+            <option value="4">⭐⭐⭐⭐ 4 – Buono</option>
+            <option value="5">⭐⭐⭐⭐⭐ 5 – Top</option>
           </select>
 
           <label className="label">Nota (facoltativa)</label>
