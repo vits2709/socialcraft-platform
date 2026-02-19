@@ -154,9 +154,9 @@ function BadgeCard({ def, s }: { def: BadgeDef; s: Stats }) {
       style={{
         borderRadius: 18,
         background: "rgba(255,255,255,0.78)",
-        padding: 14,
+        padding: 16,
         display: "grid",
-        gap: 10,
+        gap: 12,
         position: "relative",
         overflow: "hidden",
         ...rarityStyles(def.rarity),
@@ -165,32 +165,40 @@ function BadgeCard({ def, s }: { def: BadgeDef; s: Stats }) {
       }}
       title={r.unlocked ? "Badge sbloccato" : "Badge bloccato"}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 14,
-              border: "1px solid rgba(0,0,0,0.08)",
-              background: "rgba(255,255,255,0.85)",
-              display: "grid",
-              placeItems: "center",
-              fontSize: 22,
-              fontWeight: 900,
-            }}
-          >
-            {def.icon}
-          </div>
+      {/* Riga superiore: icona + testi + badge lock */}
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
+        {/* Icona */}
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 14,
+            border: "1px solid rgba(0,0,0,0.08)",
+            background: "rgba(255,255,255,0.85)",
+            display: "grid",
+            placeItems: "center",
+            fontSize: 22,
+            fontWeight: 900,
+          }}
+        >
+          {def.icon}
+        </div>
 
-          <div style={{ display: "grid", gap: 4 }}>
-            <div style={{ fontWeight: 950, fontSize: 15, lineHeight: 1.1 }}>{def.title}</div>
-            <div style={{ opacity: 0.72, fontSize: 13, lineHeight: 1.25 }}>{def.desc}</div>
+        {/* Titolo + descrizione — wrappano liberamente */}
+        <div style={{ display: "grid", gap: 4, flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 950, fontSize: 15, lineHeight: 1.2, wordBreak: "break-word" }}>
+            {def.title}
+          </div>
+          <div style={{ opacity: 0.72, fontSize: 13, lineHeight: 1.35, wordBreak: "break-word" }}>
+            {def.desc}
           </div>
         </div>
 
+        {/* Badge sbloccato / bloccato */}
         <span
           style={{
+            flexShrink: 0,
             padding: "6px 10px",
             borderRadius: 999,
             border: "1px solid rgba(0,0,0,0.08)",
@@ -198,13 +206,15 @@ function BadgeCard({ def, s }: { def: BadgeDef; s: Stats }) {
             fontSize: 12,
             fontWeight: 900,
             whiteSpace: "nowrap",
+            alignSelf: "flex-start",
           }}
         >
-          {r.unlocked ? "✅ Sbloccato" : "🔒 Bloccato"}
+          {r.unlocked ? "✅" : "🔒"}
         </span>
       </div>
 
-      <div style={{ display: "grid", gap: 7 }}>
+      {/* Barra di progresso */}
+      <div style={{ display: "grid", gap: 6 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12, opacity: 0.75 }}>
           <div style={{ fontWeight: 900 }}>{r.label}</div>
           <div style={{ fontWeight: 900 }}>{pct}%</div>
@@ -222,6 +232,7 @@ function BadgeCard({ def, s }: { def: BadgeDef; s: Stats }) {
         </div>
       </div>
 
+      {/* Cerchio decorativo */}
       <div
         aria-hidden
         style={{
@@ -232,6 +243,7 @@ function BadgeCard({ def, s }: { def: BadgeDef; s: Stats }) {
           height: 120,
           borderRadius: 999,
           background: "rgba(0,0,0,0.03)",
+          pointerEvents: "none",
         }}
       />
     </div>
@@ -550,7 +562,7 @@ export default function MePage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", opacity: 0.8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, opacity: 0.8 }}>
             <div style={{ fontWeight: 900 }}>
               {levelInfo.next ? (
                 <>
@@ -560,7 +572,7 @@ export default function MePage() {
                 <>Livello massimo raggiunto ✅</>
               )}
             </div>
-            <div style={{ fontWeight: 900 }}>
+            <div style={{ fontWeight: 900, whiteSpace: "nowrap" }}>
               {levelInfo.next ? (
                 <>
                   {formatInt(points - levelInfo.curMin)}/{formatInt(levelInfo.nextMin - levelInfo.curMin)}
@@ -606,7 +618,7 @@ export default function MePage() {
         {!s ? (
           <div style={{ opacity: 0.7 }}>Caricamento badge...</div>
         ) : (
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {BADGES.map((b) => (
               <BadgeCard key={b.id} def={b} s={s} />
             ))}
