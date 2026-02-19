@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +50,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "not_admin" }, { status: 403 });
     }
 
-    // ✅ ok: cookie di sessione già gestiti dal server client
+    // ✅ Se l'admin ha anche una riga sc_users, setta sc_uid
+    // così può usare le funzionalità explorer senza un secondo login
+    const adminSupabase = createSupabaseAdminClient();
+    const { data: scUser } = await adminSupabase
+      .from("sc_users")
+      .select("id")
+      .eq("id", uid)
+      .maybeSingle();
+
+    if (scUser) {
+      const cookieStore = await cookies();
+      cookieStore.set("sc_uid", uid, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: true,
+        maxAge: 60 * 60 * 24 * 365,
+      });
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown" }, { status: 500 });
