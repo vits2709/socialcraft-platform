@@ -1,13 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ExplorerLoginPage() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [resetOk, setResetOk] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reset") === "1") setResetOk(true);
+  }, []);
 
   async function submit() {
     setLoading(true);
@@ -47,11 +53,29 @@ export default function ExplorerLoginPage() {
       <h1 className="h1">Accedi (Esploratori)</h1>
       <p className="muted">Accedi per non perdere punti tra device.</p>
 
+      {resetOk && (
+        <div style={{
+          marginTop: 12, padding: "12px 14px", borderRadius: 14,
+          background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.25)",
+          color: "#065f46", fontWeight: 700, fontSize: 14,
+        }}>
+          ✅ Password aggiornata con successo. Accedi con la nuova password.
+        </div>
+      )}
+
       {msg ? <div className="notice" style={{ marginTop: 12 }}>{msg}</div> : null}
 
       <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <input className="input" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" autoCapitalize="none" autoCorrect="off" />
-        <input className="input" placeholder="Password" type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <input className="input" placeholder="Password" type="password" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} />
+          <div style={{ textAlign: "right" }}>
+            <Link href="/forgot-password" style={{ fontSize: 13, opacity: 0.72, fontWeight: 700 }}>
+              Hai dimenticato la password?
+            </Link>
+          </div>
+        </div>
 
         <button className="btn primary" onClick={submit} disabled={loading}>
           {loading ? "Accesso..." : "Accedi"}
