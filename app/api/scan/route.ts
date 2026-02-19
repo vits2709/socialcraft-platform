@@ -4,7 +4,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const AWARD = 2;
+const AWARD_VERIFIED = 2;   // geo verificato (entro 100m)
+const AWARD_UNVERIFIED = 1; // GPS negato → check-in permesso ma con 1 punto solo
 
 function todayISODate() {
   // YYYY-MM-DD in timezone server (ok per regola "1 al giorno")
@@ -25,6 +26,10 @@ export async function POST(req: NextRequest) {
     if (!slug) {
       return NextResponse.json({ ok: false, error: "missing_slug" }, { status: 400 });
     }
+
+    // geo_verified: true (dentro 100m) → +2pt | false (GPS negato) → +1pt | undefined → +2pt (compat)
+    const geoVerified: boolean = body?.geo_verified !== false;
+    const AWARD = geoVerified ? AWARD_VERIFIED : AWARD_UNVERIFIED;
 
     // 1) trova venue
     const { data: venue, error: vErr } = await supabase
@@ -111,9 +116,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       already: false,
+      geo_verified: geoVerified,
       points_awarded: AWARD,
       total_points: newTotal,
-      message: `Presenza registrata ✅ +${AWARD} punti`,
+      message: geoVerified
+        ? `Presenza registrata ✅ +${AWARD} punti`
+        : `Presenza registrata ✅ +${AWARD} punto (GPS non verificato)`,
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message ?? "unknown" }, { status: 500 });

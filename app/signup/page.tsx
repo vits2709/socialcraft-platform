@@ -35,8 +35,10 @@ export default function SignupPage() {
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || "signup_failed");
 
-      // dopo signup: vai a login (così è chiaro e non dipende da conferma mail)
-      window.location.assign("/login");
+      // Dopo signup: vai al login preservando il redirect (es. /checkin/[slug])
+      const redirectParam = new URLSearchParams(window.location.search).get("redirect");
+      const loginDest = redirectParam ? `/login?redirect=${encodeURIComponent(redirectParam)}` : "/login";
+      window.location.assign(loginDest);
     } catch (e: any) {
       setMsg(`Errore: ${e?.message || "unknown"}`);
     } finally {

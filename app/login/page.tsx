@@ -12,6 +12,8 @@ export default function ExplorerLoginPage() {
   async function submit() {
     setLoading(true);
     setMsg(null);
+    // Leggi il redirect dalla query string (client-side, sicuro)
+    const redirectTo = new URLSearchParams(window.location.search).get("redirect") ?? "/me";
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -32,7 +34,7 @@ export default function ExplorerLoginPage() {
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || "login_failed");
 
-      window.location.assign("/me");
+      window.location.assign(redirectTo);
     } catch (e: any) {
       setMsg(`Errore: ${e?.message || "unknown"}`);
     } finally {
