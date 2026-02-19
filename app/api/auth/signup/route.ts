@@ -23,8 +23,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: error?.message ?? "signup_failed" }, { status: 400 });
     }
 
+    const adminSupabase = createSupabaseAdminClient();
+
     // il trigger SQL crea profiles di default (explorer), qui settiamo role + display_name
-    const { error: upErr } = await supabase
+    const { error: upErr } = await adminSupabase
       .from("profiles")
       .update({ role, display_name: displayName || null })
       .eq("id", data.user.id);
@@ -34,7 +36,6 @@ export async function POST(req: Request) {
     }
 
     // crea riga sc_users (upsert per sicurezza in caso esista già da trigger)
-    const adminSupabase = createSupabaseAdminClient();
     const { error: scErr } = await adminSupabase
       .from("sc_users")
       .upsert(
