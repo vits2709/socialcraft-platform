@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-// Converte la VAPID public key da base64url a Uint8Array
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+// Converte la VAPID public key da base64url a Uint8Array<ArrayBuffer>
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+  const buffer = new ArrayBuffer(rawData.length);
+  const output = new Uint8Array(buffer);
+  for (let i = 0; i < rawData.length; i++) {
+    output[i] = rawData.charCodeAt(i);
+  }
+  return output;
 }
 
 export default function PushNotificationSetup() {
