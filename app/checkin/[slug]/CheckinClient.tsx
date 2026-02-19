@@ -160,7 +160,7 @@ export default function CheckinClient({ slug, venueName, spotLat, spotLng }: Pro
     );
   }
 
-  if (checkinState === "too_far" || (checkinState === "error" && geoState === "too_far")) {
+  if (checkinState === "error" && geoState === "too_far") {
     return (
       <div
         className="notice"
