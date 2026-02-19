@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 export default function LogoutPage() {
-  const router = useRouter();
-
   useEffect(() => {
     (async () => {
       try {
         await fetch("/api/auth/logout", { method: "POST" });
       } finally {
-        router.replace("/");
+        // Hard reload: forza il re-mount di NavAuth e il re-fetch dello stato auth
+        window.location.replace("/");
       }
     })();
-  }, [router]);
+  }, []);
 
   return (
     <div className="card" style={{ maxWidth: 720, margin: "0 auto" }}>
