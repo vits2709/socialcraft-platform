@@ -45,8 +45,8 @@ export default function SpotLoginPage() {
 
   return (
     <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
-      <h1 className="h1">Accedi (Spot)</h1>
-      <p className="muted">Login dedicato per gestire promo, QR e stats.</p>
+      <h1 className="h1">Accedi (Spot/Admin)</h1>
+      <p className="muted">Accesso per gestori di spot e amministratori.</p>
 
       {msg ? <div className="notice" style={{ marginTop: 12 }}>{msg}</div> : null}
 
@@ -58,8 +58,9 @@ export default function SpotLoginPage() {
           {loading ? "Accesso..." : "Accedi"}
         </button>
 
-        <div className="muted" style={{ textAlign: "center" }}>
-          <Link href="/"><b>torna alla home</b></Link>
+        <div className="muted" style={{ textAlign: "center", display: "grid", gap: 4 }}>
+          <span>Sei un admin? <Link href="/admin/login"><b>Login Admin</b></Link></span>
+          <span>Sei un esploratore? <Link href="/login"><b>Login Esploratori</b></Link></span>
         </div>
       </div>
     </div>

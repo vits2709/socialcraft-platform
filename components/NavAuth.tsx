@@ -30,7 +30,7 @@ export default function NavAuth() {
     <>
       {admin && <Link href="/admin">Admin</Link>}
       {spot && !admin && <Link href="/spot">Spot</Link>}
-      {!loggedIn && <Link href="/admin/login">Admin / Spot</Link>}
+      {!loggedIn && <Link href="/admin/login">Accedi (Spot/Admin)</Link>}
       {loggedIn
         ? <Link href="/logout">Logout</Link>
         : <Link href="/login">Login</Link>}

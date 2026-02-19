@@ -46,8 +46,8 @@ export default function AdminLoginPage() {
 
   return (
     <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
-      <h1 className="h1">Login Admin</h1>
-      <p className="muted">Accesso riservato ad Admin/Spot.</p>
+      <h1 className="h1">Accedi (Spot/Admin)</h1>
+      <p className="muted">Accesso per gestori di spot e amministratori.</p>
 
       {msg ? <div className="notice" style={{ marginTop: 12 }}>{msg}</div> : null}
 
@@ -70,11 +70,12 @@ export default function AdminLoginPage() {
         />
 
         <button className="btn primary" type="submit" disabled={loading}>
-          {loading ? "Accesso..." : "Accedi come Admin"}
+          {loading ? "Accesso..." : "Accedi"}
         </button>
 
-        <div className="muted" style={{ textAlign: "center" }}>
-          Sei un Esploratore? <Link href="/login"><b>Vai al login Esploratori</b></Link>
+        <div className="muted" style={{ textAlign: "center", display: "grid", gap: 4 }}>
+          <span>Sei uno spot owner? <Link href="/spot/login"><b>Login Spot</b></Link></span>
+          <span>Sei un esploratore? <Link href="/login"><b>Login Esploratori</b></Link></span>
         </div>
       </form>
     </div>
