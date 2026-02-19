@@ -95,8 +95,9 @@ export async function POST(req: NextRequest) {
       user_id: scUid,
       venue_id: venue.id,
       event_type: "scan",
-      points: AWARD,        // puoi tenerlo come "punti dell'evento"
-      points_delta: AWARD,  // delta reale
+      points: AWARD,
+      points_delta: AWARD,
+      geo_verified: geoVerified,
     });
 
     if (ueErr) {

@@ -1,6 +1,7 @@
 import Link from "next/link";
+import QRCode from "qrcode";
 import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
-import VisitFlow from "@/components/VisitFlow";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import SpotOpenNow from "@/components/SpotOpenNow";
 import SpotGallery from "@/components/SpotGallery";
 import SpotMapLoader from "@/components/SpotMapLoader";
@@ -71,6 +72,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
   const { slug } = await props.params;
 
   const supabase = await createSupabaseServerClientReadOnly();
+  const adminSupabase = createSupabaseAdminClient();
 
   const { data: venue, error } = await supabase
     .from("venues")
@@ -111,6 +113,49 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
     .eq("id", v.id)
     .maybeSingle();
   const visitsCount = Number((lb as { visits_count?: number } | null)?.visits_count ?? 0);
+
+  // Top 5 visitatori (ultimi 30 giorni)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: scanEvents } = await adminSupabase
+    .from("user_events")
+    .select("user_id")
+    .eq("venue_id", v.id)
+    .eq("event_type", "scan")
+    .gte("created_at", thirtyDaysAgo);
+
+  const visitMap = new Map<string, number>();
+  for (const e of (scanEvents ?? []) as { user_id: string }[]) {
+    visitMap.set(e.user_id, (visitMap.get(e.user_id) ?? 0) + 1);
+  }
+  const topVisitorEntries = [...visitMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  let topVisitors: { name: string; count: number }[] = [];
+  if (topVisitorEntries.length > 0) {
+    const ids = topVisitorEntries.map(([id]) => id);
+    const { data: usersData } = await adminSupabase
+      .from("sc_users")
+      .select("id,name")
+      .in("id", ids);
+    const nameMap = new Map(
+      ((usersData ?? []) as { id: string; name: string }[]).map((u) => [u.id, u.name])
+    );
+    topVisitors = topVisitorEntries.map(([userId, visitCount]) => ({
+      name: String(nameMap.get(userId) ?? "Ospite"),
+      count: visitCount,
+    }));
+  }
+
+  // QR code check-in (server-side)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const checkinUrl = v.slug ? `${siteUrl}/checkin/${v.slug}` : null;
+  let qrDataUrl: string | null = null;
+  if (checkinUrl && siteUrl) {
+    try {
+      qrDataUrl = await QRCode.toDataURL(checkinUrl, { width: 200, margin: 1 });
+    } catch (_) {}
+  }
 
   const hasOrari = v.orari && Object.keys(v.orari).length > 0;
   const hasFoto = v.foto && v.foto.length > 0;
@@ -310,12 +355,89 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
         </div>
       )}
 
-      {/* Visit flow */}
-      <div style={{ marginTop: 18 }}>
-        <VisitFlow venueId={v.id} slug={v.slug!} />
-      </div>
+      {/* ── Banner check-in QR ── */}
+      {v.is_active !== false && (
+        <div
+          className="notice"
+          style={{
+            marginTop: 18,
+            background: "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(16,185,129,0.06) 100%)",
+            borderColor: "rgba(99,102,241,0.25)",
+            display: "flex",
+            gap: 16,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          {qrDataUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={qrDataUrl}
+              alt={`QR check-in ${v.name}`}
+              width={90}
+              height={90}
+              style={{ borderRadius: 10, flexShrink: 0 }}
+            />
+          )}
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <div style={{ fontWeight: 900, fontSize: 15, marginBottom: 4 }}>
+              Sei nel locale? 📍
+            </div>
+            <div className="muted" style={{ fontSize: 13, marginBottom: 10 }}>
+              Scansiona il QR con il telefono per guadagnare punti, caricare lo scontrino e votare.
+            </div>
+            {checkinUrl && (
+              <Link
+                className="btn primary"
+                href={checkinUrl}
+                style={{ display: "inline-block", padding: "10px 16px", fontSize: 14, textDecoration: "none" }}
+              >
+                Check-in →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
 
-      <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {/* ── Top visitatori (30 giorni) ── */}
+      {topVisitors.length > 0 && (
+        <div style={{ marginTop: 18 }}>
+          <div className="muted" style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+            TOP VISITATORI (30 GIORNI)
+          </div>
+          <div style={{ display: "grid", gap: 6 }}>
+            {topVisitors.map((tv, i) => (
+              <div
+                key={tv.name + i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  background: i === 0
+                    ? "rgba(251,191,36,0.10)"
+                    : "rgba(255,255,255,0.5)",
+                  border: "1px solid rgba(0,0,0,0.05)",
+                  fontSize: 14,
+                }}
+              >
+                <span>
+                  <span style={{ marginRight: 8, fontSize: 16 }}>
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}
+                  </span>
+                  <span style={{ fontWeight: 700 }}>{tv.name}</span>
+                </span>
+                <span className="badge" style={{ fontSize: 12 }}>
+                  {tv.count} {tv.count === 1 ? "visita" : "visite"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <Link className="btn" href="/">
           ← Leaderboard
         </Link>

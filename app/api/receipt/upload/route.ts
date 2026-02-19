@@ -89,6 +89,17 @@ export async function POST(req: NextRequest) {
       void triggerAiValidation(inserted.id);
     }
 
+    // Marca receipt_uploaded=true nel user_event scan di oggi (best effort)
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase
+      .from("user_events")
+      .update({ receipt_uploaded: true })
+      .eq("user_id", scUid)
+      .eq("venue_id", venueId)
+      .eq("event_type", "scan")
+      .gte("created_at", `${today}T00:00:00.000Z`)
+      .lte("created_at", `${today}T23:59:59.999Z`);
+
     return NextResponse.json({
       ok: true,
       duplicate: false,
