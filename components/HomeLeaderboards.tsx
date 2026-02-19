@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { LBRow } from "@/app/page";
+import { getExplorerLevel } from "@/lib/levels";
 
 function toInt(n: any) {
   const x = Number(n ?? 0);
@@ -20,45 +21,26 @@ function fmtRating(avg: any) {
   return Math.round(n * 10) / 10;
 }
 
-type Level = {
-  label: string;
-  emoji: string;
-  nextAt: number | null;
-};
+/* Livelli spot (indipendenti dagli esploratori, rimangono locali) */
+type SpotLevel = { label: string; emoji: string; nextAt: number | null };
 
-function explorerLevel(points: number): Level {
-  if (points < 10) return { label: "Curioso", emoji: "👀", nextAt: 10 };
-  if (points < 50) return { label: "Girellone", emoji: "🚶‍♂️", nextAt: 50 };
-  if (points < 150) return { label: "Esploratore", emoji: "🧭", nextAt: 150 };
-  if (points < 400) return { label: "Frequentatore", emoji: "🍹", nextAt: 400 };
-  return { label: "Leggenda Locale", emoji: "🏆", nextAt: null };
-}
-
-function spotLevel(points: number): Level {
-  if (points < 20) return { label: "Nuovo", emoji: "🌱", nextAt: 20 };
-  if (points < 60) return { label: "In Crescita", emoji: "📈", nextAt: 60 };
-  if (points < 150) return { label: "Hot", emoji: "🔥", nextAt: 150 };
-  if (points < 350) return { label: "Iconico", emoji: "✨", nextAt: 350 };
+function spotLevel(points: number): SpotLevel {
+  if (points < 20)  return { label: "Nuovo",      emoji: "🌱", nextAt: 20 };
+  if (points < 60)  return { label: "In Crescita", emoji: "📈", nextAt: 60 };
+  if (points < 150) return { label: "Hot",         emoji: "🔥", nextAt: 150 };
+  if (points < 350) return { label: "Iconico",     emoji: "✨", nextAt: 350 };
   return { label: "Leggenda", emoji: "👑", nextAt: null };
 }
 
-function prevAtForExplorer(label: string) {
-  if (label === "Curioso") return 0;
-  if (label === "Girellone") return 10;
-  if (label === "Esploratore") return 50;
-  if (label === "Frequentatore") return 150;
-  return 400;
-}
-
 function prevAtForSpot(label: string) {
-  if (label === "Nuovo") return 0;
+  if (label === "Nuovo")      return 0;
   if (label === "In Crescita") return 20;
-  if (label === "Hot") return 60;
-  if (label === "Iconico") return 150;
+  if (label === "Hot")        return 60;
+  if (label === "Iconico")    return 150;
   return 350;
 }
 
-function progressPct(points: number, lvl: Level, prevAt: number) {
+function spotProgressPct(points: number, lvl: SpotLevel, prevAt: number) {
   if (lvl.nextAt == null) return 100;
   const span = Math.max(1, lvl.nextAt - prevAt);
   const cur = Math.min(span, Math.max(0, points - prevAt));
@@ -115,7 +97,7 @@ export default function HomeLeaderboards(props: {
               const score = toInt(v.score);
               const lvl = spotLevel(score);
               const prevAt = prevAtForSpot(lvl.label);
-              const pct = progressPct(score, lvl, prevAt);
+              const pct = spotProgressPct(score, lvl, prevAt);
               const slugMatch = String(v.meta ?? "").match(/slug=([a-z0-9-]+)/i);
               const slug = slugMatch?.[1] ?? null;
               const avg = fmtRating(v.avg_rating);
@@ -154,9 +136,8 @@ export default function HomeLeaderboards(props: {
           <div className="colList">
             {topExplorers.map((u, i) => {
               const score = toInt(u.score);
-              const lvl = explorerLevel(score);
-              const prevAt = prevAtForExplorer(lvl.label);
-              const pct = progressPct(score, lvl, prevAt);
+              const lvlInfo = getExplorerLevel(score);
+              const pct = Math.round(lvlInfo.progress);
 
               return (
                 <div className="rowCard" key={u.id}>
@@ -164,7 +145,9 @@ export default function HomeLeaderboards(props: {
                     <div className="rankBox">{i + 1}</div>
                     <div className="rowMain">
                       <div className="rowName">{u.name ?? "Esploratore"}</div>
-                      <div className="rowMeta">{lvl.emoji} {lvl.label} • <b>{score}</b> pt</div>
+                      <div className="rowMeta">
+                        {lvlInfo.current.emoji} {lvlInfo.current.name} • <b>{score}</b> pt
+                      </div>
                     </div>
                     <div className="rowRight">
                       <Link className="btn mini" href="/me">Profilo</Link>
@@ -172,7 +155,7 @@ export default function HomeLeaderboards(props: {
                   </div>
                   <div className="bar"><div className="barFill user" style={{ width: `${pct}%` }} /></div>
                   <div className="barText">
-                    Prossimo: {lvl.nextAt == null ? <b>MAX</b> : <b>{lvl.nextAt} pt</b>} • {pct}%
+                    Prossimo: {lvlInfo.next == null ? <b>MAX</b> : <b>{lvlInfo.next.min} pt</b>} • {pct}%
                   </div>
                 </div>
               );

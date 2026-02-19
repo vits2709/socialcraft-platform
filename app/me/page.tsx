@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PushNotificationSetup from "@/components/PushNotificationSetup";
+import { getExplorerLevel } from "@/lib/levels";
 
 type Stats = {
   points_total: number;
@@ -43,53 +44,12 @@ type MePayload =
       }>;
     };
 
-type Level = {
-  key: string;
-  name: string;
-  min: number;
-  desc?: string;
-};
-
-const LEVELS: Level[] = [
-  { key: "new", name: "Nuovo", min: 0, desc: "Appena arrivato" },
-  { key: "curioso", name: "Curioso", min: 20, desc: "In esplorazione" },
-  { key: "explorer", name: "Explorer", min: 60, desc: "Gira gli spot" },
-  { key: "regular", name: "Regular", min: 120, desc: "Presenza costante" },
-  { key: "veteran", name: "Veterano", min: 200, desc: "Ormai di casa" },
-  { key: "legend", name: "Leggenda", min: 320, desc: "Top player" },
-];
-
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
 function formatInt(n: number) {
   return (Number(n) || 0).toLocaleString("it-IT");
-}
-
-function getLevel(points: number) {
-  const p = Number(points) || 0;
-  let current = LEVELS[0];
-  for (const lvl of LEVELS) {
-    if (p >= lvl.min) current = lvl;
-  }
-  const idx = LEVELS.findIndex((l) => l.key === current.key);
-  const next = idx >= 0 && idx < LEVELS.length - 1 ? LEVELS[idx + 1] : null;
-
-  const curMin = current.min;
-  const nextMin = next?.min ?? current.min;
-  const span = Math.max(1, nextMin - curMin);
-  const inLevel = clamp(p - curMin, 0, span);
-  const progress = next ? clamp((inLevel / span) * 100, 0, 100) : 100;
-
-  return {
-    current,
-    next,
-    progress,
-    toNext: next ? Math.max(0, next.min - p) : 0,
-    curMin,
-    nextMin,
-  };
 }
 
 function Section({
@@ -359,7 +319,7 @@ export default function MePage() {
     return 0;
   }, [s, me]);
 
-  const levelInfo = useMemo(() => getLevel(points), [points]);
+  const levelInfo = useMemo(() => getExplorerLevel(points), [points]);
 
   const nickname = me && me.ok ? (me.user.name ?? null) : null;
   const hasNickname = !!nickname;
