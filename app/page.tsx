@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
 import HomeLeaderboards from "@/components/HomeLeaderboards";
 import HomeScannerCTA from "@/components/HomeScannerCTA";
@@ -26,6 +27,12 @@ type SpotRatingRow = {
 
 export default async function HomePage() {
   const supabase = await createSupabaseServerClientReadOnly();
+
+  // Controlla se l'utente è loggato (explorer via cookie sc_uid, o admin/spot via Supabase Auth)
+  const cookieStore = await cookies();
+  const scUid = cookieStore.get("sc_uid")?.value?.trim() ?? null;
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const isLoggedIn = !!scUid || !!authUser;
 
   // 🔥 SPOT leaderboard invariata
   const { data: spotsRaw, error: sErr } = await supabase
@@ -140,9 +147,11 @@ export default async function HomePage() {
             <Link className="btn primary" href="/me">
               Il mio profilo
             </Link>
-            <Link className="btn" href="/login">
-              Accedi
-            </Link>
+            {!isLoggedIn && (
+              <Link className="btn" href="/login">
+                Accedi
+              </Link>
+            )}
           </div>
         </div>
 

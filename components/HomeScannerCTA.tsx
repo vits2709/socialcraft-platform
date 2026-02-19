@@ -8,6 +8,7 @@ type ScanResult =
 
 function extractSlugFromQrText(text: string): string | null {
   // Supporta QR con URL tipo:
+  // https://app.socialcraft.it/checkin/<slug>  ← formato generato dall'admin
   // https://app.socialcraft.it/v/<slug>
   // https://app.socialcraft.it/scan?slug=<slug>
   // oppure testo "slug:<slug>"
@@ -18,13 +19,14 @@ function extractSlugFromQrText(text: string): string | null {
     const slugParam = url.searchParams.get("slug");
     if (slugParam) return slugParam;
 
-    const m = url.pathname.match(/\/v\/([a-z0-9-]+)/i);
-    if (m?.[1]) return m[1];
+    // Match /checkin/<slug> oppure /v/<slug>
+    const m = url.pathname.match(/\/(checkin|v)\/([a-z0-9_-]+)/i);
+    if (m?.[2]) return m[2];
 
     return null;
   } catch {
-    // non è un URL
-    const m = text.match(/slug[:=]\s*([a-z0-9-]+)/i);
+    // non è un URL valido, cerca comunque slug=... o slug:...
+    const m = text.match(/slug[:=]\s*([a-z0-9_-]+)/i);
     return m?.[1] ?? null;
   }
 }
