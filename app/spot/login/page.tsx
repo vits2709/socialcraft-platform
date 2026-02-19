@@ -13,14 +13,10 @@ export default function SpotLoginPage() {
     setLoading(true);
     setMsg(null);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/spot/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: pass,
-          expected_role: "spot",
-        }),
+        body: JSON.stringify({ email: email.trim(), password: pass }),
       });
 
       const ct = res.headers.get("content-type") || "";
@@ -30,7 +26,14 @@ export default function SpotLoginPage() {
       }
 
       const j = await res.json();
-      if (!j.ok) throw new Error(j.error || "login_failed");
+      if (!j.ok) {
+        const msgs: Record<string, string> = {
+          invalid_credentials: "Email o password non corretti.",
+          not_spot_owner: "Questo account non è associato a nessuno spot.",
+          missing_fields: "Inserisci email e password.",
+        };
+        throw new Error(msgs[j.error] ?? j.error ?? "login_failed");
+      }
 
       window.location.assign("/venue"); // o /spot/dashboard se ce l’hai
     } catch (e: any) {

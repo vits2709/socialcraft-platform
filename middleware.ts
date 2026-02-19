@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/signup",
   "/logout",
   "/admin/login",
+  "/spot/login",
 ];
 
 function isAlwaysAllowed(pathname: string) {
