@@ -3,37 +3,37 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-type MeResp = { ok: boolean };
+type Status = {
+  explorer: boolean;
+  admin: boolean;
+  spot: boolean;
+};
 
 export default function NavAuth() {
-  const [logged, setLogged] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<Status | null>(null);
 
   useEffect(() => {
     let alive = true;
-
-    (async () => {
-      try {
-        const res = await fetch("/api/me", { cache: "no-store" });
-        const ct = res.headers.get("content-type") || "";
-        if (!ct.includes("application/json")) {
-          if (alive) setLogged(false);
-          return;
-        }
-        const j = (await res.json()) as MeResp;
-        if (alive) setLogged(Boolean(j?.ok));
-      } catch {
-        if (alive) setLogged(false);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
+    fetch("/api/auth/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => { if (alive) setStatus(j); })
+      .catch(() => { if (alive) setStatus({ explorer: false, admin: false, spot: false }); });
+    return () => { alive = false; };
   }, []);
 
-  // mentre carica, non mostra nulla per evitare layout shift
-  if (logged === null) return null;
+  if (status === null) return null;
 
-  if (!logged) return <Link href="/login">Login</Link>;
-  return <Link href="/logout">Logout</Link>;
+  const { explorer, admin, spot } = status;
+  const loggedIn = explorer || admin || spot;
+
+  return (
+    <>
+      {admin && <Link href="/admin">Admin</Link>}
+      {spot && !admin && <Link href="/spot">Spot</Link>}
+      {!loggedIn && <Link href="/admin/login">Admin / Spot</Link>}
+      {loggedIn
+        ? <Link href="/logout">Logout</Link>
+        : <Link href="/login">Login</Link>}
+    </>
+  );
 }
