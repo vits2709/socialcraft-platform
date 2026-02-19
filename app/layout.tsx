@@ -14,7 +14,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <header className="header">
             <div className="brand">SocialCraft</div>
             <nav className="nav">
-              <a href="/">Leaderboard</a>
+              <a href="/">Home</a>
+              <a href="/feed">Feed</a>
               <a href="/venue">Spot</a>
 
               {/* Login / Logout condizionale */}

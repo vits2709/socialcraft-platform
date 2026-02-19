@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
-import FullMapLoader from "@/components/FullMapLoader";
+import FullMapWithFilter from "@/components/FullMapWithFilter";
 
 export const runtime = "nodejs";
 export const metadata = { title: "Mappa Spot — SocialCraft" };
@@ -117,8 +117,7 @@ export default async function MapPage() {
               </div>
             </div>
           ) : (
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            <FullMapLoader spots={spots as any} />
+            <FullMapWithFilter spots={spots} />
           )}
         </div>
       </div>

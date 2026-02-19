@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import PushNotificationSetup from "@/components/PushNotificationSetup";
 
 type Stats = {
   points_total: number;
@@ -461,6 +462,9 @@ export default function MePage() {
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "18px 14px", display: "grid", gap: 14 }}>
+      {/* Richiesta permesso notifiche */}
+      <PushNotificationSetup />
+
       <Section
         title="Il mio profilo"
         subtitle="Rewards, streak, livelli e statistiche."

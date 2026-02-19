@@ -4,6 +4,7 @@ import HomeLeaderboards from "@/components/HomeLeaderboards";
 import HomeScannerCTA from "@/components/HomeScannerCTA";
 import HomeMapLoader from "@/components/HomeMapLoader";
 import type { HomeSpotPin } from "@/components/HomeMap";
+import type { WeeklyRow } from "@/components/HomeLeaderboards";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -39,6 +40,17 @@ export default async function HomePage() {
     .select("id,name,points")
     .order("points", { ascending: false })
     .limit(200);
+
+  // 🔥 CLASSIFICA SETTIMANALE
+  let weeklyExplorers: WeeklyRow[] = [];
+  try {
+    const { data: weeklyRaw } = await supabase
+      .from("v_weekly_leaderboard")
+      .select("user_id,user_name,points_week,rank");
+    weeklyExplorers = (weeklyRaw ?? []) as WeeklyRow[];
+  } catch {
+    // Se la view non esiste ancora (migration non eseguita), ignora silenziosamente
+  }
 
   // adattiamo formato
   const explorers =
@@ -166,7 +178,7 @@ export default async function HomePage() {
         )}
       </div>
 
-      <HomeLeaderboards spots={spots} explorers={explorers as LBRow[]} />
+      <HomeLeaderboards spots={spots} explorers={explorers as LBRow[]} weeklyExplorers={weeklyExplorers} />
 
       {/* ---- SEZIONE MAPPA ---- */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>

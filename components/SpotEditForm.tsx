@@ -16,7 +16,18 @@ const GIORNI = [
   { key: "dom", label: "Domenica" },
 ];
 
-const CATEGORIE = ["bar", "ristorante", "pub", "caffetteria", "club", "altro"];
+const CATEGORIE = [
+  "bar",
+  "ristorante",
+  "pub",
+  "caffetteria",
+  "club",
+  "barber",
+  "parrucchiere",
+  "estetica",
+  "palestra",
+  "altro",
+];
 
 const SERVIZI_OPTIONS = [
   "WiFi",

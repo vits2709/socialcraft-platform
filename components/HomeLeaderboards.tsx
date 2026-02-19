@@ -65,11 +65,23 @@ function progressPct(points: number, lvl: Level, prevAt: number) {
   return Math.round((cur / span) * 100);
 }
 
-export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBRow[] }) {
-  const [tab, setTab] = useState<"spots" | "explorers">("spots");
+export type WeeklyRow = {
+  user_id: string;
+  user_name: string | null;
+  points_week: number;
+  rank: number;
+};
+
+export default function HomeLeaderboards(props: {
+  spots: LBRow[];
+  explorers: LBRow[];
+  weeklyExplorers?: WeeklyRow[];
+}) {
+  const [tab, setTab] = useState<"spots" | "explorers" | "weekly">("spots");
 
   const topSpots = useMemo(() => props.spots.slice(0, 20), [props.spots]);
   const topExplorers = useMemo(() => props.explorers.slice(0, 20), [props.explorers]);
+  const topWeekly = useMemo(() => (props.weeklyExplorers ?? []).slice(0, 20), [props.weeklyExplorers]);
 
   return (
     <div className="leaderWrap">
@@ -77,25 +89,19 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
         <div>
           <h2 className="sectionTitle">Leaderboard</h2>
           <p className="muted" style={{ margin: 0 }}>
-            Top 20 live: Spot + Esploratori
+            Classifiche live: Spot · Esploratori · Settimana
           </p>
         </div>
 
         <div className="tabs">
-          <button
-            className={`tab ${tab === "spots" ? "active" : ""}`}
-            onClick={() => setTab("spots")}
-            type="button"
-          >
+          <button className={`tab ${tab === "spots" ? "active" : ""}`} onClick={() => setTab("spots")} type="button">
             📍 Spot <span className="pill">{props.spots.length}</span>
           </button>
-
-          <button
-            className={`tab ${tab === "explorers" ? "active" : ""}`}
-            onClick={() => setTab("explorers")}
-            type="button"
-          >
-            🧑‍🚀 Esploratori <span className="pill">{props.explorers.length}</span>
+          <button className={`tab ${tab === "explorers" ? "active" : ""}`} onClick={() => setTab("explorers")} type="button">
+            🧑‍🚀 Generali <span className="pill">{props.explorers.length}</span>
+          </button>
+          <button className={`tab ${tab === "weekly" ? "active" : ""}`} onClick={() => setTab("weekly")} type="button">
+            📅 Settimana <span className="pill">{topWeekly.length}</span>
           </button>
         </div>
       </div>
@@ -104,17 +110,14 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
         {/* SPOTS */}
         <section className={`leaderCol ${tab !== "spots" ? "mobileHidden" : ""}`}>
           <div className="colTitle">📍 Spot</div>
-
           <div className="colList">
             {topSpots.map((v, i) => {
               const score = toInt(v.score);
               const lvl = spotLevel(score);
               const prevAt = prevAtForSpot(lvl.label);
               const pct = progressPct(score, lvl, prevAt);
-
               const slugMatch = String(v.meta ?? "").match(/slug=([a-z0-9-]+)/i);
               const slug = slugMatch?.[1] ?? null;
-
               const avg = fmtRating(v.avg_rating);
               const cnt = toInt(v.ratings_count);
 
@@ -122,33 +125,20 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
                 <div className="rowCard" key={v.id}>
                   <div className="rowTop">
                     <div className="rankBox">{i + 1}</div>
-
                     <div className="rowMain">
                       <div className="rowName">{v.name ?? "Spot"}</div>
                       <div className="rowMeta">
                         {lvl.emoji} {lvl.label} • <b>{score}</b> pt
                         {avg != null && (
-                          <span>
-                            {" "}• ⭐ <b>{avg}</b>
-                            {cnt > 0 && <span className="muted"> ({cnt})</span>}
-                          </span>
+                          <span> • ⭐ <b>{avg}</b>{cnt > 0 && <span className="muted"> ({cnt})</span>}</span>
                         )}
                       </div>
                     </div>
-
                     <div className="rowRight">
-                      {slug && (
-                        <Link className="btn mini" href={`/v/${slug}`} target="_blank">
-                          Apri
-                        </Link>
-                      )}
+                      {slug && <Link className="btn mini" href={`/v/${slug}`} target="_blank">Apri</Link>}
                     </div>
                   </div>
-
-                  <div className="bar">
-                    <div className="barFill spot" style={{ width: `${pct}%` }} />
-                  </div>
-
+                  <div className="bar"><div className="barFill spot" style={{ width: `${pct}%` }} /></div>
                   <div className="barText">
                     Prossimo: {lvl.nextAt == null ? <b>MAX</b> : <b>{lvl.nextAt} pt</b>} • {pct}%
                   </div>
@@ -158,10 +148,9 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
           </div>
         </section>
 
-        {/* EXPLORERS */}
+        {/* EXPLORERS — classifica generale */}
         <section className={`leaderCol ${tab !== "explorers" ? "mobileHidden" : ""}`}>
-          <div className="colTitle">🧑‍🚀 Esploratori</div>
-
+          <div className="colTitle">🧑‍🚀 Esploratori (tutti i tempi)</div>
           <div className="colList">
             {topExplorers.map((u, i) => {
               const score = toInt(u.score);
@@ -173,25 +162,15 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
                 <div className="rowCard" key={u.id}>
                   <div className="rowTop">
                     <div className="rankBox">{i + 1}</div>
-
                     <div className="rowMain">
                       <div className="rowName">{u.name ?? "Esploratore"}</div>
-                      <div className="rowMeta">
-                        {lvl.emoji} {lvl.label} • <b>{score}</b> pt
-                      </div>
+                      <div className="rowMeta">{lvl.emoji} {lvl.label} • <b>{score}</b> pt</div>
                     </div>
-
                     <div className="rowRight">
-                      <Link className="btn mini" href="/me">
-                        Profilo
-                      </Link>
+                      <Link className="btn mini" href="/me">Profilo</Link>
                     </div>
                   </div>
-
-                  <div className="bar">
-                    <div className="barFill user" style={{ width: `${pct}%` }} />
-                  </div>
-
+                  <div className="bar"><div className="barFill user" style={{ width: `${pct}%` }} /></div>
                   <div className="barText">
                     Prossimo: {lvl.nextAt == null ? <b>MAX</b> : <b>{lvl.nextAt} pt</b>} • {pct}%
                   </div>
@@ -199,6 +178,41 @@ export default function HomeLeaderboards(props: { spots: LBRow[]; explorers: LBR
               );
             })}
           </div>
+        </section>
+
+        {/* WEEKLY — classifica settimanale */}
+        <section className={`leaderCol ${tab !== "weekly" ? "mobileHidden" : ""}`}>
+          <div className="colTitle">📅 Esploratori della settimana</div>
+          <p className="muted" style={{ fontSize: 12, margin: "0 0 10px", padding: "0 2px" }}>
+            Si azzera ogni lunedì a mezzanotte.
+          </p>
+          {topWeekly.length === 0 ? (
+            <div className="notice" style={{ fontSize: 13 }}>
+              Nessuna attività questa settimana ancora.
+            </div>
+          ) : (
+            <div className="colList">
+              {topWeekly.map((u, i) => (
+                <div className="rowCard" key={u.user_id}>
+                  <div className="rowTop">
+                    <div className="rankBox">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</div>
+                    <div className="rowMain">
+                      <div className="rowName">{u.user_name ?? "Esploratore"}</div>
+                      <div className="rowMeta"><b>{u.points_week}</b> pt questa settimana</div>
+                    </div>
+                  </div>
+                  <div className="bar">
+                    <div
+                      className="barFill user"
+                      style={{
+                        width: `${topWeekly[0]?.points_week > 0 ? Math.round((u.points_week / topWeekly[0].points_week) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>
