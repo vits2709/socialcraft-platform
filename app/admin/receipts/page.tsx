@@ -7,6 +7,12 @@ import { decideReceiptAction } from "./actions";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+type AiResult = {
+  extracted: { data: string | null; ora: string | null; importo: number | null; locale: string | null };
+  reasons: string[];
+  auto_approved: boolean;
+};
+
 type ReceiptRow = {
   id: string;
   status: "pending" | "approved" | "rejected" | string;
@@ -15,6 +21,8 @@ type ReceiptRow = {
   venue_id: string;
   image_path: string;
   image_hash: string | null;
+  ai_result: AiResult | null;
+  ai_checked_at: string | null;
   created_at: string;
 };
 
@@ -28,7 +36,7 @@ export default async function AdminReceiptsPage() {
   // ✅ IMPORTANT: usa admin client, così RLS non blocca
   const { data, error } = await supabase
     .from("receipt_verifications")
-    .select("id,status,reason,user_id,venue_id,image_path,image_hash,created_at")
+    .select("id,status,reason,user_id,venue_id,image_path,image_hash,ai_result,ai_checked_at,created_at")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -72,41 +80,85 @@ export default async function AdminReceiptsPage() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Utente</th>
-              <th>Spot</th>
-              <th>Path</th>
+              <th>Utente / Spot</th>
+              <th>AI Check</th>
               <th>Creato</th>
               <th style={{ textAlign: "right" }}>Azioni</th>
             </tr>
           </thead>
           <tbody>
-            {pending.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <b>{r.id}</b>
-                  <div className="muted">hash: {r.image_hash ?? "—"}</div>
-                </td>
-                <td className="muted">{r.user_id}</td>
-                <td className="muted">{r.venue_id}</td>
-                <td className="muted">{r.image_path}</td>
-                <td className="muted">{new Date(r.created_at).toLocaleString("it-IT")}</td>
-                <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                  <div style={{ display: "inline-flex", gap: 8 }}>
-                    <form action={decideReceiptAction.bind(null, r.id, "approved")}>
-                      <button className="btn primary" type="submit">
-                        Approva (+8)
-                      </button>
-                    </form>
+            {pending.map((r) => {
+              const ai = r.ai_result;
+              const hasAi = !!r.ai_checked_at;
+              return (
+                <tr key={r.id}>
+                  <td>
+                    <div style={{ fontFamily: "monospace", fontSize: 11 }}>{r.id.slice(0, 8)}…</div>
+                    <div className="muted" style={{ fontSize: 11 }}>hash: {r.image_hash?.slice(0, 12) ?? "—"}…</div>
+                    <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{r.image_path}</div>
+                  </td>
+                  <td>
+                    <div className="muted" style={{ fontSize: 12 }}>{r.user_id.slice(0, 12)}…</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{r.venue_id.slice(0, 12)}…</div>
+                  </td>
+                  <td style={{ minWidth: 180 }}>
+                    {!hasAi ? (
+                      <span className="muted" style={{ fontSize: 12 }}>In attesa AI…</span>
+                    ) : ai ? (
+                      <div style={{ fontSize: 12 }}>
+                        <div>📅 {ai.extracted?.data ?? "—"}</div>
+                        <div>💰 €{ai.extracted?.importo ?? "—"}</div>
+                        <div>🏪 {ai.extracted?.locale ?? "—"}</div>
+                        {ai.reasons?.length > 0 && (
+                          <div
+                            style={{
+                              marginTop: 4,
+                              padding: "3px 8px",
+                              borderRadius: 8,
+                              background: "rgba(239,68,68,0.08)",
+                              color: "#dc2626",
+                              fontSize: 11,
+                            }}
+                          >
+                            ⚠️ {ai.reasons.join(", ")}
+                          </div>
+                        )}
+                        {ai.auto_approved && (
+                          <div style={{ color: "#059669", fontWeight: 700, marginTop: 2, fontSize: 11 }}>
+                            ✅ AI ha auto-approvato
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="muted" style={{ fontSize: 12 }}>AI: errore analisi</span>
+                    )}
+                    {r.reason && (
+                      <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                        Motivo: {r.reason}
+                      </div>
+                    )}
+                  </td>
+                  <td className="muted" style={{ fontSize: 12 }}>
+                    {new Date(r.created_at).toLocaleString("it-IT")}
+                  </td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <div style={{ display: "inline-flex", gap: 8 }}>
+                      <form action={decideReceiptAction.bind(null, r.id, "approved")}>
+                        <button className="btn primary" type="submit">
+                          Approva (+8)
+                        </button>
+                      </form>
 
-                    <form action={decideReceiptAction.bind(null, r.id, "rejected")}>
-                      <button className="btn" type="submit">
-                        Rifiuta
-                      </button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      <form action={decideReceiptAction.bind(null, r.id, "rejected")}>
+                        <button className="btn" type="submit">
+                          Rifiuta
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

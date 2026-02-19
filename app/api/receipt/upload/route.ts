@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
 
+/** Invoca la Edge Function di validazione AI in background (non-blocking) */
+async function triggerAiValidation(verificationId: string) {
+  try {
+    const supabase = createSupabaseAdminClient();
+    await supabase.functions.invoke("validate-receipt", {
+      body: { verification_id: verificationId },
+    });
+  } catch (e) {
+    // Non bloccante: se fallisce, lo scontrino rimane pending per revisione manuale
+    console.error("[upload] AI validation trigger failed:", e);
+  }
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -70,6 +83,11 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (insErr) return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
+
+    // Avvia validazione AI in background (non blocca la risposta all'utente)
+    if (inserted?.id) {
+      void triggerAiValidation(inserted.id);
+    }
 
     return NextResponse.json({
       ok: true,
