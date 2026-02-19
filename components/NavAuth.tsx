@@ -77,12 +77,12 @@ export default function NavAuth() {
         <span className={open ? "hbar hbar-open-3" : "hbar"} />
       </button>
 
-      {/* Mobile: overlay + pannello */}
+      {/* Mobile: dropdown compatto sotto il tasto */}
       {open && (
         <>
+          {/* Overlay trasparente — click fuori chiude il menu */}
           <div className="menuOverlay" onClick={close} aria-hidden="true" />
-          <div className="mobileMenu" id="mobileMenuPanel" role="dialog" aria-label="Menu navigazione">
-            <button className="mobileMenuClose" onClick={close} aria-label="Chiudi menu">✕</button>
+          <div className="mobileMenu" id="mobileMenuPanel" role="menu" aria-label="Menu navigazione">
             {staticLinks}
             {authLinks}
           </div>
