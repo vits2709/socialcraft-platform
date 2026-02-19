@@ -12,7 +12,8 @@ type Props = {
 export default function AdminQrDownload({ slug, venueName, siteUrl }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
-  const checkinUrl = `${siteUrl}/checkin/${slug}`;
+  const base = siteUrl || (typeof window !== "undefined" ? window.location.origin : "");
+  const checkinUrl = `${base}/checkin/${slug}`;
 
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser, isAdmin } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import AdminQrDownload from "@/components/AdminQrDownload";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -337,6 +338,21 @@ export default async function SpotDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* ── QR CHECK-IN ── */}
+      {v.slug && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <h2 className="h2" style={{ marginTop: 0, marginBottom: 10 }}>QR Code Check-in</h2>
+          <p className="muted" style={{ marginBottom: 16, fontSize: 13 }}>
+            Stampa e affiggi questo QR nello spot. Gli utenti lo scansioneranno per registrare la presenza e guadagnare punti.
+          </p>
+          <AdminQrDownload
+            slug={v.slug}
+            venueName={v.name}
+            siteUrl={process.env.NEXT_PUBLIC_SITE_URL ?? ""}
+          />
+        </div>
+      )}
 
       {/* ── KPI RAPIDI ── */}
       <div className="card" style={{ marginTop: 14 }}>
