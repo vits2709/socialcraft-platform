@@ -15,30 +15,108 @@ export const metadata = {
   icons: { icon: "/logo.png" },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="it">
-      <body style={{ width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
-        <div className="container" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+      <body
+        style={{
+          margin: 0,
+          width: "100%",
+          overflowX: "hidden",
+          background: "linear-gradient(180deg, #eef2ff 0%, #fdf2f8 100%)",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            minHeight: "100vh",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* HEADER */}
           <header className="header">
-            <Link href="/" className="brand" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none", color: "inherit" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="CityQuest" style={{ height: 38, width: 38, borderRadius: 9, flexShrink: 0 }} />
-              <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.3 }}>CityQuest</span>
+            <Link
+              href="/"
+              className="brand"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <img
+                src="/logo.png"
+                alt="CityQuest"
+                style={{
+                  height: 38,
+                  width: 38,
+                  borderRadius: 9,
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontWeight: 900,
+                  fontSize: 18,
+                  letterSpacing: -0.3,
+                }}
+              >
+                CityQuest
+              </span>
             </Link>
+
             <NavAuth />
           </header>
 
-          <main className="main">{children}</main>
+          {/* MAIN */}
+          <main
+            style={{
+              flex: 1,
+              width: "100%",
+            }}
+          >
+            {children}
+          </main>
 
+          {/* FOOTER */}
           <footer className="footer">
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="" aria-hidden style={{ height: 18, width: 18, borderRadius: 4, verticalAlign: "middle" }} />
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <img
+                src="/logo.png"
+                alt=""
+                aria-hidden
+                style={{
+                  height: 18,
+                  width: 18,
+                  borderRadius: 4,
+                  verticalAlign: "middle",
+                }}
+              />
               © {new Date().getFullYear()} CityQuest
             </span>
+
             <span style={{ margin: "0 8px", opacity: 0.35 }}>·</span>
-            <Link href="/come-funziona" style={{ color: "inherit", textDecoration: "none" }}>
+
+            <Link
+              href="/come-funziona"
+              style={{
+                color: "inherit",
+                textDecoration: "none",
+              }}
+            >
               Come funziona
             </Link>
           </footer>
