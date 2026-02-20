@@ -80,7 +80,7 @@ export default function AdminQrDownload({ slug, venueName, siteUrl }: Props) {
     <p>Scansiona per registrare la tua presenza e guadagnare punti!</p>
     <img src="${dataUrl}" alt="QR Code check-in ${venueName}" />
     <div class="url">${checkinUrl}</div>
-    <div class="brand">SocialCraft</div>
+    <div class="brand">CityQuest</div>
   </div>
   <div class="no-print" style="margin-top:24px">
     <button onclick="window.print()" style="

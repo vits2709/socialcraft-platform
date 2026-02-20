@@ -1,10 +1,12 @@
 import "./globals.css";
+import Image from "next/image";
 import Link from "next/link";
 import NavAuth from "@/components/NavAuth";
 
 export const metadata = {
-  title: "SocialCraft",
-  description: "Esplora gli spot, colleziona punti e scala la classifica degli esploratori.",
+  title: "CityQuest",
+  description: "Esplora la tua città, guadagna punti e vinci premi reali.",
+  icons: { icon: "/logo.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -13,7 +15,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <div className="container">
           <header className="header">
-            <div className="brand">SocialCraft</div>
+            <div className="brand" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Image src="/logo.png" alt="CityQuest" height={36} width={120} style={{ height: 36, width: "auto" }} />
+              <span>CityQuest</span>
+            </div>
             {/* NavAuth include tutti i link + hamburger mobile */}
             <nav className="nav">
               <NavAuth />
@@ -23,7 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="main">{children}</main>
 
           <footer className="footer">
-            <span>© {new Date().getFullYear()} SocialCraft</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Image src="/logo.png" alt="CityQuest" height={18} width={60} style={{ height: 18, width: "auto" }} />
+              © {new Date().getFullYear()} CityQuest
+            </span>
             <span style={{ margin: "0 8px", opacity: 0.35 }}>·</span>
             <Link href="/come-funziona" style={{ color: "inherit", textDecoration: "none" }}>
               Come funziona

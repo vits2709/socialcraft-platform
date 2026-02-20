@@ -24,7 +24,7 @@ export default async function AdminLayout({
           marginBottom: 20,
         }}
       >
-        <div style={{ fontWeight: 600 }}>SocialCraft • Admin</div>
+        <div style={{ fontWeight: 600 }}>CityQuest • Admin</div>
 
         <div style={{ display: "flex", gap: 10 }}>
           <Link className="btn mini" href="/admin">

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Script di deploy automatico — SocialCraft
+ * Script di deploy automatico — CityQuest
  *
  * Esegue in ordine:
  *  1. Migrations SQL (002–005) via Supabase Management API
@@ -112,7 +112,7 @@ async function deployFunction() {
 }
 
 async function main() {
-  console.log("\n🚀 SocialCraft Deploy Script\n" + "=".repeat(40));
+  console.log("\n🚀 CityQuest Deploy Script\n" + "=".repeat(40));
 
   // ── 1. Migrations ──────────────────────────────
   console.log("\n📦 Esecuzione migrations...");

@@ -1,4 +1,4 @@
-// Service Worker — SocialCraft Push Notifications
+// Service Worker — CityQuest Push Notifications
 // Versione: 1.0
 
 self.addEventListener("install", (event) => {
@@ -11,7 +11,7 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("push", (event) => {
   let payload = {
-    title: "SocialCraft",
+    title: "CityQuest",
     body: "Hai una nuova notifica!",
     icon: "/icon-192.png",
     badge: "/icon-72.png",

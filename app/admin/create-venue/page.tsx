@@ -33,7 +33,7 @@ export default async function CreateVenuePage() {
         <input name="city" className="input" placeholder="es. Vasto" required />
 
         <label className="label">Email login venue</label>
-        <input name="email" type="email" className="input" placeholder="es. mood@socialcraft.it" required />
+        <input name="email" type="email" className="input" placeholder="es. mood@cityquest.it" required />
 
         <label className="label">Password temporanea</label>
         <input name="password" type="password" className="input" required />

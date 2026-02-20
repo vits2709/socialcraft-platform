@@ -3,7 +3,7 @@ import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
 import FullMapWithFilter from "@/components/FullMapWithFilter";
 
 export const runtime = "nodejs";
-export const metadata = { title: "Mappa Spot — SocialCraft" };
+export const metadata = { title: "Mappa Spot — CityQuest" };
 
 type SpotRaw = {
   id: string;

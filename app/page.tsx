@@ -183,7 +183,7 @@ export default async function HomePage() {
       <div className="hero card">
         <div className="heroTop">
           <div>
-            <h1 className="heroTitle">SocialCraft</h1>
+            <h1 className="heroTitle">CityQuest</h1>
             <p className="heroSubtitle">
               Scala la classifica degli <b>Esploratori</b> e fai salire gli <b>Spot</b>.
             </p>

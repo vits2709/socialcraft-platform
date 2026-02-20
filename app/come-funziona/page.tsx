@@ -1,8 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Come funziona | SocialCraft",
-  description: "Esplora la tua città, guadagna punti e vinci premi reali con SocialCraft.",
+  title: "Come funziona | CityQuest",
+  description: "Esplora la tua città, guadagna punti e vinci premi reali.",
 };
 
 const STEPS = [
@@ -86,7 +87,9 @@ export default function ComeFunzionaPage() {
           color: "#fff",
         }}
       >
-        <div style={{ fontSize: 56, marginBottom: 18 }}>🗺️</div>
+        <div style={{ marginBottom: 20 }}>
+          <Image src="/logo.png" alt="CityQuest" height={64} width={200} style={{ height: 64, width: "auto" }} />
+        </div>
         <h1
           style={{
             margin: "0 0 14px",
@@ -96,7 +99,7 @@ export default function ComeFunzionaPage() {
             lineHeight: 1.1,
           }}
         >
-          Come funziona SocialCraft
+          Come funziona CityQuest
         </h1>
         <p
           style={{
@@ -355,7 +358,7 @@ export default function ComeFunzionaPage() {
         >
           <div style={{ flex: 1, minWidth: 200 }}>
             <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 900 }}>
-              🏪 Sei un locale? Unisciti a SocialCraft
+              🏪 Sei un locale? Unisciti a CityQuest
             </h2>
             <p className="muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.6, maxWidth: 400 }}>
               Porta nuovi clienti, fidelizza quelli esistenti e monitora le statistiche del tuo locale in tempo reale.

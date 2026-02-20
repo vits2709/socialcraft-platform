@@ -26,7 +26,7 @@ export default function ForgotPasswordPage() {
     setErr(null);
 
     const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-      redirectTo: "https://app.socialcraft.it/reset-password",
+      redirectTo: "https://app.cityquest.it/reset-password",
     });
 
     setLoading(false);

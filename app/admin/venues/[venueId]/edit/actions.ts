@@ -43,7 +43,7 @@ export async function updateSpotAction(venueId: string, data: UpdateSpotData) {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(data.indirizzo)}&format=json&limit=1`,
-        { headers: { "User-Agent": "SocialCraft/1.0" } }
+        { headers: { "User-Agent": "CityQuest/1.0" } }
       );
       const json = await res.json();
       const [r] = json as Array<{ lat: string; lon: string }>;

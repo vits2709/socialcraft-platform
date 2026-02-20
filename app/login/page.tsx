@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -50,6 +51,9 @@ export default function ExplorerLoginPage() {
 
   return (
     <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <Image src="/logo.png" alt="CityQuest" height={52} width={160} style={{ height: 52, width: "auto" }} />
+      </div>
       <h1 className="h1">Accedi (Esploratori)</h1>
       <p className="muted">Accedi per non perdere punti tra device.</p>
 

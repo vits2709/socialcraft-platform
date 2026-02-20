@@ -8,9 +8,9 @@ type ScanResult =
 
 function extractSlugFromQrText(text: string): string | null {
   // Supporta QR con URL tipo:
-  // https://app.socialcraft.it/checkin/<slug>  ← formato generato dall'admin
-  // https://app.socialcraft.it/v/<slug>
-  // https://app.socialcraft.it/scan?slug=<slug>
+  // https://app.cityquest.it/checkin/<slug>  ← formato generato dall'admin
+  // https://app.cityquest.it/v/<slug>
+  // https://app.cityquest.it/scan?slug=<slug>
   // oppure testo "slug:<slug>"
   try {
     if (text.startsWith("slug:")) return text.replace("slug:", "").trim();
