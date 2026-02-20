@@ -115,6 +115,7 @@ function Section({
         background: "rgba(255,255,255,0.6)",
         display: "grid",
         gap: 12,
+        minWidth: 0,
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>

@@ -36,6 +36,7 @@ export default function RootLayout({
             minHeight: "100vh",
             display: "flex",
             flexDirection: "column",
+            overflowX: "hidden",
           }}
         >
           {/* HEADER */}
