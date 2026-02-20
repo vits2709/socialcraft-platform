@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import Image from "next/image";
 import Link from "next/link";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import CheckinClient from "./CheckinClient";
@@ -164,7 +163,8 @@ export default async function CheckinPage(props: { params: Promise<{ slug: strin
         }}
       >
         <div style={{ marginBottom: 14 }}>
-          <Image src="/logo.png" alt="CityQuest" height={40} width={130} style={{ height: 40, width: "auto" }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="CityQuest" style={{ height: 48, width: 48, borderRadius: 12 }} />
         </div>
         <div style={{ fontSize: 36, marginBottom: 8 }}>📍</div>
         <h1 style={{ margin: "0 0 4px", fontWeight: 900, fontSize: 26 }}>{v.name}</h1>

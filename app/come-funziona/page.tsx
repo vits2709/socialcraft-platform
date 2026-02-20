@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 export const metadata = {
@@ -88,7 +87,8 @@ export default function ComeFunzionaPage() {
         }}
       >
         <div style={{ marginBottom: 20 }}>
-          <Image src="/logo.png" alt="CityQuest" height={64} width={200} style={{ height: 64, width: "auto" }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="CityQuest" style={{ height: 72, width: 72, borderRadius: 18 }} />
         </div>
         <h1
           style={{
