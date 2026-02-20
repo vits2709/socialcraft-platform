@@ -583,7 +583,7 @@ return (
                       padding: "8px 12px",
                       borderRadius: 10,
                       border: "1px solid rgba(0,0,0,0.15)",
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: 800,
                       outline: "none",
                       background: "rgba(255,255,255,0.9)",

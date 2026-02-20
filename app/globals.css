@@ -1137,6 +1137,7 @@ a { color: inherit; text-decoration: none; }
   .navAuthBtns    { display: none; }
   .navAvatarWrap  { display: none; }
   .hamburgerBtn   { display: flex; }
+  .navInner       { justify-content: flex-end; }
 }
 
 /* ── Keyframes ── */
