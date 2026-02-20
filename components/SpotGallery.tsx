@@ -5,14 +5,33 @@ import { useState } from "react";
 export default function SpotGallery({ foto }: { foto: string[] }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
 
-  if (foto.length === 0) return null;
+  if (foto.length === 0) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "32px 16px",
+          borderRadius: 14,
+          border: "1px dashed rgba(0,0,0,0.12)",
+          background: "rgba(0,0,0,0.02)",
+          gap: 8,
+        }}
+      >
+        <span style={{ fontSize: 32, opacity: 0.3 }}>📷</span>
+        <span className="muted" style={{ fontSize: 13 }}>Nessuna foto disponibile</span>
+      </div>
+    );
+  }
 
   return (
     <>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
+          gridTemplateColumns: "repeat(2, 1fr)",
           gap: 8,
         }}
       >
@@ -27,8 +46,9 @@ export default function SpotGallery({ foto }: { foto: string[] }) {
               borderRadius: 12,
               overflow: "hidden",
               cursor: "pointer",
-              aspectRatio: "1",
+              aspectRatio: "4/3",
               background: "rgba(0,0,0,0.05)",
+              gridColumn: i === 0 && foto.length >= 3 ? "span 2" : undefined,
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -48,7 +68,7 @@ export default function SpotGallery({ foto }: { foto: string[] }) {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.85)",
+            background: "rgba(0,0,0,0.9)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -80,14 +100,15 @@ export default function SpotGallery({ foto }: { foto: string[] }) {
               background: "rgba(255,255,255,0.15)",
               border: "none",
               borderRadius: "50%",
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               color: "white",
-              fontSize: 20,
+              fontSize: 22,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              backdropFilter: "blur(8px)",
             }}
           >
             ×

@@ -72,6 +72,9 @@ type VenueData = {
   is_featured?: boolean | null;
   orari?: OrariData | null;
   foto?: string[] | null;
+  cover_image?: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
 };
 
 export default function SpotEditForm({ venue }: { venue: VenueData }) {
@@ -83,6 +86,8 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
   const [indirizzo, setIndirizzo] = useState(venue.indirizzo ?? "");
   const [telefono, setTelefono] = useState(venue.telefono ?? "");
   const [sitoWeb, setSitoWeb] = useState(venue.sito_web ?? "");
+  const [instagram, setInstagram] = useState(venue.instagram ?? "");
+  const [facebook, setFacebook] = useState(venue.facebook ?? "");
   const [categoria, setCategoria] = useState(venue.categoria ?? "");
   const [fascia, setFascia] = useState<string>(
     venue.fascia_prezzo != null ? String(venue.fascia_prezzo) : ""
@@ -103,6 +108,11 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
 
+  // Cover image
+  const [coverImage, setCoverImage] = useState(venue.cover_image ?? "");
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverErr, setCoverErr] = useState<string | null>(null);
+
   function toggleServizio(s: string) {
     setServizi((prev) =>
       prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
@@ -114,6 +124,30 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
       ...prev,
       [key]: { ...prev[key], [field]: value },
     }));
+  }
+
+  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    setCoverErr(null);
+    try {
+      const fd = new FormData();
+      fd.append("venue_id", venue.id);
+      fd.append("file", file);
+      const res = await fetch("/api/admin/spots/upload-photo", {
+        method: "POST",
+        body: fd,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "upload_failed");
+      setCoverImage(json.url);
+    } catch (err: unknown) {
+      setCoverErr(err instanceof Error ? err.message : "Errore upload");
+    } finally {
+      setUploadingCover(false);
+      e.target.value = "";
+    }
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -153,6 +187,8 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
       indirizzo: indirizzo || undefined,
       telefono: telefono || undefined,
       sito_web: sitoWeb || undefined,
+      instagram: instagram || null,
+      facebook: facebook || null,
       categoria: categoria || undefined,
       fascia_prezzo: fascia ? parseInt(fascia) : null,
       servizi,
@@ -160,6 +196,7 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
       is_featured: isFeatured,
       orari,
       foto,
+      cover_image: coverImage || null,
     };
 
     startTransition(async () => {
@@ -224,6 +261,28 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
               value={sitoWeb}
               onChange={(e) => setSitoWeb(e.target.value)}
               placeholder="https://..."
+              type="url"
+            />
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <div className="muted" style={{ marginBottom: 6, fontSize: 13 }}>Instagram</div>
+            <input
+              style={inputStyle}
+              value={instagram}
+              onChange={(e) => setInstagram(e.target.value)}
+              placeholder="@nomepagina"
+            />
+          </div>
+          <div>
+            <div className="muted" style={{ marginBottom: 6, fontSize: 13 }}>Facebook (URL)</div>
+            <input
+              style={inputStyle}
+              value={facebook}
+              onChange={(e) => setFacebook(e.target.value)}
+              placeholder="https://facebook.com/..."
               type="url"
             />
           </div>
@@ -350,6 +409,57 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
             );
           })}
         </div>
+      </div>
+
+      {/* Cover Image */}
+      <div>
+        <div className="muted" style={{ marginBottom: 10, fontSize: 13, fontWeight: 700 }}>
+          Immagine di copertina
+        </div>
+        {coverImage && (
+          <div style={{ position: "relative", marginBottom: 12, display: "inline-block" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverImage}
+              alt="cover spot"
+              style={{ width: "100%", maxWidth: 360, height: 140, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(0,0,0,0.1)", display: "block" }}
+            />
+            <button
+              type="button"
+              onClick={() => setCoverImage("")}
+              style={{
+                position: "absolute", top: 6, right: 6,
+                background: "rgba(0,0,0,0.6)", color: "white", border: "none",
+                borderRadius: "50%", width: 24, height: 24, cursor: "pointer",
+                fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >×</button>
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <label
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "10px 16px", borderRadius: 12,
+              border: "1px dashed rgba(99,102,241,0.4)",
+              background: "rgba(99,102,241,0.05)",
+              cursor: uploadingCover ? "not-allowed" : "pointer",
+              fontSize: 13, fontWeight: 600,
+            }}
+          >
+            {uploadingCover ? "Caricamento…" : "🖼 Carica copertina"}
+            <input type="file" accept="image/*" disabled={uploadingCover} onChange={handleCoverUpload} style={{ display: "none" }} />
+          </label>
+          <span className="muted" style={{ fontSize: 12 }}>oppure incolla URL:</span>
+          <input
+            style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+            value={coverImage}
+            onChange={(e) => setCoverImage(e.target.value)}
+            placeholder="https://..."
+            type="url"
+          />
+        </div>
+        {coverErr && <span style={{ color: "red", fontSize: 12 }}>{coverErr}</span>}
       </div>
 
       {/* Foto */}

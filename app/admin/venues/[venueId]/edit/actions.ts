@@ -19,6 +19,9 @@ export type UpdateSpotData = {
   is_featured?: boolean;
   orari?: OrariData;
   foto?: string[];
+  cover_image?: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
 };
 
 export async function updateSpotAction(venueId: string, data: UpdateSpotData) {
@@ -69,6 +72,9 @@ export async function updateSpotAction(venueId: string, data: UpdateSpotData) {
       is_featured: data.is_featured ?? false,
       orari: data.orari ?? null,
       foto: data.foto ?? [],
+      cover_image: data.cover_image ?? null,
+      instagram: data.instagram ?? null,
+      facebook: data.facebook ?? null,
       lat,
       lng,
     })
