@@ -42,6 +42,7 @@ export default function NavAuth() {
       <Link href="/feed" onClick={close}>Feed</Link>
       <Link href="/venue" onClick={close}>Spot</Link>
       <Link href="/me" onClick={close}>Profilo</Link>
+      <Link href="/come-funziona" onClick={close}>Come funziona</Link>
     </>
   );
 

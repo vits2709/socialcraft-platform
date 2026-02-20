@@ -1,4 +1,5 @@
 import "./globals.css";
+import Link from "next/link";
 import NavAuth from "@/components/NavAuth";
 
 export const metadata = {
@@ -23,6 +24,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           <footer className="footer">
             <span>© {new Date().getFullYear()} SocialCraft</span>
+            <span style={{ margin: "0 8px", opacity: 0.35 }}>·</span>
+            <Link href="/come-funziona" style={{ color: "inherit", textDecoration: "none" }}>
+              Come funziona
+            </Link>
           </footer>
         </div>
       </body>

@@ -492,26 +492,46 @@ export default function CheckinClient({
 
     // Errore generico
     if (checkinStatus === "error") {
+      const isNotLogged = checkinError === "Devi essere loggato per fare check-in.";
       return (
         <div style={{ textAlign: "center", padding: "28px 16px" }}>
           <div style={{ fontSize: 48, marginBottom: 14 }}>❌</div>
           <div style={{ fontWeight: 700, color: "#dc2626", marginBottom: 8, fontSize: 17 }}>
-            Errore check-in
+            {isNotLogged ? "Accesso richiesto" : "Errore check-in"}
           </div>
           <p className="muted" style={{ margin: "0 0 20px", fontSize: 14 }}>
             {checkinError}
           </p>
-          <button
-            className="btn"
-            onClick={() => {
-              setGeoState("idle");
-              setCheckinStatus("idle");
-              setCheckinError(null);
-              doCheckin();
-            }}
-          >
-            Riprova
-          </button>
+          {isNotLogged ? (
+            <div style={{ display: "grid", gap: 10, maxWidth: 260, margin: "0 auto" }}>
+              <Link
+                className="btn primary"
+                href="/login"
+                style={{ textAlign: "center", display: "block", padding: "14px" }}
+              >
+                Accedi per fare check-in
+              </Link>
+              <Link
+                className="btn"
+                href="/come-funziona"
+                style={{ textAlign: "center", display: "block", fontSize: 13 }}
+              >
+                Scopri come funziona →
+              </Link>
+            </div>
+          ) : (
+            <button
+              className="btn"
+              onClick={() => {
+                setGeoState("idle");
+                setCheckinStatus("idle");
+                setCheckinError(null);
+                doCheckin();
+              }}
+            >
+              Riprova
+            </button>
+          )}
         </div>
       );
     }
