@@ -1,6 +1,13 @@
 import "./globals.css";
 import Link from "next/link";
 import NavAuth from "@/components/NavAuth";
+import type { Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata = {
   title: "CityQuest",

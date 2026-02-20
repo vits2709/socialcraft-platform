@@ -44,7 +44,7 @@ const inputStyle: React.CSSProperties = {
   border: "1px solid rgba(0,0,0,0.12)",
   outline: "none",
   background: "rgba(255,255,255,0.8)",
-  fontSize: 14,
+  fontSize: 16, /* ≥16px: previene auto-zoom iOS Safari su focus */
 };
 
 const selectStyle: React.CSSProperties = {
