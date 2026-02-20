@@ -11,11 +11,11 @@ export type ExplorerLevel = {
 
 export const EXPLORER_LEVELS: ExplorerLevel[] = [
   { key: "new",      name: "Nuovo",    emoji: "🌱", min: 0,   desc: "Appena arrivato" },
-  { key: "curioso",  name: "Curioso",  emoji: "👀", min: 20,  desc: "In esplorazione" },
-  { key: "explorer", name: "Explorer", emoji: "🧭", min: 60,  desc: "Gira gli spot" },
-  { key: "regular",  name: "Regular",  emoji: "⭐", min: 120, desc: "Presenza costante" },
-  { key: "veteran",  name: "Veterano", emoji: "🏅", min: 200, desc: "Ormai di casa" },
-  { key: "legend",   name: "Leggenda", emoji: "👑", min: 320, desc: "Top player" },
+  { key: "curioso",  name: "Curioso",  emoji: "👀", min: 25,  desc: "In esplorazione" },
+  { key: "explorer", name: "Explorer", emoji: "🧭", min: 75,  desc: "Gira gli spot" },
+  { key: "regular",  name: "Regular",  emoji: "⭐", min: 150, desc: "Presenza costante" },
+  { key: "veteran",  name: "Veterano", emoji: "🏅", min: 300, desc: "Ormai di casa" },
+  { key: "legend",   name: "Leggenda", emoji: "👑", min: 500, desc: "Top player" },
 ];
 
 function clamp(n: number, a: number, b: number) {
