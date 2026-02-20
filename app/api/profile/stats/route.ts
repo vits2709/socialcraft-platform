@@ -84,8 +84,14 @@ export async function GET(req: NextRequest) {
 
     const today = isoDay(new Date());
 
-    // 2) oggi: scans/receipts/votes
-    const [{ count: scansToday }, { count: receiptsToday }, { count: votesToday }] = await Promise.all([
+    // 2) oggi: scans/receipts/votes + totali receipt/vote
+    const [
+      { count: scansToday },
+      { count: receiptsToday },
+      { count: votesToday },
+      { count: receiptsTotal },
+      { count: votesTotal },
+    ] = await Promise.all([
       supabase
         .from("user_events")
         .select("id", { count: "exact", head: true })
@@ -109,6 +115,18 @@ export async function GET(req: NextRequest) {
         .eq("event_type", "vote")
         .gte("created_at", `${today}T00:00:00.000Z`)
         .lte("created_at", `${today}T23:59:59.999Z`),
+
+      supabase
+        .from("user_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", scUid)
+        .eq("event_type", "receipt"),
+
+      supabase
+        .from("user_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", scUid)
+        .eq("event_type", "vote"),
     ]);
 
     // 3) totali scan
@@ -184,6 +202,9 @@ export async function GET(req: NextRequest) {
         last7_days: 7,
         last7_scans: last7Scans,
         last7_points: last7Points,
+
+        receipts_total: receiptsTotal ?? 0,
+        votes_total: votesTotal ?? 0,
       },
     });
   } catch (e: any) {

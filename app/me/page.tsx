@@ -3,32 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import PushNotificationSetup from "@/components/PushNotificationSetup";
 import { getExplorerLevel } from "@/lib/levels";
+import { BADGE_DEFS, BadgeStats, BadgeRarity } from "@/lib/badges-config";
 
-type Stats = {
-  points_total: number;
-
-  scans_today: number;
-  receipts_today: number;
-  votes_today: number;
-
-  scans_total: number;
-  venues_visited: number;
-
-  streak_days: number;
-  best_streak_days: number;
-  last_scan_day: string | null;
-
-  last7_days: number;
-  last7_scans: number;
-  last7_points: number;
-};
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type StatsPayload =
   | { ok: false; error: string }
-  | {
-      ok: true;
-      stats: Stats;
-    };
+  | { ok: true; stats: BadgeStats };
 
 type MePayload =
   | { ok: false; error: string }
@@ -44,6 +25,10 @@ type MePayload =
       }>;
     };
 
+type DbUnlock = { badge_id: string; unlocked_at: string };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
@@ -51,6 +36,64 @@ function clamp(n: number, a: number, b: number) {
 function formatInt(n: number) {
   return (Number(n) || 0).toLocaleString("it-IT");
 }
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString("it-IT", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ─── Rarity config ───────────────────────────────────────────────────────────
+
+const RARITY_CFG: Record<
+  BadgeRarity,
+  { label: string; color: string; border: string; bg: string; barColor: string }
+> = {
+  common: {
+    label: "Comune",
+    color: "#2563eb",
+    border: "2px solid rgba(59,130,246,0.5)",
+    bg: "rgba(59,130,246,0.07)",
+    barColor: "linear-gradient(90deg, #60a5fa, #2563eb)",
+  },
+  rare: {
+    label: "Raro",
+    color: "#7c3aed",
+    border: "2px solid rgba(124,58,237,0.5)",
+    bg: "rgba(124,58,237,0.07)",
+    barColor: "linear-gradient(90deg, #a78bfa, #7c3aed)",
+  },
+  epic: {
+    label: "Epico",
+    color: "#c2410c",
+    border: "2px solid rgba(234,88,12,0.5)",
+    bg: "rgba(251,146,60,0.08)",
+    barColor: "linear-gradient(90deg, #fb923c, #c2410c)",
+  },
+  legendary: {
+    label: "Leggendario",
+    color: "#b91c1c",
+    border: "2px solid rgba(220,38,38,0.65)",
+    bg: "rgba(220,38,38,0.07)",
+    barColor: "linear-gradient(90deg, #f87171, #b91c1c, #d97706)",
+  },
+};
+
+const RARITY_ORDER: Record<BadgeRarity, number> = {
+  legendary: 4,
+  epic: 3,
+  rare: 2,
+  common: 1,
+};
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
 
 function Section({
   title,
@@ -86,47 +129,75 @@ function Section({
   );
 }
 
-type BadgeDef = {
-  id: string;
-  title: string;
-  desc: string;
-  icon: string;
-  compute: (s: Stats) => { progress01: number; unlocked: boolean; label: string };
-  rarity?: "common" | "rare" | "epic";
-};
-
-function rarityStyles(r?: BadgeDef["rarity"]) {
-  const base = {
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
-  };
-  if (r === "rare") return { ...base, border: "1px solid rgba(0,0,0,0.12)" };
-  if (r === "epic") return { ...base, border: "1px solid rgba(0,0,0,0.16)" };
-  return base;
+function ShowcaseBadge({
+  badge,
+  unlockedAt,
+}: {
+  badge: (typeof BADGE_DEFS)[number];
+  unlockedAt: string | null;
+}) {
+  const rc = RARITY_CFG[badge.rarity];
+  return (
+    <div
+      style={{
+        minWidth: 128,
+        maxWidth: 148,
+        flexShrink: 0,
+        borderRadius: 16,
+        border: rc.border,
+        background: rc.bg,
+        padding: "12px 12px",
+        textAlign: "center",
+        display: "grid",
+        gap: 6,
+      }}
+    >
+      <div style={{ fontSize: 28 }}>{badge.icon}</div>
+      <div>
+        <div style={{ fontWeight: 950, fontSize: 12, lineHeight: 1.3 }}>{badge.name}</div>
+        <div style={{ fontSize: 10, color: rc.color, fontWeight: 800, marginTop: 2 }}>
+          {rc.label}
+        </div>
+      </div>
+      {unlockedAt && (
+        <div style={{ fontSize: 10, opacity: 0.55 }}>{fmtDate(unlockedAt)}</div>
+      )}
+    </div>
+  );
 }
 
-function BadgeCard({ def, s }: { def: BadgeDef; s: Stats }) {
-  const r = def.compute(s);
-  const pct = Math.round(clamp(r.progress01 * 100, 0, 100));
+function BadgeCard({
+  badge,
+  unlockedAt,
+  s,
+}: {
+  badge: (typeof BADGE_DEFS)[number];
+  unlockedAt: string | null;
+  s: BadgeStats;
+}) {
+  const computed = badge.compute(s);
+  const pct = Math.round(clamp(computed.progress01 * 100, 0, 100));
+  const isUnlocked = computed.unlocked;
+  const isSecret = !!(badge.secret && !isUnlocked);
+  const rc = RARITY_CFG[badge.rarity];
 
   return (
     <div
       style={{
         borderRadius: 18,
-        background: "rgba(255,255,255,0.78)",
+        background: "rgba(255,255,255,0.85)",
         padding: 16,
         display: "grid",
         gap: 12,
         position: "relative",
         overflow: "hidden",
-        ...rarityStyles(def.rarity),
-        opacity: r.unlocked ? 1 : 0.82,
-        filter: r.unlocked ? "none" : "grayscale(0.12)",
+        border: rc.border,
+        opacity: isSecret ? 0.88 : isUnlocked ? 1 : 0.83,
       }}
-      title={r.unlocked ? "Badge sbloccato" : "Badge bloccato"}
+      title={isUnlocked ? "Badge sbloccato" : isSecret ? "Badge segreto" : "Badge bloccato"}
     >
-      {/* Riga superiore: icona + testi + badge lock */}
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
+      {/* Header */}
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
         {/* Icona */}
         <div
           style={{
@@ -134,75 +205,129 @@ function BadgeCard({ def, s }: { def: BadgeDef; s: Stats }) {
             height: 44,
             flexShrink: 0,
             borderRadius: 14,
-            border: "1px solid rgba(0,0,0,0.08)",
-            background: "rgba(255,255,255,0.85)",
+            border: `1px solid ${rc.color}22`,
+            background: rc.bg,
             display: "grid",
             placeItems: "center",
             fontSize: 22,
-            fontWeight: 900,
           }}
         >
-          {def.icon}
+          {isSecret ? "🔐" : badge.icon}
         </div>
 
-        {/* Titolo + descrizione — wrappano liberamente */}
-        <div style={{ display: "grid", gap: 4, flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 950, fontSize: 15, lineHeight: 1.2, wordBreak: "break-word" }}>
-            {def.title}
+        {/* Titolo + descrizione */}
+        <div style={{ flex: 1, minWidth: 0, display: "grid", gap: 4 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <span
+              style={{
+                fontWeight: 950,
+                fontSize: 15,
+                lineHeight: 1.2,
+                wordBreak: "break-word",
+              }}
+            >
+              {isSecret ? "???" : badge.name}
+            </span>
+            <span
+              style={{
+                padding: "1px 7px",
+                borderRadius: 999,
+                fontSize: 10,
+                fontWeight: 900,
+                background: rc.bg,
+                color: rc.color,
+                border: `1px solid ${rc.color}35`,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {rc.label}
+            </span>
           </div>
-          <div style={{ opacity: 0.72, fontSize: 13, lineHeight: 1.35, wordBreak: "break-word" }}>
-            {def.desc}
+
+          <div
+            style={{
+              opacity: 0.7,
+              fontSize: 13,
+              lineHeight: 1.35,
+              wordBreak: "break-word",
+              fontStyle: isSecret ? "italic" : "normal",
+            }}
+          >
+            {isSecret ? (badge.secretHint ?? "Segreto nascosto...") : badge.desc}
           </div>
+
+          {isUnlocked && (
+            <div style={{ fontSize: 11, color: rc.color, fontWeight: 800 }}>
+              ✅{" "}
+              {unlockedAt ? `Sbloccato il ${fmtDate(unlockedAt)}` : "Sbloccato"}
+            </div>
+          )}
         </div>
 
-        {/* Badge sbloccato / bloccato */}
+        {/* Chip stato */}
         <span
           style={{
             flexShrink: 0,
             padding: "6px 10px",
             borderRadius: 999,
-            border: "1px solid rgba(0,0,0,0.08)",
-            background: "rgba(255,255,255,0.85)",
+            border: `1px solid ${rc.color}22`,
+            background: rc.bg,
             fontSize: 12,
             fontWeight: 900,
             whiteSpace: "nowrap",
             alignSelf: "flex-start",
           }}
         >
-          {r.unlocked ? "✅" : "🔒"}
+          {isUnlocked ? "✅" : isSecret ? "🔐" : "🔒"}
         </span>
       </div>
 
-      {/* Barra di progresso */}
-      <div style={{ display: "grid", gap: 6 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12, opacity: 0.75 }}>
-          <div style={{ fontWeight: 900 }}>{r.label}</div>
-          <div style={{ fontWeight: 900 }}>{pct}%</div>
-        </div>
-
-        <div style={{ height: 10, borderRadius: 999, background: "rgba(0,0,0,0.08)", overflow: "hidden" }}>
+      {/* Progress bar (nascosta per segreti bloccati) */}
+      {!isSecret && (
+        <div style={{ display: "grid", gap: 6 }}>
           <div
             style={{
-              width: `${pct}%`,
-              height: "100%",
-              borderRadius: 999,
-              background: "linear-gradient(90deg, #6b7cff, #ff4fb8)",
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              fontSize: 12,
+              opacity: 0.75,
             }}
-          />
+          >
+            <div style={{ fontWeight: 900 }}>{computed.label}</div>
+            <div style={{ fontWeight: 900 }}>{pct}%</div>
+          </div>
+          <div
+            style={{
+              height: 8,
+              borderRadius: 999,
+              background: "rgba(0,0,0,0.08)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${pct}%`,
+                height: "100%",
+                borderRadius: 999,
+                background: rc.barColor,
+              }}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Cerchio decorativo */}
       <div
         aria-hidden
         style={{
           position: "absolute",
-          right: -40,
-          bottom: -40,
-          width: 120,
-          height: 120,
+          right: -38,
+          bottom: -38,
+          width: 110,
+          height: 110,
           borderRadius: 999,
-          background: "rgba(0,0,0,0.03)",
+          background: `${rc.color}0d`,
           pointerEvents: "none",
         }}
       />
@@ -240,6 +365,8 @@ function StatChip({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+// ─── Page ────────────────────────────────────────────────────────────────────
+
 export default function MePage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -252,6 +379,11 @@ export default function MePage() {
   const [nickSaving, setNickSaving] = useState(false);
   const [nickErr, setNickErr] = useState<string | null>(null);
 
+  const [badgeUnlocks, setBadgeUnlocks] = useState<DbUnlock[]>([]);
+  const [badgeTab, setBadgeTab] = useState<"tutti" | "sbloccati" | "in_corso" | "segreti">(
+    "tutti"
+  );
+
   async function loadAll(silent = false) {
     if (!silent) {
       setLoading(true);
@@ -262,16 +394,19 @@ export default function MePage() {
     }
 
     try {
-      const [meRes, stRes] = await Promise.all([
+      const [meRes, stRes, bdRes] = await Promise.all([
         fetch("/api/me", { cache: "no-store" }),
         fetch("/api/profile/stats", { cache: "no-store" }),
+        fetch("/api/badges", { cache: "no-store" }),
       ]);
 
       const meJson = (await meRes.json()) as MePayload;
       const stJson = (await stRes.json()) as StatsPayload;
+      const bdJson = await bdRes.json();
 
       setMe(meJson);
       setStats(stJson);
+      if (bdJson?.ok && Array.isArray(bdJson.unlocks)) setBadgeUnlocks(bdJson.unlocks);
 
       if (!meJson?.ok) setErr(meJson?.error ?? "Errore /api/me");
       else if (!stJson?.ok) setErr(stJson?.error ?? "Errore /api/profile/stats");
@@ -311,6 +446,30 @@ export default function MePage() {
     loadAll(false);
   }, []);
 
+  // Auto-salva i badge appena sbloccati nel DB (idempotente)
+  useEffect(() => {
+    const s = stats && stats.ok ? stats.stats : null;
+    if (!s) return;
+
+    const newIds = BADGE_DEFS
+      .filter((def) => def.compute(s).unlocked)
+      .filter((def) => !badgeUnlocks.some((u) => u.badge_id === def.id))
+      .map((def) => def.id);
+
+    if (newIds.length === 0) return;
+
+    fetch("/api/badges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ badge_ids: newIds }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.ok && Array.isArray(data.unlocks)) setBadgeUnlocks(data.unlocks);
+      })
+      .catch(() => {});
+  }, [stats, badgeUnlocks]);
+
   const s = stats && stats.ok ? stats.stats : null;
 
   const points = useMemo(() => {
@@ -324,105 +483,50 @@ export default function MePage() {
   const nickname = me && me.ok ? (me.user.name ?? null) : null;
   const hasNickname = !!nickname;
 
-  const BADGES: BadgeDef[] = useMemo(() => {
+  // ── Badge computed data ─────────────────────────────────────────────────
+  const badgeResults = useMemo(() => {
     if (!s) return [];
+    return BADGE_DEFS.map((def) => {
+      const r = def.compute(s);
+      const dbUnlock = badgeUnlocks.find((u) => u.badge_id === def.id);
+      return { def, ...r, unlockedAt: dbUnlock?.unlocked_at ?? null };
+    });
+  }, [s, badgeUnlocks]);
 
-    return [
-      {
-        id: "first_scan",
-        title: "Primo Scan",
-        desc: "Fai il tuo primo scan in uno spot.",
-        icon: "✨",
-        rarity: "common",
-        compute: (st) => {
-          const v = st.scans_total;
-          return { progress01: clamp(v / 1, 0, 1), unlocked: v >= 1, label: `${v}/1 scan` };
-        },
-      },
-      {
-        id: "explorer_5",
-        title: "Esploratore",
-        desc: "Visita 5 spot diversi.",
-        icon: "🧭",
-        rarity: "common",
-        compute: (st) => {
-          const v = st.venues_visited;
-          return { progress01: clamp(v / 5, 0, 1), unlocked: v >= 5, label: `${v}/5 spot` };
-        },
-      },
-      {
-        id: "explorer_10",
-        title: "Giro Lungo",
-        desc: "Visita 10 spot diversi.",
-        icon: "🗺️",
-        rarity: "rare",
-        compute: (st) => {
-          const v = st.venues_visited;
-          return { progress01: clamp(v / 10, 0, 1), unlocked: v >= 10, label: `${v}/10 spot` };
-        },
-      },
-      {
-        id: "streak_3",
-        title: "Costante",
-        desc: "Streak di 3 giorni consecutivi con almeno 1 scan.",
-        icon: "🔥",
-        rarity: "common",
-        compute: (st) => {
-          const v = st.streak_days;
-          return { progress01: clamp(v / 3, 0, 1), unlocked: v >= 3, label: `${v}/3 giorni` };
-        },
-      },
-      {
-        id: "streak_7",
-        title: "Inarrestabile",
-        desc: "Streak di 7 giorni consecutivi.",
-        icon: "💥",
-        rarity: "epic",
-        compute: (st) => {
-          const v = st.streak_days;
-          return { progress01: clamp(v / 7, 0, 1), unlocked: v >= 7, label: `${v}/7 giorni` };
-        },
-      },
-      {
-        id: "weekly_10",
-        title: "Settimana Attiva",
-        desc: "Fai 10 scan negli ultimi 7 giorni.",
-        icon: "📈",
-        rarity: "rare",
-        compute: (st) => {
-          const v = st.last7_scans;
-          return { progress01: clamp(v / 10, 0, 1), unlocked: v >= 10, label: `${v}/10 scan` };
-        },
-      },
-      {
-        id: "points_200",
-        title: "200 Punti",
-        desc: "Raggiungi 200 punti totali.",
-        icon: "🏅",
-        rarity: "rare",
-        compute: (st) => {
-          const v = st.points_total;
-          return { progress01: clamp(v / 200, 0, 1), unlocked: v >= 200, label: `${formatInt(v)}/200 pt` };
-        },
-      },
-      {
-        id: "points_500",
-        title: "500 Punti",
-        desc: "Raggiungi 500 punti totali.",
-        icon: "👑",
-        rarity: "epic",
-        compute: (st) => {
-          const v = st.points_total;
-          return { progress01: clamp(v / 500, 0, 1), unlocked: v >= 500, label: `${formatInt(v)}/500 pt` };
-        },
-      },
-    ];
-  }, [s]);
+  const sbloccati = useMemo(
+    () =>
+      [...badgeResults.filter((b) => b.unlocked)].sort(
+        (a, b) => RARITY_ORDER[b.def.rarity] - RARITY_ORDER[a.def.rarity]
+      ),
+    [badgeResults]
+  );
 
-  const unlockedCount = useMemo(() => {
-    if (!s) return 0;
-    return BADGES.filter((b) => b.compute(s).unlocked).length;
-  }, [BADGES, s]);
+  // In corso = non leggendari con progresso parziale (nasconde i segreti)
+  const inCorso = useMemo(
+    () =>
+      badgeResults.filter(
+        (b) => !b.unlocked && b.progress01 > 0 && b.def.rarity !== "legendary"
+      ),
+    [badgeResults]
+  );
+
+  // Segreti = tutti i leggendari (locked come mystery, unlocked normali)
+  const segreti = useMemo(
+    () => badgeResults.filter((b) => b.def.rarity === "legendary"),
+    [badgeResults]
+  );
+
+  // Vetrina = i 3 più rari tra gli sbloccati
+  const showcase = useMemo(() => sbloccati.slice(0, 3), [sbloccati]);
+
+  const currentTabBadges = useMemo(() => {
+    if (badgeTab === "sbloccati") return sbloccati;
+    if (badgeTab === "in_corso") return inCorso;
+    if (badgeTab === "segreti") return segreti;
+    return badgeResults;
+  }, [badgeTab, sbloccati, inCorso, segreti, badgeResults]);
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -437,6 +541,7 @@ export default function MePage() {
       {/* Richiesta permesso notifiche */}
       <PushNotificationSetup />
 
+      {/* ── PROFILO ──────────────────────────────────────────────────────── */}
       <Section
         title="Il mio profilo"
         subtitle="Rewards, streak, livelli e statistiche."
@@ -504,12 +609,13 @@ export default function MePage() {
         ) : null}
       </Section>
 
+      {/* ── LIVELLO ──────────────────────────────────────────────────────── */}
       <Section title="Livello" subtitle="Progress e prossimo livello.">
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontWeight: 950, fontSize: 16 }}>
-                {levelInfo.current.name}
+                {levelInfo.current.emoji} {levelInfo.current.name}
               </div>
               <div style={{ opacity: 0.7, marginTop: 4 }}>{levelInfo.current.desc ?? ""}</div>
             </div>
@@ -526,7 +632,7 @@ export default function MePage() {
             <div style={{ fontWeight: 900 }}>
               {levelInfo.next ? (
                 <>
-                  Prossimo: <b>{levelInfo.next.name}</b> (da {formatInt(levelInfo.next.min)} pt)
+                  Prossimo: <b>{levelInfo.next.emoji} {levelInfo.next.name}</b> (da {formatInt(levelInfo.next.min)} pt)
                 </>
               ) : (
                 <>Livello massimo raggiunto ✅</>
@@ -556,9 +662,10 @@ export default function MePage() {
         </div>
       </Section>
 
+      {/* ── BADGE ────────────────────────────────────────────────────────── */}
       <Section
-        title="Badge (Rewards)"
-        subtitle="Questi sono i tuoi obiettivi sbloccabili."
+        title="Badge"
+        subtitle="Conquiste ed obiettivi speciali."
         right={
           <div
             style={{
@@ -569,23 +676,82 @@ export default function MePage() {
               fontWeight: 950,
               whiteSpace: "nowrap",
             }}
-            title="Badge sbloccati"
           >
-            🏆 {unlockedCount}/{BADGES.length}
+            🏆 {sbloccati.length}/{BADGE_DEFS.length}
           </div>
         }
       >
         {!s ? (
           <div style={{ opacity: 0.7 }}>Caricamento badge...</div>
         ) : (
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {BADGES.map((b) => (
-              <BadgeCard key={b.id} def={b} s={s} />
-            ))}
-          </div>
+          <>
+            {/* Vetrina — top 3 rari sbloccati */}
+            {showcase.length > 0 && (
+              <div>
+                <div
+                  style={{
+                    fontWeight: 900,
+                    fontSize: 11,
+                    opacity: 0.55,
+                    marginBottom: 8,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.6,
+                  }}
+                >
+                  🌟 Vetrina — {showcase.length === 1 ? "miglior badge" : `top ${showcase.length} badge`} sbloccati
+                </div>
+                <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+                  {showcase.map((b) => (
+                    <ShowcaseBadge key={b.def.id} badge={b.def} unlockedAt={b.unlockedAt} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <div className="tabs">
+              {[
+                { key: "tutti" as const, label: "📋 Tutti", count: BADGE_DEFS.length },
+                { key: "sbloccati" as const, label: "✅ Sbloccati", count: sbloccati.length },
+                { key: "in_corso" as const, label: "⏳ In Corso", count: inCorso.length },
+                {
+                  key: "segreti" as const,
+                  label: "🔐 Segreti",
+                  count: segreti.filter((b) => !b.unlocked).length,
+                },
+              ].map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  className={`tab ${badgeTab === key ? "active" : ""}`}
+                  onClick={() => setBadgeTab(key)}
+                  type="button"
+                >
+                  {label} <span className="pill">{count}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Badge grid */}
+            {currentTabBadges.length === 0 ? (
+              <div className="notice" style={{ fontSize: 13 }}>
+                {badgeTab === "sbloccati"
+                  ? "Nessun badge sbloccato ancora. Inizia a esplorare! 🚀"
+                  : badgeTab === "in_corso"
+                  ? "Nessun badge in corso. Attivati! 🔥"
+                  : "Nessun badge in questa categoria."}
+              </div>
+            ) : (
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {currentTabBadges.map((b) => (
+                  <BadgeCard key={b.def.id} badge={b.def} unlockedAt={b.unlockedAt} s={s} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </Section>
 
+      {/* ── STATISTICHE ──────────────────────────────────────────────────── */}
       <Section title="Statistiche" subtitle="Le tue attività in sintesi.">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <StatChip label="Presenze oggi" value={s ? s.scans_today : "—"} />
@@ -595,10 +761,11 @@ export default function MePage() {
           <StatChip label="Best streak" value={s ? `${s.best_streak_days}g` : "—"} />
           <StatChip label="Scan totali" value={s ? s.scans_total : "—"} />
           <StatChip label="Spot visitati" value={s ? s.venues_visited : "—"} />
+          <StatChip label="Scontrini totali" value={s ? (s.receipts_total ?? 0) : "—"} />
+          <StatChip label="Voti totali" value={s ? (s.votes_total ?? 0) : "—"} />
           <StatChip label="Ultimi 7 giorni" value={s ? `${s.last7_scans} scan • ${s.last7_points} pt` : "—"} />
         </div>
       </Section>
-
     </div>
   );
 }
