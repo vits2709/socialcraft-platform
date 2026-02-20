@@ -361,7 +361,7 @@ export default function ComeFunzionaPage() {
               Porta nuovi clienti, fidelizza quelli esistenti e monitora le statistiche del tuo locale in tempo reale.
             </p>
           </div>
-          <Link className="btn" href="mailto:info@socialcraft.it" style={{ flexShrink: 0 }}>
+          <Link className="btn" href="mailto:info@cityquest.it" style={{ flexShrink: 0 }}>
             Scopri come →
           </Link>
         </div>
