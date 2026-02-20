@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { formatPromoBonus } from "@/lib/promo-utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -185,6 +186,12 @@ export default function CheckinClient({
   const [geoState, setGeoState] = useState<GeoState>("idle");
   const [distanceM, setDistanceM] = useState<number | null>(null);
   const [checkinPoints, setCheckinPoints] = useState(0);
+  const [checkinPointsBase, setCheckinPointsBase] = useState(0);
+  const [checkinPromo, setCheckinPromo] = useState<{
+    title: string;
+    bonus_type: string;
+    bonus_value: number;
+  } | null>(null);
   const [checkinError, setCheckinError] = useState<string | null>(null);
 
   // ── Step 2 — Scontrino
@@ -257,6 +264,8 @@ export default function CheckinClient({
       } else {
         setCheckinStatus("success");
         setCheckinPoints(data.points_awarded ?? 0);
+        setCheckinPointsBase(data.points_base ?? data.points_awarded ?? 0);
+        setCheckinPromo(data.promo ?? null);
       }
     } catch {
       setCheckinError("Errore di rete. Controlla la connessione e riprova.");
@@ -539,6 +548,29 @@ export default function CheckinClient({
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>
           Check-in completato!
         </div>
+
+        {/* Banner promo attiva */}
+        {checkinPromo && (
+          <div
+            style={{
+              display: "inline-block",
+              padding: "8px 18px",
+              borderRadius: 14,
+              background: "linear-gradient(135deg, rgba(251,146,60,0.18), rgba(239,68,68,0.12))",
+              border: "1px solid rgba(251,146,60,0.4)",
+              color: "#c2410c",
+              fontWeight: 800,
+              fontSize: 13,
+              marginBottom: 12,
+            }}
+          >
+            🎉 {checkinPromo.title}:{" "}
+            {checkinPromo.bonus_type === "multiplier"
+              ? `punti x${checkinPromo.bonus_value} = ${checkinPoints} totali`
+              : `${formatPromoBonus(checkinPromo.bonus_type, checkinPromo.bonus_value)} = ${checkinPoints} totali`}
+          </div>
+        )}
+
         {geoState === "denied" && (
           <div
             style={{

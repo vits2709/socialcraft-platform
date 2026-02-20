@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { bestActivePromo, applyPromoBonus, type PromoSchedule } from "@/lib/promo-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,8 +81,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4) aggiorna punti su sc_users (UNICA fonte verità)
-    const newTotal = Number(user.points ?? 0) + AWARD;
+    // 4) controlla promo attive per questo spot
+    const { data: promoRows } = await supabase
+      .from("venue_promos")
+      .select("id,title,is_active,bonus_type,bonus_value,days_of_week,time_start,time_end,date_start,date_end")
+      .eq("venue_id", venue.id)
+      .eq("is_active", true);
+
+    const promo = bestActivePromo((promoRows ?? []) as PromoSchedule[], AWARD);
+    const finalPoints = promo ? applyPromoBonus(AWARD, promo) : AWARD;
+
+    // 5) aggiorna punti su sc_users (UNICA fonte verità)
+    const newTotal = Number(user.points ?? 0) + finalPoints;
 
     const { error: upErr } = await supabase
       .from("sc_users")
@@ -90,13 +101,13 @@ export async function POST(req: NextRequest) {
 
     if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
 
-    // 5) log evento utente (event_type valido: scan/vote/receipt)
+    // 6) log evento utente (event_type valido: scan/vote/receipt)
     const { error: ueErr } = await supabase.from("user_events").insert({
       user_id: scUid,
       venue_id: venue.id,
       event_type: "scan",
-      points: AWARD,
-      points_delta: AWARD,
+      points: finalPoints,
+      points_delta: finalPoints,
       geo_verified: geoVerified,
     });
 
@@ -106,7 +117,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
     }
 
-    // 6) log evento venue — non bloccante: i punti sono già assegnati
+    // 7) log evento venue — non bloccante: i punti sono già assegnati
     const { error: veErr } = await supabase.from("venue_events").insert({
       venue_id: venue.id,
       user_id: scUid,
@@ -118,11 +129,17 @@ export async function POST(req: NextRequest) {
       ok: true,
       already: false,
       geo_verified: geoVerified,
-      points_awarded: AWARD,
+      points_awarded: finalPoints,
+      points_base: AWARD,
+      promo: promo
+        ? { id: promo.id, title: promo.title, bonus_type: promo.bonus_type, bonus_value: Number(promo.bonus_value) }
+        : null,
       total_points: newTotal,
-      message: geoVerified
-        ? `Presenza registrata ✅ +${AWARD} punti`
-        : `Presenza registrata ✅ +${AWARD} punto (GPS non verificato)`,
+      message: promo
+        ? `Presenza registrata ✅ +${finalPoints} punti (promo: ${promo.title})`
+        : geoVerified
+        ? `Presenza registrata ✅ +${finalPoints} punti`
+        : `Presenza registrata ✅ +${finalPoints} punto (GPS non verificato)`,
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message ?? "unknown" }, { status: 500 });

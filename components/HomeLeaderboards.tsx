@@ -108,7 +108,25 @@ export default function HomeLeaderboards(props: {
                   <div className="rowTop">
                     <div className="rankBox">{i + 1}</div>
                     <div className="rowMain">
-                      <div className="rowName">{v.name ?? "Spot"}</div>
+                      <div className="rowName" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        {v.name ?? "Spot"}
+                        {v.hasActivePromo && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              padding: "2px 7px",
+                              borderRadius: 999,
+                              background: "linear-gradient(135deg, #fb923c, #ef4444)",
+                              color: "#fff",
+                              fontWeight: 900,
+                              whiteSpace: "nowrap",
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            🔥 Promo
+                          </span>
+                        )}
+                      </div>
                       <div className="rowMeta">
                         {lvl.emoji} {lvl.label} • <b>{score}</b> pt
                         {avg != null && (

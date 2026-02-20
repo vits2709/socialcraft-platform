@@ -4,8 +4,11 @@ import { createSupabaseServerClientReadOnly } from "@/lib/supabase/server";
 import HomeLeaderboards from "@/components/HomeLeaderboards";
 import HomeScannerCTA from "@/components/HomeScannerCTA";
 import HomeMapLoader from "@/components/HomeMapLoader";
+import HomePromoSection from "@/components/HomePromoSection";
 import type { HomeSpotPin } from "@/components/HomeMap";
 import type { WeeklyRow } from "@/components/HomeLeaderboards";
+import type { ActivePromoCard } from "@/components/HomePromoSection";
+import { isPromoActiveNow, minutesUntilPromoEnd, type PromoSchedule } from "@/lib/promo-utils";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,6 +20,7 @@ export type LBRow = {
   meta?: string | null;
   avg_rating?: number | null;
   ratings_count?: number | null;
+  hasActivePromo?: boolean;
 };
 
 type SpotRatingRow = {
@@ -103,6 +107,48 @@ export default async function HomePage() {
     }
   } catch {}
 
+  // -------- promo attive ----------
+  let activePromoCards: ActivePromoCard[] = [];
+  let activePromoVenueIds = new Set<string>();
+
+  try {
+    const { data: promoRows } = await supabase
+      .from("venue_promos")
+      .select(`
+        id, title, venue_id, bonus_type, bonus_value,
+        days_of_week, time_start, time_end, date_start, date_end,
+        venues(name, slug, categoria)
+      `)
+      .eq("is_active", true);
+
+    const nowActive = (promoRows ?? []).filter((p) =>
+      isPromoActiveNow({
+        ...p,
+        is_active: true, // filtrato da .eq("is_active", true) sopra
+        bonus_type: (p.bonus_type as "points" | "multiplier") ?? "points",
+        days_of_week: Array.isArray(p.days_of_week) ? p.days_of_week : [],
+      } as unknown as PromoSchedule)
+    );
+
+    for (const p of nowActive) {
+      activePromoVenueIds.add(p.venue_id);
+      const v = (p.venues as any) ?? {};
+      activePromoCards.push({
+        id: p.id,
+        title: p.title,
+        venueName: v.name ?? "Spot",
+        venueSlug: v.slug ?? null,
+        venueCategoria: v.categoria ?? null,
+        bonusType: p.bonus_type,
+        bonusValue: Number(p.bonus_value),
+        minutesRemaining: minutesUntilPromoEnd(p.time_end ?? "23:59:59"),
+      });
+    }
+
+    // Ordina per urgenza (scadenza più vicina prima)
+    activePromoCards.sort((a, b) => a.minutesRemaining - b.minutesRemaining);
+  } catch {}
+
   // -------- rating spot ----------
   let spots: LBRow[] = (spotsRaw ?? []) as LBRow[];
 
@@ -125,6 +171,7 @@ export default async function HomePage() {
             ...s,
             avg_rating: r?.avg_rating ?? null,
             ratings_count: r?.ratings_count ?? null,
+            hasActivePromo: activePromoVenueIds.has(s.id),
           };
         });
       }
@@ -186,6 +233,11 @@ export default async function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Sezione promo — visibile solo se ci sono promo attive in questo momento */}
+      {activePromoCards.length > 0 && (
+        <HomePromoSection promos={activePromoCards} />
+      )}
 
       <HomeLeaderboards spots={spots} explorers={explorers as LBRow[]} weeklyExplorers={weeklyExplorers} />
 
