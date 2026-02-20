@@ -13,13 +13,15 @@ export async function GET() {
   const cookieStore = await cookies();
   const scUid = cookieStore.get("sc_uid")?.value?.trim();
   let explorer = false;
+  let name: string | null = null;
   if (scUid) {
     const { data } = await adminSupabase
       .from("sc_users")
-      .select("id")
+      .select("id,name")
       .eq("id", scUid)
       .maybeSingle();
     explorer = !!data;
+    name = (data as { id: string; name: string } | null)?.name ?? null;
   }
 
   // 2) Admin/Spot: controlla sessione Supabase Auth
@@ -38,5 +40,5 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ explorer, admin, spot });
+  return NextResponse.json({ explorer, admin, spot, name });
 }

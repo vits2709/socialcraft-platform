@@ -19,10 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <img src="/logo.png" alt="CityQuest" style={{ height: 38, width: 38, borderRadius: 9, flexShrink: 0 }} />
               <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.3 }}>CityQuest</span>
             </Link>
-            {/* NavAuth include tutti i link + hamburger mobile */}
-            <nav className="nav">
-              <NavAuth />
-            </nav>
+            <NavAuth />
           </header>
 
           <main className="main">{children}</main>
