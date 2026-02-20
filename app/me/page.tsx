@@ -141,9 +141,7 @@ function ShowcaseBadge({
   return (
     <div
       style={{
-        minWidth: 128,
-        maxWidth: 148,
-        flexShrink: 0,
+        minWidth: 0,
         borderRadius: 16,
         border: rc.border,
         background: rc.bg,
@@ -194,6 +192,7 @@ function BadgeCard({
         overflow: "hidden",
         border: rc.border,
         opacity: isSecret ? 0.88 : isUnlocked ? 1 : 0.83,
+        minWidth: 0,
       }}
       title={isUnlocked ? "Badge sbloccato" : isSecret ? "Badge segreto" : "Badge bloccato"}
     >
@@ -285,7 +284,7 @@ function BadgeCard({
 
       {/* Progress bar (nascosta per segreti bloccati) */}
       {!isSecret && (
-        <div style={{ display: "grid", gap: 6 }}>
+        <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
           <div
             style={{
               display: "flex",
@@ -293,10 +292,11 @@ function BadgeCard({
               gap: 10,
               fontSize: 12,
               opacity: 0.75,
+              minWidth: 0,
             }}
           >
-            <div style={{ fontWeight: 900 }}>{computed.label}</div>
-            <div style={{ fontWeight: 900 }}>{pct}%</div>
+            <div style={{ fontWeight: 900, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{computed.label}</div>
+            <div style={{ fontWeight: 900, flexShrink: 0 }}>{pct}%</div>
           </div>
           <div
             style={{
@@ -711,7 +711,7 @@ return (
                 >
                   🌟 Vetrina — {showcase.length === 1 ? "miglior badge" : `top ${showcase.length} badge`} sbloccati
                 </div>
-                <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
                   {showcase.map((b) => (
                     <ShowcaseBadge key={b.def.id} badge={b.def} unlockedAt={b.unlockedAt} />
                   ))}
@@ -752,7 +752,7 @@ return (
                   : "Nessun badge in questa categoria."}
               </div>
             ) : (
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ minWidth: 0 }}>
                 {currentTabBadges.map((b) => (
                   <BadgeCard key={b.def.id} badge={b.def} unlockedAt={b.unlockedAt} s={s} />
                 ))}
