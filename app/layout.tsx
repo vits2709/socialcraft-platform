@@ -18,8 +18,8 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it">
-      <body>
-        <div className="container">
+      <body style={{ width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
+        <div className="container" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
           <header className="header">
             <Link href="/" className="brand" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none", color: "inherit" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
