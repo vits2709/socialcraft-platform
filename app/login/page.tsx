@@ -40,7 +40,12 @@ export default function ExplorerLoginPage() {
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || "login_failed");
 
-      window.location.assign(redirectTo);
+      if (!j.onboarding_completed) {
+        const next = redirectTo !== "/me" ? `?next=${encodeURIComponent(redirectTo)}` : "";
+        window.location.assign(`/onboarding${next}`);
+      } else {
+        window.location.assign(redirectTo);
+      }
     } catch (e: any) {
       setMsg(`Errore: ${e?.message || "unknown"}`);
     } finally {

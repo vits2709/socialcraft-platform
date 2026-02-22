@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     // 1) carica user
     const { data: u, error: e1 } = await supabase
       .from("sc_users")
-      .select("id, email, password_hash")
+      .select("id, email, password_hash, onboarding_completed")
       .ilike("email", email)
       .maybeSingle();
 
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 365,
     });
 
-    return NextResponse.json({ ok: true, user_id: u.id });
+    return NextResponse.json({ ok: true, user_id: u.id, onboarding_completed: u.onboarding_completed ?? false });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "unknown_error" }, { status: 500 });
   }
