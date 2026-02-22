@@ -7,6 +7,7 @@ import HomeMapLoader from "@/components/HomeMapLoader";
 import HomePromoSection from "@/components/HomePromoSection";
 import WeeklyPrizeCard from "@/components/WeeklyPrizeCard";
 import WinnerBanner from "@/components/WinnerBanner";
+import HeroCarousel, { type CarouselPrize } from "@/components/HeroCarousel";
 import type { HomeSpotPin } from "@/components/HomeMap";
 import type { WeeklyRow } from "@/components/HomeLeaderboards";
 import type { ActivePromoCard } from "@/components/HomePromoSection";
@@ -64,6 +65,14 @@ export default async function HomePage() {
   } catch {
     // Se la view non esiste ancora (migration non eseguita), ignora silenziosamente
   }
+
+  // -------- dati utente corrente per il carosello ----------
+  const currentUserRaw = scUid ? (explorersRaw ?? []).find((u) => u.id === scUid) ?? null : null;
+  const currentUserName = currentUserRaw?.name ?? null;
+  const currentUserPoints = currentUserRaw?.points ?? 0;
+
+  const weeklyEntry = scUid ? weeklyExplorers.find((e) => e.user_id === scUid) ?? null : null;
+  const currentWeeklyRank = weeklyEntry?.rank ?? null;
 
   // adattiamo formato
   const explorers =
@@ -146,6 +155,14 @@ export default async function HomePage() {
     currentPrize = prizes.find((p) => p.week_start === currentWeekStart && !p.winner_user_id) ?? null;
     lastWinner = prizes.find((p) => p.week_start === prevWeekStart && !!p.winner_user_id) ?? null;
   } catch { /* migration non ancora eseguita */ }
+
+  const carouselPrize: CarouselPrize = currentPrize
+    ? {
+        description: currentPrize.prize_description,
+        venueName: (currentPrize.venues as any)?.name ?? null,
+        weekStart: currentPrize.week_start,
+      }
+    : null;
 
   // -------- promo attive ----------
   let activePromoCards: ActivePromoCard[] = [];
@@ -242,29 +259,13 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="howGrid" style={{ marginTop: 14 }}>
-          <div className="howCard">
-            <div className="howIcon">📷</div>
-            <div>
-              <div className="howTitle">Scansiona il QR</div>
-              <div className="howText">Inquadra il codice dello Spot e guadagna punti presenza ogni giorno.</div>
-            </div>
-          </div>
-          <div className="howCard">
-            <div className="howIcon">⭐</div>
-            <div>
-              <div className="howTitle">Vota gli Spot</div>
-              <div className="howText">Lascia una recensione dopo la visita e contribuisci alla classifica.</div>
-            </div>
-          </div>
-          <div className="howCard">
-            <div className="howIcon">🏆</div>
-            <div>
-              <div className="howTitle">Scala la classifica</div>
-              <div className="howText">Accumula punti, sblocca badge e diventa Leggenda Locale.</div>
-            </div>
-          </div>
-        </div>
+        <HeroCarousel
+          username={currentUserName}
+          totalPoints={currentUserPoints}
+          weeklyRank={currentWeeklyRank}
+          prize={carouselPrize}
+          isLoggedIn={isLoggedIn}
+        />
 
         {(sErr || eErr) && (
           <div className="notice" style={{ marginTop: 10 }}>
