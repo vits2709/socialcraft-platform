@@ -18,6 +18,7 @@ export type BadgeStats = {
   last7_points: number;
   receipts_total: number;
   votes_total: number;
+  group_checkins: number;
 };
 
 export type BadgeDef = {
@@ -307,6 +308,19 @@ export const BADGE_DEFS: BadgeDef[] = [
     compute: (s) => {
       const v = s.scans_total;
       return { progress01: Math.min(v / 100, 1), unlocked: v >= 100, label: `${v}/100 scan` };
+    },
+  },
+
+  // ─── COMUNE SPECIALE — companion ─────────────────────────────────────
+  {
+    id: "in_compagnia",
+    name: "In Compagnia",
+    icon: "👥",
+    desc: "Fai un check-in di gruppo con il codice companion.",
+    rarity: "common",
+    compute: (s) => {
+      const v = s.group_checkins ?? 0;
+      return { progress01: Math.min(v / 1, 1), unlocked: v >= 1, label: v >= 1 ? "sbloccato" : "0/1" };
     },
   },
 ];

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { formatPromoBonus } from "@/lib/promo-utils";
+import QRCode from "qrcode";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -211,6 +212,16 @@ export default function CheckinClient({
   const [voteStatus, setVoteStatus] = useState<VoteStatus>(hasVotedRecently ? "cooldown" : "ready");
   const [rating, setRating] = useState(0);
 
+  // ── Companion code
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
+  const [companionLoading, setCompanionLoading] = useState(false);
+  const [companionCode, setCompanionCode] = useState<string | null>(null);
+  const [companionExpiry, setCompanionExpiry] = useState<Date | null>(null);
+  const [companionQr, setCompanionQr] = useState<string | null>(null);
+  const [companionSecondsLeft, setCompanionSecondsLeft] = useState(0);
+  const companionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // ── Auto-start check-in
   useEffect(() => {
     doCheckin();
@@ -293,6 +304,8 @@ export default function CheckinClient({
       async (pos) => {
         const dist = haversine(pos.coords.latitude, pos.coords.longitude, spotLat, spotLng);
         setDistanceM(Math.round(dist));
+        setUserLat(pos.coords.latitude);
+        setUserLng(pos.coords.longitude);
         if (dist <= GEO_RADIUS_M) {
           setGeoState("verified");
           await doScan(true);
@@ -313,7 +326,48 @@ export default function CheckinClient({
   }
 
   function proceedToReceipt() {
+    if (companionTimerRef.current) clearInterval(companionTimerRef.current);
     setPhase("receipt");
+  }
+
+  // ── Companion code generation ─────────────────────────────────────────────
+
+  async function generateCompanionCode() {
+    const lat = userLat ?? spotLat;
+    const lng = userLng ?? spotLng;
+    if (lat == null || lng == null) return;
+
+    setCompanionLoading(true);
+    try {
+      const res = await fetch("/api/companion/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venue_id: venueId, lat, lng }),
+      });
+      const data = await res.json();
+      if (!data.ok) return;
+
+      const expiry = new Date(data.expires_at);
+      setCompanionCode(data.code);
+      setCompanionExpiry(expiry);
+
+      const baseUrl = window.location.origin;
+      const joinUrl = `${baseUrl}/companion?code=${encodeURIComponent(data.code)}`;
+      const qrDataUrl = await QRCode.toDataURL(joinUrl, { width: 220, margin: 2 });
+      setCompanionQr(qrDataUrl);
+
+      const tick = () => {
+        const secs = Math.max(0, Math.round((expiry.getTime() - Date.now()) / 1000));
+        setCompanionSecondsLeft(secs);
+        if (secs <= 0 && companionTimerRef.current) {
+          clearInterval(companionTimerRef.current);
+        }
+      };
+      tick();
+      companionTimerRef.current = setInterval(tick, 1000);
+    } finally {
+      setCompanionLoading(false);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -618,6 +672,75 @@ export default function CheckinClient({
         >
           Continua →
         </button>
+
+        {/* Companion code CTA */}
+        {!companionCode && (
+          <button
+            className="btn"
+            onClick={generateCompanionCode}
+            disabled={companionLoading}
+            style={{
+              width: "100%",
+              maxWidth: 260,
+              marginTop: 10,
+              padding: "12px",
+              fontSize: 13,
+              color: "#6366f1",
+              fontWeight: 700,
+            }}
+          >
+            {companionLoading ? "Generazione codice..." : "👥 Sei in compagnia? Genera codice gruppo"}
+          </button>
+        )}
+
+        {/* Companion QR modal */}
+        {companionCode && companionQr && (
+          <div
+            style={{
+              marginTop: 20,
+              padding: "20px 16px",
+              borderRadius: 18,
+              background: "rgba(99,102,241,0.07)",
+              border: "1px solid rgba(99,102,241,0.2)",
+              maxWidth: 280,
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          >
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>👥 Codice gruppo</div>
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: 22,
+                fontWeight: 900,
+                letterSpacing: 3,
+                color: "#6366f1",
+                marginBottom: 12,
+              }}
+            >
+              {companionCode}
+            </div>
+            <img
+              src={companionQr}
+              alt="QR companion"
+              style={{ width: 180, height: 180, borderRadius: 10, marginBottom: 10 }}
+            />
+            <div style={{ fontSize: 12, color: "rgba(0,0,0,0.45)", marginBottom: 4 }}>
+              Fai scansionare il QR agli amici
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: companionSecondsLeft > 60 ? "#059669" : companionSecondsLeft > 0 ? "#b45309" : "#dc2626",
+              }}
+            >
+              {companionSecondsLeft > 0
+                ? `⏱ Scade tra ${Math.floor(companionSecondsLeft / 60)}:${String(companionSecondsLeft % 60).padStart(2, "0")}`
+                : "⚠️ Codice scaduto"}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
