@@ -72,11 +72,12 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
     : isLoggedIn ? "Esploratore" : "Esploratore";
 
   const cardStyle: React.CSSProperties = {
-    minWidth: "100%",
-    padding: "20px 22px 18px",
+    width: `${100 / TOTAL}%`,
+    flexShrink: 0,
+    padding: "16px 18px 14px",
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 10,
     userSelect: "none",
     boxSizing: "border-box",
   };
@@ -129,6 +130,7 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
         marginTop: 14,
         borderRadius: 18,
         overflow: "hidden",
+        width: "100%",
         background: "linear-gradient(135deg, #2D1B69 0%, #7BC043 100%)",
         boxShadow: "0 8px 28px rgba(45,27,105,0.22)",
       }}
@@ -159,11 +161,12 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
         </button>
       )}
 
-      {/* Track */}
+      {/* Track — 300% wide so each card occupies exactly 1/3 = 100% of the viewport */}
       <div
         style={{
           display: "flex",
-          transform: `translateX(-${idx * 100}%)`,
+          width: `${TOTAL * 100}%`,
+          transform: `translateX(-${idx * (100 / TOTAL)}%)`,
           transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
           willChange: "transform",
         }}
