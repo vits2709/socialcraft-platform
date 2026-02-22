@@ -27,6 +27,30 @@ type MePayload =
 
 type DbUnlock = { badge_id: string; unlocked_at: string };
 
+type HallOfFamePrize = {
+  id: string;
+  week_start: string;
+  prize_description: string;
+  prize_image: string | null;
+  redemption_code: string | null;
+  redemption_code_expires_at: string | null;
+  redeemed: boolean;
+  redeemed_at: string | null;
+  winner_assigned_at: string | null;
+  spot_id: string | null;
+  venues: { name: string; slug: string | null } | null;
+};
+
+type UserNotification = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown>;
+  read: boolean;
+  created_at: string;
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function clamp(n: number, a: number, b: number) {
@@ -385,6 +409,10 @@ export default function MePage() {
     "tutti"
   );
 
+  const [prizes, setPrizes] = useState<HallOfFamePrize[]>([]);
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   async function loadAll(silent = false) {
     if (!silent) {
       setLoading(true);
@@ -395,19 +423,28 @@ export default function MePage() {
     }
 
     try {
-      const [meRes, stRes, bdRes] = await Promise.all([
+      const [meRes, stRes, bdRes, prizeRes, notifRes] = await Promise.all([
         fetch("/api/me", { cache: "no-store" }),
         fetch("/api/profile/stats", { cache: "no-store" }),
         fetch("/api/badges", { cache: "no-store" }),
+        fetch("/api/prizes/hall-of-fame", { cache: "no-store" }),
+        fetch("/api/notifications", { cache: "no-store" }),
       ]);
 
       const meJson = (await meRes.json()) as MePayload;
       const stJson = (await stRes.json()) as StatsPayload;
       const bdJson = await bdRes.json();
+      const prizeJson = await prizeRes.json();
+      const notifJson = await notifRes.json();
 
       setMe(meJson);
       setStats(stJson);
       if (bdJson?.ok && Array.isArray(bdJson.unlocks)) setBadgeUnlocks(bdJson.unlocks);
+      if (prizeJson?.ok && Array.isArray(prizeJson.prizes)) setPrizes(prizeJson.prizes);
+      if (notifJson?.ok) {
+        setNotifications(notifJson.notifications ?? []);
+        setUnreadCount(notifJson.unread ?? 0);
+      }
 
       if (!meJson?.ok) setErr(meJson?.error ?? "Errore /api/me");
       else if (!stJson?.ok) setErr(stJson?.error ?? "Errore /api/profile/stats");
@@ -418,6 +455,12 @@ export default function MePage() {
 
     setLoading(false);
     setRefreshing(false);
+  }
+
+  async function markNotifRead(id: string) {
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    await fetch(`/api/notifications/${id}`, { method: "PATCH" }).catch(() => {});
   }
 
   async function saveNickname() {
@@ -776,6 +819,157 @@ return (
           <StatChip label="Voti totali" value={s ? (s.votes_total ?? 0) : "—"} />
           <StatChip label="Ultimi 7 giorni" value={s ? `${s.last7_scans} scan • ${s.last7_points} pt` : "—"} />
         </div>
+      </Section>
+
+      {/* ── PREMI VINTI ──────────────────────────────────────────────────── */}
+      <Section
+        title="Premi vinti"
+        subtitle="I premi settimanali che hai conquistato."
+        right={
+          <div style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)", fontWeight: 900, fontSize: 13 }}>
+            🏆 {prizes.length}
+          </div>
+        }
+      >
+        {prizes.length === 0 ? (
+          <div style={{ opacity: 0.6, fontSize: 13 }}>
+            Nessun premio ancora. Scala la classifica settimanale per vincere! 🚀
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            {prizes.map((p) => {
+              const expired = p.redemption_code_expires_at
+                ? new Date(p.redemption_code_expires_at) < new Date()
+                : false;
+              const venue = p.venues as { name: string; slug: string | null } | null;
+              const weekLabel = (() => {
+                try {
+                  const d = new Date(p.week_start + "T12:00:00");
+                  const end = new Date(d.getTime() + 6 * 24 * 60 * 60 * 1000);
+                  const fmt = (dt: Date) => dt.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+                  return `${fmt(d)} – ${fmt(end)}`;
+                } catch { return p.week_start; }
+              })();
+
+              return (
+                <div
+                  key={p.id}
+                  style={{
+                    borderRadius: 16,
+                    border: "1.5px solid rgba(245,158,11,0.25)",
+                    background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                    padding: "14px 16px",
+                    display: "grid",
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 900, opacity: 0.5, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
+                        🏆 Settimana {weekLabel}
+                      </div>
+                      <div style={{ fontWeight: 900, fontSize: 15 }}>{p.prize_description}</div>
+                      {venue && (
+                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+                          da <b>{venue.name}</b>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      {p.redeemed ? (
+                        <span style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(16,185,129,0.12)", color: "#059669", fontWeight: 900, fontSize: 12 }}>
+                          ✅ Riscattato
+                        </span>
+                      ) : expired ? (
+                        <span style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(239,68,68,0.1)", color: "#dc2626", fontWeight: 900, fontSize: 12 }}>
+                          ⏰ Scaduto
+                        </span>
+                      ) : (
+                        <span style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(245,158,11,0.15)", color: "#b45309", fontWeight: 900, fontSize: 12 }}>
+                          🎁 Da riscattare
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {p.redemption_code && !p.redeemed && !expired && (
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                      <div style={{ fontWeight: 900, fontSize: 13 }}>Codice:</div>
+                      <div
+                        style={{
+                          fontFamily: "monospace",
+                          fontWeight: 900,
+                          fontSize: 18,
+                          letterSpacing: 2,
+                          padding: "6px 14px",
+                          borderRadius: 10,
+                          background: "rgba(0,0,0,0.06)",
+                          border: "1px dashed rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        {p.redemption_code}
+                      </div>
+                      {p.redemption_code_expires_at && (
+                        <div style={{ fontSize: 11, opacity: 0.6, fontWeight: 700 }}>
+                          Scade: {new Date(p.redemption_code_expires_at).toLocaleDateString("it-IT")}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Section>
+
+      {/* ── NOTIFICHE ────────────────────────────────────────────────────── */}
+      <Section
+        title="Notifiche"
+        subtitle="Avvisi di sistema e premi."
+        right={
+          unreadCount > 0 ? (
+            <div style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(239,68,68,0.12)", color: "#dc2626", fontWeight: 900, fontSize: 12 }}>
+              {unreadCount} non {unreadCount === 1 ? "letta" : "lette"}
+            </div>
+          ) : null
+        }
+      >
+        {notifications.length === 0 ? (
+          <div style={{ opacity: 0.6, fontSize: 13 }}>Nessuna notifica ancora.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {notifications.map((n) => (
+              <div
+                key={n.id}
+                style={{
+                  borderRadius: 14,
+                  border: n.read ? "1px solid rgba(0,0,0,0.07)" : "1.5px solid rgba(99,102,241,0.3)",
+                  background: n.read ? "rgba(255,255,255,0.5)" : "rgba(99,102,241,0.05)",
+                  padding: "12px 14px",
+                  display: "grid",
+                  gap: 4,
+                  cursor: !n.read ? "pointer" : "default",
+                }}
+                onClick={() => { if (!n.read) markNotifRead(n.id); }}
+                role={!n.read ? "button" : undefined}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ fontWeight: 900, fontSize: 14 }}>{n.title}</div>
+                  {!n.read && (
+                    <div style={{ width: 8, height: 8, borderRadius: 999, background: "#6366f1", flexShrink: 0, marginTop: 4 }} />
+                  )}
+                </div>
+                {n.body && (
+                  <div style={{ fontSize: 13, opacity: 0.75, lineHeight: 1.4 }}>{n.body}</div>
+                )}
+                <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>
+                  {new Date(n.created_at).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
     </div>
   );

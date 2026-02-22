@@ -5,6 +5,8 @@ import HomeLeaderboards from "@/components/HomeLeaderboards";
 import HomeScannerCTA from "@/components/HomeScannerCTA";
 import HomeMapLoader from "@/components/HomeMapLoader";
 import HomePromoSection from "@/components/HomePromoSection";
+import WeeklyPrizeCard from "@/components/WeeklyPrizeCard";
+import WinnerBanner from "@/components/WinnerBanner";
 import type { HomeSpotPin } from "@/components/HomeMap";
 import type { WeeklyRow } from "@/components/HomeLeaderboards";
 import type { ActivePromoCard } from "@/components/HomePromoSection";
@@ -106,6 +108,44 @@ export default async function HomePage() {
       }));
     }
   } catch {}
+
+  // -------- premio settimanale corrente + vincitore settimana precedente ----------
+  type PrizeRow = {
+    id: string;
+    week_start: string;
+    prize_description: string;
+    prize_image: string | null;
+    spot_id: string | null;
+    winner_user_id: string | null;
+    winner_name: string | null;
+    venues: { name: string; slug: string | null } | null;
+  };
+
+  let currentPrize: PrizeRow | null = null;
+  let lastWinner: PrizeRow | null = null;
+
+  try {
+    // Calcola lunedì della settimana corrente (UTC)
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay(); // 0=dom, 1=lun, ...
+    const diffToMonday = (dayOfWeek + 6) % 7;
+    const monday = new Date(now);
+    monday.setUTCDate(now.getUTCDate() - diffToMonday);
+    const currentWeekStart = monday.toISOString().slice(0, 10);
+
+    const prevMonday = new Date(monday);
+    prevMonday.setUTCDate(monday.getUTCDate() - 7);
+    const prevWeekStart = prevMonday.toISOString().slice(0, 10);
+
+    const { data: prizesRaw } = await supabase
+      .from("weekly_prizes")
+      .select("id,week_start,prize_description,prize_image,spot_id,winner_user_id,winner_name,venues(name,slug)")
+      .in("week_start", [currentWeekStart, prevWeekStart]);
+
+    const prizes = (prizesRaw ?? []) as unknown as PrizeRow[];
+    currentPrize = prizes.find((p) => p.week_start === currentWeekStart && !p.winner_user_id) ?? null;
+    lastWinner = prizes.find((p) => p.week_start === prevWeekStart && !!p.winner_user_id) ?? null;
+  } catch { /* migration non ancora eseguita */ }
 
   // -------- promo attive ----------
   let activePromoCards: ActivePromoCard[] = [];
@@ -233,6 +273,28 @@ export default async function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Vincitore settimana scorsa */}
+      {lastWinner && (
+        <WinnerBanner
+          winnerName={lastWinner.winner_name ?? "Esploratore"}
+          prizeDescription={lastWinner.prize_description}
+          venueSlug={(lastWinner.venues as any)?.slug ?? null}
+          venueName={(lastWinner.venues as any)?.name ?? null}
+          weekStart={lastWinner.week_start}
+        />
+      )}
+
+      {/* Premio settimana corrente */}
+      {currentPrize && (
+        <WeeklyPrizeCard
+          prize={{
+            ...currentPrize,
+            venues: currentPrize.venues as { name: string; slug: string | null } | null,
+          }}
+          topThree={weeklyExplorers.slice(0, 3).map((e, i) => ({ ...e, rank: i + 1 }))}
+        />
+      )}
 
       {/* Sezione promo — visibile solo se ci sono promo attive in questo momento */}
       {activePromoCards.length > 0 && (

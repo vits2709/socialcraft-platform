@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser, isAdmin } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import AdminQrDownload from "@/components/AdminQrDownload";
+import RedeemCodeForm from "@/components/RedeemCodeForm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -531,6 +532,12 @@ export default async function SpotDashboardPage() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* ── RISCATTA PREMIO ── */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <h2 className="h2" style={{ marginTop: 0, marginBottom: 12 }}>🏆 Valida codice riscatto premio</h2>
+        <RedeemCodeForm />
       </div>
 
       {/* ── ATTIVITÀ RECENTE ── */}

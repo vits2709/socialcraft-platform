@@ -117,12 +117,14 @@ export default async function AdminDashboard() {
           <Link className="btn" href="/admin/create-venue">
             + Nuovo Spot
           </Link>
-         <Link className="btn" href="/admin/receipts">
-          Scontrini
-         </Link>
-
+          <Link className="btn" href="/admin/receipts">
+            Scontrini
+          </Link>
           <Link className="btn" href="/admin/users">
             Esploratori
+          </Link>
+          <Link className="btn" href="/admin/prizes">
+            🏆 Premi
           </Link>
 
           <span className="badge">
