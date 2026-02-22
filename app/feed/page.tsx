@@ -45,7 +45,7 @@ function FeedItem({ item }: { item: FeedRow }) {
         <>
           <b>{name}</b> ha fatto check-in{" "}
           {item.venue_slug ? (
-            <Link href={`/v/${item.venue_slug}`} style={{ color: "#6366f1", fontWeight: 700 }}>
+            <Link href={`/v/${item.venue_slug}`} style={{ color: "#2D1B69", fontWeight: 700 }}>
               da {spot}
             </Link>
           ) : (
@@ -65,7 +65,7 @@ function FeedItem({ item }: { item: FeedRow }) {
         <>
           <b>{name}</b> ha fatto una consumazione{" "}
           {item.venue_slug ? (
-            <Link href={`/v/${item.venue_slug}`} style={{ color: "#6366f1", fontWeight: 700 }}>
+            <Link href={`/v/${item.venue_slug}`} style={{ color: "#2D1B69", fontWeight: 700 }}>
               da {spot}
             </Link>
           ) : (

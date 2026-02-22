@@ -85,10 +85,10 @@ function StepIndicator({ phase }: { phase: FlowPhase }) {
                   background: isDone
                     ? "rgba(16,185,129,0.15)"
                     : isActive
-                    ? "#6366f1"
+                    ? "#2D1B69"
                     : "rgba(0,0,0,0.06)",
                   color: isDone ? "#059669" : isActive ? "#fff" : "rgba(0,0,0,0.25)",
-                  border: `2px solid ${isDone ? "rgba(16,185,129,0.35)" : isActive ? "#6366f1" : "rgba(0,0,0,0.1)"}`,
+                  border: `2px solid ${isDone ? "rgba(16,185,129,0.35)" : isActive ? "#2D1B69" : "rgba(0,0,0,0.1)"}`,
                   transition: "all 250ms",
                 }}
               >
@@ -98,7 +98,7 @@ function StepIndicator({ phase }: { phase: FlowPhase }) {
                 style={{
                   fontSize: 11,
                   fontWeight: isActive ? 700 : 400,
-                  color: isActive ? "#6366f1" : isDone ? "#059669" : "rgba(0,0,0,0.35)",
+                  color: isActive ? "#2D1B69" : isDone ? "#059669" : "rgba(0,0,0,0.35)",
                   whiteSpace: "nowrap",
                 }}
               >
@@ -685,7 +685,7 @@ export default function CheckinClient({
               marginTop: 10,
               padding: "12px",
               fontSize: 13,
-              color: "#6366f1",
+              color: "#2D1B69",
               fontWeight: 700,
             }}
           >
@@ -700,8 +700,8 @@ export default function CheckinClient({
               marginTop: 20,
               padding: "20px 16px",
               borderRadius: 18,
-              background: "rgba(99,102,241,0.07)",
-              border: "1px solid rgba(99,102,241,0.2)",
+              background: "rgba(45,27,105,0.07)",
+              border: "1px solid rgba(45,27,105,0.2)",
               maxWidth: 280,
               marginLeft: "auto",
               marginRight: "auto",
@@ -714,7 +714,7 @@ export default function CheckinClient({
                 fontSize: 22,
                 fontWeight: 900,
                 letterSpacing: 3,
-                color: "#6366f1",
+                color: "#2D1B69",
                 marginBottom: 12,
               }}
             >
@@ -1054,7 +1054,7 @@ export default function CheckinClient({
     };
 
     const voteSummary = () => {
-      if (voteStatus === "done") return { label: `${rating}/5 ⭐`, color: "#6366f1" };
+      if (voteStatus === "done") return { label: `${rating}/5 ⭐`, color: "#2D1B69" };
       if (voteStatus === "cooldown") return { label: "già votato", color: "rgba(0,0,0,0.35)" };
       return { label: "saltato", color: "rgba(0,0,0,0.35)" };
     };

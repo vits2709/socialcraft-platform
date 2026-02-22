@@ -957,7 +957,7 @@ return (
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                   <div style={{ fontWeight: 900, fontSize: 14 }}>{n.title}</div>
                   {!n.read && (
-                    <div style={{ width: 8, height: 8, borderRadius: 999, background: "#6366f1", flexShrink: 0, marginTop: 4 }} />
+                    <div style={{ width: 8, height: 8, borderRadius: 999, background: "#2D1B69", flexShrink: 0, marginTop: 4 }} />
                   )}
                 </div>
                 {n.body && (

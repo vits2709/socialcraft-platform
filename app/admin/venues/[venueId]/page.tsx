@@ -275,7 +275,7 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
               {v.is_active !== false ? "✅ Attivo" : "❌ Disattivo"}
             </span>
             {v.is_featured && (
-              <span className="badge" style={{ background: "rgba(99,102,241,0.1)", borderColor: "rgba(99,102,241,0.3)", color: "#6366f1" }}>
+              <span className="badge" style={{ background: "rgba(45,27,105,0.1)", borderColor: "rgba(45,27,105,0.3)", color: "#2D1B69" }}>
                 🏅 Verificato
               </span>
             )}
@@ -404,7 +404,7 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
                     name="days_of_week"
                     value={g.val}
                     defaultChecked
-                    style={{ accentColor: "#6366f1" }}
+                    style={{ accentColor: "#2D1B69" }}
                   />
                   {g.label}
                 </label>
@@ -454,7 +454,7 @@ export default async function AdminVenuePage(props: { params: Promise<{ venueId:
               ✅ Attiva subito
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14, fontWeight: 700 }}>
-              <input type="radio" name="is_active" value="false" style={{ accentColor: "#6366f1" }} />
+              <input type="radio" name="is_active" value="false" style={{ accentColor: "#2D1B69" }} />
               🔵 Salva come bozza
             </label>
           </div>

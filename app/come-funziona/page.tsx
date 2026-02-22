@@ -80,7 +80,7 @@ export default function ComeFunzionaPage() {
       <div
         style={{
           borderRadius: 24,
-          background: "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)",
+          background: "linear-gradient(135deg, #2D1B69 0%, #7BC043 100%)",
           padding: "52px 24px 44px",
           textAlign: "center",
           color: "#fff",
@@ -125,7 +125,7 @@ export default function ComeFunzionaPage() {
             href="/login"
             style={{
               background: "#fff",
-              color: "#6366f1",
+              color: "#2D1B69",
               fontWeight: 900,
               padding: "14px 28px",
               fontSize: 16,
@@ -172,8 +172,8 @@ export default function ComeFunzionaPage() {
               key={s.num}
               style={{
                 borderRadius: 18,
-                border: "1.5px solid rgba(99,102,241,0.15)",
-                background: "rgba(99,102,241,0.03)",
+                border: "1.5px solid rgba(45,27,105,0.15)",
+                background: "rgba(45,27,105,0.03)",
                 padding: "22px 18px",
                 position: "relative",
                 overflow: "hidden",
@@ -187,7 +187,7 @@ export default function ComeFunzionaPage() {
                   right: 10,
                   fontSize: 76,
                   fontWeight: 950,
-                  color: "rgba(99,102,241,0.06)",
+                  color: "rgba(45,27,105,0.06)",
                   lineHeight: 1,
                   userSelect: "none",
                   pointerEvents: "none",
@@ -374,7 +374,7 @@ export default function ComeFunzionaPage() {
       <div
         style={{
           borderRadius: 24,
-          background: "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)",
+          background: "linear-gradient(135deg, #2D1B69 0%, #7BC043 100%)",
           padding: "44px 24px",
           textAlign: "center",
           color: "#fff",
@@ -407,7 +407,7 @@ export default function ComeFunzionaPage() {
           href="/login"
           style={{
             background: "#fff",
-            color: "#6366f1",
+            color: "#2D1B69",
             fontWeight: 900,
             padding: "16px 40px",
             fontSize: 17,

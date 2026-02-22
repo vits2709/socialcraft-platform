@@ -36,9 +36,9 @@ function buildIcons(): Icons {
     className: "",
     html: `<div style="
       width:36px;height:36px;border-radius:50%;
-      background:linear-gradient(135deg,#6366f1,#ec4899);
+      background:linear-gradient(135deg,#2D1B69,#7BC043);
       display:flex;align-items:center;justify-content:center;
-      font-size:18px;box-shadow:0 4px 14px rgba(99,102,241,0.45);
+      font-size:18px;box-shadow:0 4px 14px rgba(45,27,105,0.45);
       border:2px solid white;
     ">🏅</div>`,
     iconSize: [36, 36],
@@ -218,11 +218,11 @@ export default function FullMap({ spots }: { spots: SpotPin[] }) {
                       display: "inline-block",
                       padding: "5px 11px",
                       borderRadius: 8,
-                      background: "rgba(99,102,241,0.12)",
-                      border: "1px solid rgba(99,102,241,0.25)",
+                      background: "rgba(45,27,105,0.12)",
+                      border: "1px solid rgba(45,27,105,0.25)",
                       fontSize: 12,
                       fontWeight: 700,
-                      color: "#6366f1",
+                      color: "#2D1B69",
                       textDecoration: "none",
                     }}
                   >

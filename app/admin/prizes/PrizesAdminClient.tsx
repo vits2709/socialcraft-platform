@@ -303,7 +303,7 @@ export default function PrizesAdminClient({
                   </td>
                   <td>
                     {!p.winner_user_id ? (
-                      <span className="badge" style={{ background: "rgba(99,102,241,0.1)", color: "#4f46e5" }}>In corso</span>
+                      <span className="badge" style={{ background: "rgba(45,27,105,0.1)", color: "#2D1B69" }}>In corso</span>
                     ) : p.redeemed ? (
                       <span className="badge" style={{ background: "rgba(16,185,129,0.1)", color: "#059669" }}>✅ Riscattato</span>
                     ) : (

@@ -35,7 +35,7 @@ export default function OnboardingClient({ destination }: Props) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 45%, #065f46 100%)",
+        background: "linear-gradient(145deg, #2D1B69 0%, #4a2fa8 50%, #7BC043 100%)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -370,7 +370,7 @@ const bodyStyle: React.CSSProperties = {
 
 const btnPrimary: React.CSSProperties = {
   background: "#fff",
-  color: "#4f46e5",
+  color: "#2D1B69",
   border: "none",
   borderRadius: 16,
   padding: "16px",

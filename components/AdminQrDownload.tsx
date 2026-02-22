@@ -67,7 +67,7 @@ export default function AdminQrDownload({ slug, venueName, siteUrl }: Props) {
     p { color: #6b7280; font-size: 14px; margin: 0 0 24px; }
     img { display: block; margin: 0 auto; width: 220px; height: 220px; }
     .url { margin-top: 16px; font-size: 11px; color: #9ca3af; word-break: break-all; }
-    .brand { margin-top: 28px; font-size: 12px; color: #6366f1; font-weight: 700; }
+    .brand { margin-top: 28px; font-size: 12px; color: #2D1B69; font-weight: 700; }
     @media print {
       body { background: #fff; }
       .no-print { display: none; }
@@ -85,7 +85,7 @@ export default function AdminQrDownload({ slug, venueName, siteUrl }: Props) {
   <div class="no-print" style="margin-top:24px">
     <button onclick="window.print()" style="
       padding:10px 24px; border-radius:12px; border:none;
-      background:#6366f1; color:#fff; font-weight:700;
+      background:#2D1B69; color:#fff; font-weight:700;
       font-size:15px; cursor:pointer;
     ">Stampa / Salva PDF</button>
   </div>

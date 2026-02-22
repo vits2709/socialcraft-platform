@@ -108,7 +108,7 @@ export default function CompanionClient() {
                   fontFamily: "monospace",
                   fontSize: 20,
                   fontWeight: 900,
-                  color: "#6366f1",
+                  color: "#2D1B69",
                   letterSpacing: 2,
                   marginBottom: 16,
                 }}
@@ -169,7 +169,7 @@ export default function CompanionClient() {
                   border: "1px solid rgba(99,102,241,0.3)",
                   fontWeight: 800,
                   fontSize: 14,
-                  color: "#6366f1",
+                  color: "#2D1B69",
                   margin: "12px 0",
                 }}
               >

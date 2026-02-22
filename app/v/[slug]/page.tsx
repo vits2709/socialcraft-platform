@@ -43,7 +43,7 @@ type RatingSummary = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const CATEGORIA_GRADIENT: Record<string, string> = {
-  bar:          "135deg, #6366f1 0%, #8b5cf6 100%",
+  bar:          "135deg, #2D1B69 0%, #7BC043 100%",
   ristorante:   "135deg, #f97316 0%, #ef4444 100%",
   pub:          "135deg, #d97706 0%, #92400e 100%",
   caffetteria:  "135deg, #92400e 0%, #b45309 100%",
@@ -77,7 +77,7 @@ const SERVIZI_META: Record<string, { emoji: string; color: string; bg: string }>
   "Pet friendly":    { emoji: "🐾", color: "#d97706", bg: "rgba(217,119,6,0.08)" },
 };
 
-const AVATAR_COLORS = ["#f59e0b", "#6366f1", "#10b981", "#ef4444", "#8b5cf6"];
+const AVATAR_COLORS = ["#f59e0b", "#2D1B69", "#10b981", "#ef4444", "#7BC043"];
 
 function Stars({ value, size = 18 }: { value: number; size?: number }) {
   const rounded = Math.round(value);
@@ -426,8 +426,8 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "8px 14px", borderRadius: 999, fontSize: 13, fontWeight: 600,
-                  background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)",
-                  color: "#6366f1", textDecoration: "none",
+                  background: "rgba(45,27,105,0.07)", border: "1px solid rgba(45,27,105,0.2)",
+                  color: "#2D1B69", textDecoration: "none",
                 }}
               >
                 🌐 {v.sito_web.replace(/^https?:\/\//, "").replace(/\/$/, "")}
@@ -486,7 +486,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
                         fontWeight: isToday ? 800 : 500,
                         fontSize: 14,
                         minWidth: 90,
-                        color: isToday ? "#6366f1" : "inherit",
+                        color: isToday ? "#2D1B69" : "inherit",
                         display: "flex",
                         alignItems: "center",
                         gap: 6,
@@ -496,7 +496,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
                         <span
                           style={{
                             width: 7, height: 7, borderRadius: "50%",
-                            background: "#6366f1", display: "inline-block", flexShrink: 0,
+                            background: "#2D1B69", display: "inline-block", flexShrink: 0,
                           }}
                         />
                       )}
@@ -602,7 +602,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
                 style={{
                   display: "flex", alignItems: "center", gap: 6,
                   marginTop: 12, fontSize: 14, fontWeight: 600,
-                  color: "#6366f1", textDecoration: "none",
+                  color: "#2D1B69", textDecoration: "none",
                 }}
               >
                 <span>📍</span>
@@ -631,12 +631,12 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
             style={{
               marginTop: 20,
               borderRadius: 18,
-              background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
+              background: "linear-gradient(135deg, #2D1B69 0%, #7BC043 100%)",
               padding: "20px",
               display: "flex",
               gap: 16,
               alignItems: "center",
-              boxShadow: "0 8px 32px rgba(99,102,241,0.25)",
+              boxShadow: "0 8px 32px rgba(45,27,105,0.25)",
             }}
           >
             {qrDataUrl && (
@@ -676,7 +676,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
                     href={checkinUrl}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 6,
-                      background: "white", color: "#6366f1",
+                      background: "white", color: "#2D1B69",
                       padding: "9px 18px", borderRadius: 999,
                       fontWeight: 800, fontSize: 14, textDecoration: "none",
                       boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
@@ -690,7 +690,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
                   href="/login"
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
-                    background: "white", color: "#6366f1",
+                    background: "white", color: "#2D1B69",
                     padding: "9px 18px", borderRadius: 999,
                     fontWeight: 800, fontSize: 14, textDecoration: "none",
                     boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
