@@ -74,18 +74,18 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
   const cardStyle: React.CSSProperties = {
     width: `${100 / TOTAL}%`,
     flexShrink: 0,
-    padding: "16px 18px 14px",
+    padding: "14px 16px 12px",
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: 8,
     userSelect: "none",
     boxSizing: "border-box",
   };
 
   const glassBox: React.CSSProperties = {
     background: "rgba(255,255,255,0.14)",
-    borderRadius: 14,
-    padding: "10px 14px",
+    borderRadius: 12,
+    padding: "8px 12px",
   };
 
   const ctaLink: React.CSSProperties = {
@@ -95,12 +95,13 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
     background: "rgba(255,255,255,0.2)",
     border: "1px solid rgba(255,255,255,0.35)",
     color: "#fff",
-    borderRadius: 12,
-    padding: "9px 16px",
+    borderRadius: 10,
+    padding: "7px 14px",
     fontWeight: 700,
     fontSize: 13,
     textDecoration: "none",
     alignSelf: "flex-start",
+    marginTop: 2,
   };
 
   const arrowStyle: React.CSSProperties = {
@@ -111,11 +112,11 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
     background: "rgba(255,255,255,0.18)",
     border: "1px solid rgba(255,255,255,0.3)",
     color: "#fff",
-    width: 30,
-    height: 30,
+    width: 28,
+    height: 28,
     borderRadius: "50%",
     cursor: "pointer",
-    fontSize: 18,
+    fontSize: 16,
     lineHeight: 1,
     padding: 0,
     display: "flex",
@@ -127,12 +128,11 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
     <div
       style={{
         position: "relative",
-        marginTop: 14,
         borderRadius: 18,
         overflow: "hidden",
         width: "100%",
         background: "linear-gradient(135deg, #2D1B69 0%, #7BC043 100%)",
-        boxShadow: "0 8px 28px rgba(45,27,105,0.22)",
+        boxShadow: "0 8px 28px rgba(45,27,105,0.20)",
       }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -177,24 +177,24 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
             CityQuest
           </div>
 
-          <h2 style={{ margin: 0, color: "#fff", fontSize: 22, fontWeight: 900, letterSpacing: -0.3, lineHeight: 1.2 }}>
+          <h2 style={{ margin: 0, color: "#fff", fontSize: 18, fontWeight: 900, letterSpacing: -0.2, lineHeight: 1.2 }}>
             Ciao {displayName}! 👋
           </h2>
 
-          <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ ...glassBox, flex: 1 }}>
-              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ ...glassBox, flex: 1, minWidth: 0 }}>
+              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: 700, letterSpacing: 0.4 }}>
                 CLASS. SETT.
               </div>
-              <div style={{ color: "#fff", fontSize: 22, fontWeight: 900, marginTop: 2 }}>
+              <div style={{ color: "#fff", fontSize: 18, fontWeight: 900, marginTop: 1 }}>
                 {weeklyRank != null ? `#${weeklyRank}` : "—"}
               </div>
             </div>
-            <div style={{ ...glassBox, flex: 1 }}>
-              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>
+            <div style={{ ...glassBox, flex: 1, minWidth: 0 }}>
+              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: 700, letterSpacing: 0.4 }}>
                 PUNTI TOTALI
               </div>
-              <div style={{ color: "#fff", fontSize: 22, fontWeight: 900, marginTop: 2 }}>
+              <div style={{ color: "#fff", fontSize: 18, fontWeight: 900, marginTop: 1 }}>
                 {totalPoints}
               </div>
             </div>
@@ -202,19 +202,19 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
 
           {/* Level progress */}
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <div style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+              <div style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>
                 {level.current.emoji} {level.current.name}
               </div>
               {level.next ? (
-                <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
+                <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>
                   {level.toNext} pt → {level.next.name}
                 </div>
               ) : (
-                <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>Livello max 👑</div>
+                <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>Livello max 👑</div>
               )}
             </div>
-            <div style={{ height: 6, borderRadius: 999, background: "rgba(255,255,255,0.2)", overflow: "hidden" }}>
+            <div style={{ height: 5, borderRadius: 999, background: "rgba(255,255,255,0.2)", overflow: "hidden" }}>
               <div
                 style={{
                   height: "100%",
@@ -240,16 +240,16 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
 
           {prize ? (
             <>
-              <h2 style={{ margin: 0, color: "#fff", fontSize: 20, fontWeight: 900, letterSpacing: -0.3, lineHeight: 1.2 }}>
+              <h2 style={{ margin: 0, color: "#fff", fontSize: 17, fontWeight: 900, letterSpacing: -0.2, lineHeight: 1.2 }}>
                 🎁 Premio della settimana
               </h2>
 
               <div style={glassBox}>
-                <div style={{ color: "#fff", fontWeight: 800, fontSize: 15 }}>
+                <div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>
                   {prize.description}
                 </div>
                 {prize.venueName && (
-                  <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 13, marginTop: 4 }}>
+                  <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 3 }}>
                     Offerto da {prize.venueName}
                   </div>
                 )}
@@ -263,10 +263,10 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
                     gap: 6,
                     background: "rgba(255,255,255,0.14)",
                     borderRadius: 999,
-                    padding: "6px 14px",
+                    padding: "5px 12px",
                     color: "#fff",
                     fontWeight: 700,
-                    fontSize: 13,
+                    fontSize: 12,
                     alignSelf: "flex-start",
                   }}
                 >
@@ -280,15 +280,15 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
             </>
           ) : (
             <>
-              <h2 style={{ margin: 0, color: "#fff", fontSize: 20, fontWeight: 900, letterSpacing: -0.3, lineHeight: 1.2 }}>
+              <h2 style={{ margin: 0, color: "#fff", fontSize: 17, fontWeight: 900, letterSpacing: -0.2, lineHeight: 1.2 }}>
                 Premio in arrivo... 🎁
               </h2>
 
-              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 15, margin: 0, lineHeight: 1.55 }}>
-                Gli spot stanno preparando premi speciali per i migliori esploratori. Continua a esplorare!
+              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+                Gli spot stanno preparando premi speciali. Continua a esplorare!
               </p>
 
-              <div style={{ ...glassBox, color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.5 }}>
+              <div style={{ ...glassBox, color: "rgba(255,255,255,0.72)", fontSize: 12, lineHeight: 1.4 }}>
                 🏆 Chi accumula più punti questa settimana vince
               </div>
             </>
@@ -301,7 +301,7 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
             Ogni giorno
           </div>
 
-          <h2 style={{ margin: 0, color: "#fff", fontSize: 20, fontWeight: 900, letterSpacing: -0.3, lineHeight: 1.2 }}>
+          <h2 style={{ margin: 0, color: "#fff", fontSize: 17, fontWeight: 900, letterSpacing: -0.2, lineHeight: 1.2 }}>
             🎯 Missione del giorno
           </h2>
 
@@ -309,17 +309,17 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
             style={{
               background: "rgba(255,255,255,0.1)",
               border: "1.5px dashed rgba(255,255,255,0.28)",
-              borderRadius: 16,
-              padding: "20px 16px",
+              borderRadius: 14,
+              padding: "16px 14px",
               textAlign: "center",
             }}
           >
-            <div style={{ fontSize: 34, marginBottom: 10 }}>🔜</div>
-            <div style={{ color: "#fff", fontWeight: 800, fontSize: 15, marginBottom: 6 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🔜</div>
+            <div style={{ color: "#fff", fontWeight: 800, fontSize: 14, marginBottom: 4 }}>
               In arrivo!
             </div>
-            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 1.5 }}>
-              Le missioni giornaliere saranno disponibili prossimamente. Continua a esplorare la città!
+            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, lineHeight: 1.45 }}>
+              Le missioni giornaliere saranno disponibili prossimamente.
             </div>
           </div>
         </div>
@@ -331,7 +331,7 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
           display: "flex",
           justifyContent: "center",
           gap: 6,
-          padding: "8px 0 14px",
+          padding: "6px 0 12px",
         }}
       >
         {Array.from({ length: TOTAL }).map((_, i) => (

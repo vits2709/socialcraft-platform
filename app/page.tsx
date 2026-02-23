@@ -259,14 +259,6 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <HeroCarousel
-          username={currentUserName}
-          totalPoints={currentUserPoints}
-          weeklyRank={currentWeeklyRank}
-          prize={carouselPrize}
-          isLoggedIn={isLoggedIn}
-        />
-
         {(sErr || eErr) && (
           <div className="notice" style={{ marginTop: 10 }}>
             {sErr ? <div>Errore Spot: {sErr.message}</div> : null}
@@ -274,6 +266,14 @@ export default async function HomePage() {
           </div>
         )}
       </div>
+
+      <HeroCarousel
+        username={currentUserName}
+        totalPoints={currentUserPoints}
+        weeklyRank={currentWeeklyRank}
+        prize={carouselPrize}
+        isLoggedIn={isLoggedIn}
+      />
 
       {/* Vincitore settimana scorsa */}
       {lastWinner && (
