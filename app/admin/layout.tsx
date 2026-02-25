@@ -39,6 +39,10 @@ export default async function AdminLayout({
             Scontrini
           </Link>
 
+          <Link className="btn mini" href="/admin/missions">
+            🎯 Missioni
+          </Link>
+
           {showLogout && (
             <Link className="btn mini" href="/logout">
               Logout
