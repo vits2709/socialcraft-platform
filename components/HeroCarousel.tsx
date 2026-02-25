@@ -10,11 +10,19 @@ export type CarouselPrize = {
   weekStart: string;
 } | null;
 
+export type CarouselMission = {
+  emoji: string;
+  title: string;
+  description: string;
+  points_reward: number;
+} | null;
+
 type Props = {
   username: string | null;
   totalPoints: number;
   weeklyRank: number | null;
   prize: CarouselPrize;
+  mission: CarouselMission;
   isLoggedIn: boolean;
 };
 
@@ -45,7 +53,7 @@ function useCountdown(weekStart: string | null): string {
 
 const TOTAL = 3;
 
-export default function HeroCarousel({ username, totalPoints, weeklyRank, prize, isLoggedIn }: Props) {
+export default function HeroCarousel({ username, totalPoints, weeklyRank, prize, mission, isLoggedIn }: Props) {
   const [idx, setIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -278,19 +286,58 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
         <div style={cardBase}>
           <div style={label12}>Ogni giorno</div>
           <h2 style={h2style}>🎯 Missione del giorno</h2>
-          <div style={{
-            background: "rgba(255,255,255,0.1)",
-            border: "1.5px dashed rgba(255,255,255,0.28)",
-            borderRadius: 14,
-            padding: "16px 14px",
-            textAlign: "center",
-          }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🔜</div>
-            <div style={{ color: "#fff", fontWeight: 800, fontSize: 14, marginBottom: 4 }}>In arrivo!</div>
-            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, lineHeight: 1.45 }}>
-              Le missioni giornaliere saranno disponibili prossimamente.
-            </div>
-          </div>
+
+          {mission ? (
+            <>
+              <div style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1.5px solid rgba(255,255,255,0.22)",
+                borderRadius: 14,
+                padding: "12px 14px",
+              }}>
+                <div style={{ fontSize: 26, marginBottom: 6 }}>{mission.emoji}</div>
+                <div style={{ color: "#fff", fontWeight: 800, fontSize: 14, marginBottom: 4, lineHeight: 1.25 }}>
+                  {mission.title}
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, lineHeight: 1.45 }}>
+                  {mission.description}
+                </div>
+              </div>
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: "rgba(255,255,255,0.14)", borderRadius: 999,
+                padding: "5px 12px", color: "#fff", fontWeight: 700, fontSize: 12,
+                alignSelf: "flex-start",
+              }}>
+                🏅 +{mission.points_reward} pt
+              </div>
+              <Link href="/me" style={cta}>Vai alle missioni →</Link>
+            </>
+          ) : (
+            <>
+              <div style={{
+                background: "rgba(255,255,255,0.1)",
+                border: "1.5px dashed rgba(255,255,255,0.28)",
+                borderRadius: 14,
+                padding: "16px 14px",
+                textAlign: "center",
+              }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
+                <div style={{ color: "#fff", fontWeight: 800, fontSize: 14, marginBottom: 4 }}>
+                  {isLoggedIn ? "Nessuna missione attiva" : "Missioni giornaliere"}
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, lineHeight: 1.45 }}>
+                  {isLoggedIn
+                    ? "Le nuove missioni vengono assegnate ogni giorno."
+                    : "Registrati e guadagna punti completando sfide quotidiane."}
+                </div>
+              </div>
+              {isLoggedIn
+                ? <Link href="/me" style={cta}>Vai alle missioni →</Link>
+                : <Link href="/login" style={cta}>Inizia ora →</Link>
+              }
+            </>
+          )}
         </div>
       </div>
 

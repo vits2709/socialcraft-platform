@@ -7,7 +7,8 @@ import HomeMapLoader from "@/components/HomeMapLoader";
 import HomePromoSection from "@/components/HomePromoSection";
 import WeeklyPrizeCard from "@/components/WeeklyPrizeCard";
 import WinnerBanner from "@/components/WinnerBanner";
-import HeroCarousel, { type CarouselPrize } from "@/components/HeroCarousel";
+import HeroCarousel, { type CarouselPrize, type CarouselMission } from "@/components/HeroCarousel";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { HomeSpotPin } from "@/components/HomeMap";
 import type { WeeklyRow } from "@/components/HomeLeaderboards";
 import type { ActivePromoCard } from "@/components/HomePromoSection";
@@ -164,6 +165,40 @@ export default async function HomePage() {
       }
     : null;
 
+  // -------- missione giornaliera per il carosello ----------
+  let carouselMission: CarouselMission = null;
+
+  if (scUid) {
+    try {
+      const adminSupabase = createSupabaseAdminClient();
+      const { data: umRow } = await adminSupabase
+        .from("user_missions")
+        .select("missions(emoji, title, description, points_reward, is_surprise)")
+        .eq("user_id", scUid)
+        .is("completed_at", null)
+        .limit(1)
+        .maybeSingle();
+
+      if (umRow?.missions) {
+        const m = umRow.missions as unknown as {
+          emoji: string;
+          title: string;
+          description: string;
+          points_reward: number;
+          is_surprise: boolean;
+        };
+        if (!m.is_surprise) {
+          carouselMission = {
+            emoji: m.emoji,
+            title: m.title,
+            description: m.description,
+            points_reward: m.points_reward,
+          };
+        }
+      }
+    } catch { /* missions non ancora disponibili */ }
+  }
+
   // -------- promo attive ----------
   let activePromoCards: ActivePromoCard[] = [];
   let activePromoVenueIds = new Set<string>();
@@ -272,6 +307,7 @@ export default async function HomePage() {
         totalPoints={currentUserPoints}
         weeklyRank={currentWeeklyRank}
         prize={carouselPrize}
+        mission={carouselMission}
         isLoggedIn={isLoggedIn}
       />
 
