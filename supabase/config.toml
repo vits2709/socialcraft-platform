@@ -1,6 +1,3 @@
-[project]
-id = "avqnelunisrsrjuqrgwc"
-
 [api]
 enabled = true
 port = 54321
@@ -35,8 +32,6 @@ verify_jwt = false
 
 [functions.assign-daily-missions]
 verify_jwt = false
-schedule = "0 0 * * *"
 
 [functions.assign-weekly-missions]
 verify_jwt = false
-schedule = "0 0 * * 1"
