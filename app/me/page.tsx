@@ -51,6 +51,24 @@ type UserNotification = {
   created_at: string;
 };
 
+type UserMission = {
+  user_mission_id: string;
+  mission_id: string;
+  title: string;
+  description: string;
+  completion_message: string | null;
+  mission_type: string;
+  type: string;
+  points_reward: number;
+  is_surprise: boolean;
+  is_surprise_hidden: boolean;
+  active_from: string;
+  active_until: string;
+  completed_at: string | null;
+  points_awarded: number | null;
+  progress: Record<string, unknown>;
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function clamp(n: number, a: number, b: number) {
@@ -413,6 +431,9 @@ export default function MePage() {
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const [missions, setMissions] = useState<UserMission[]>([]);
+  const [missionTab, setMissionTab] = useState<"attive" | "completate">("attive");
+
   async function loadAll(silent = false) {
     if (!silent) {
       setLoading(true);
@@ -423,12 +444,13 @@ export default function MePage() {
     }
 
     try {
-      const [meRes, stRes, bdRes, prizeRes, notifRes] = await Promise.all([
+      const [meRes, stRes, bdRes, prizeRes, notifRes, missionsRes] = await Promise.all([
         fetch("/api/me", { cache: "no-store" }),
         fetch("/api/profile/stats", { cache: "no-store" }),
         fetch("/api/badges", { cache: "no-store" }),
         fetch("/api/prizes/hall-of-fame", { cache: "no-store" }),
         fetch("/api/notifications", { cache: "no-store" }),
+        fetch("/api/missions", { cache: "no-store" }),
       ]);
 
       const meJson = (await meRes.json()) as MePayload;
@@ -436,6 +458,7 @@ export default function MePage() {
       const bdJson = await bdRes.json();
       const prizeJson = await prizeRes.json();
       const notifJson = await notifRes.json();
+      const missionsJson = await missionsRes.json();
 
       setMe(meJson);
       setStats(stJson);
@@ -444,6 +467,9 @@ export default function MePage() {
       if (notifJson?.ok) {
         setNotifications(notifJson.notifications ?? []);
         setUnreadCount(notifJson.unread ?? 0);
+      }
+      if (missionsJson?.ok && Array.isArray(missionsJson.missions)) {
+        setMissions(missionsJson.missions);
       }
 
       if (!meJson?.ok) setErr(meJson?.error ?? "Errore /api/me");
@@ -804,6 +830,177 @@ return (
           </>
         )}
       </Section>
+
+      {/* ── MISSIONI ─────────────────────────────────────────────────────── */}
+      {(() => {
+        const attive = missions.filter((m) => !m.completed_at);
+        const completate = missions.filter((m) => !!m.completed_at);
+        const shown = missionTab === "attive" ? attive : completate;
+
+        return (
+          <Section
+            title="Missioni"
+            subtitle="Obiettivi giornalieri e settimanali da completare."
+            right={
+              attive.length > 0 ? (
+                <div style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(99,102,241,0.1)", color: "#4338ca", fontWeight: 900, fontSize: 12 }}>
+                  {attive.length} {attive.length === 1 ? "attiva" : "attive"}
+                </div>
+              ) : null
+            }
+          >
+            <div className="tabs">
+              {[
+                { key: "attive" as const, label: "🎯 Attive", count: attive.length },
+                { key: "completate" as const, label: "✅ Completate", count: completate.length },
+              ].map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  className={`tab ${missionTab === key ? "active" : ""}`}
+                  onClick={() => setMissionTab(key)}
+                  type="button"
+                >
+                  {label} <span className="pill">{count}</span>
+                </button>
+              ))}
+            </div>
+
+            {shown.length === 0 ? (
+              <div className="notice" style={{ fontSize: 13 }}>
+                {missionTab === "attive"
+                  ? "Nessuna missione attiva al momento. Torna domani! 🕐"
+                  : "Nessuna missione completata ancora. Inizia ad esplorare! 🚀"}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {shown.map((m) => {
+                  const isCompleted = !!m.completed_at;
+                  const isSurprise = m.is_surprise_hidden;
+                  const typeLabel: Record<string, string> = {
+                    daily: "Giornaliera",
+                    weekly: "Settimanale",
+                    special: "Speciale",
+                  };
+
+                  // Calcola scadenza rimanente per missioni attive
+                  const expiresIn = !isCompleted ? (() => {
+                    const diff = new Date(m.active_until).getTime() - Date.now();
+                    if (diff <= 0) return null;
+                    const h = Math.floor(diff / 3600000);
+                    if (h < 24) return `${h}h rimanenti`;
+                    return `${Math.floor(h / 24)}g rimanenti`;
+                  })() : null;
+
+                  // Progress bar per checkin_multiple
+                  const checkinMultipleProgress = m.mission_type === "checkin_multiple" && !isCompleted
+                    ? (() => {
+                        const spots = Array.isArray(m.progress.spots) ? (m.progress.spots as string[]).length : 0;
+                        return spots;
+                      })()
+                    : null;
+
+                  return (
+                    <div
+                      key={m.user_mission_id}
+                      style={{
+                        borderRadius: 16,
+                        border: isCompleted
+                          ? "1.5px solid rgba(16,185,129,0.25)"
+                          : isSurprise
+                          ? "1.5px dashed rgba(245,158,11,0.4)"
+                          : "1.5px solid rgba(99,102,241,0.2)",
+                        background: isCompleted
+                          ? "rgba(16,185,129,0.04)"
+                          : isSurprise
+                          ? "rgba(245,158,11,0.04)"
+                          : "rgba(99,102,241,0.04)",
+                        padding: "14px 16px",
+                        display: "grid",
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
+                            <span style={{ fontWeight: 950, fontSize: 15 }}>
+                              {isSurprise ? "🎁 " : isCompleted ? "✅ " : "🎯 "}
+                              {m.title}
+                            </span>
+                            {m.type && (
+                              <span style={{
+                                padding: "1px 7px",
+                                borderRadius: 999,
+                                fontSize: 10,
+                                fontWeight: 900,
+                                background: m.type === "daily"
+                                  ? "rgba(59,130,246,0.1)"
+                                  : m.type === "weekly"
+                                  ? "rgba(124,58,237,0.1)"
+                                  : "rgba(245,158,11,0.1)",
+                                color: m.type === "daily" ? "#2563eb" : m.type === "weekly" ? "#7c3aed" : "#b45309",
+                              }}>
+                                {typeLabel[m.type] ?? m.type}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 13, opacity: 0.72, lineHeight: 1.4, fontStyle: isSurprise ? "italic" : "normal" }}>
+                            {isCompleted && m.completion_message ? m.completion_message : m.description}
+                          </div>
+                        </div>
+
+                        <div style={{
+                          flexShrink: 0,
+                          textAlign: "right",
+                          padding: "6px 10px",
+                          borderRadius: 12,
+                          background: isCompleted ? "rgba(16,185,129,0.1)" : "rgba(99,102,241,0.08)",
+                          fontWeight: 950,
+                          fontSize: 14,
+                          color: isCompleted ? "#059669" : "#4338ca",
+                          whiteSpace: "nowrap",
+                        }}>
+                          +{isCompleted ? (m.points_awarded ?? m.points_reward) : m.points_reward} pt
+                        </div>
+                      </div>
+
+                      {/* Barra progresso checkin_multiple */}
+                      {checkinMultipleProgress !== null && (m.progress as { spots?: unknown[] }).spots !== undefined && (() => {
+                        const current = checkinMultipleProgress;
+                        const target = Number((m.progress as Record<string, unknown>).target_count ?? 2);
+                        const pct = Math.min(100, Math.round((current / target) * 100));
+                        return (
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, opacity: 0.65, fontWeight: 900 }}>
+                              <span>Progressi</span>
+                              <span>{current}/{target} spot</span>
+                            </div>
+                            <div style={{ height: 6, borderRadius: 999, background: "rgba(0,0,0,0.08)", overflow: "hidden" }}>
+                              <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #6b7cff, #a78bfa)" }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Footer: scadenza / data completamento */}
+                      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+                        {isCompleted && m.completed_at ? (
+                          <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 700 }}>
+                            Completata il {new Date(m.completed_at).toLocaleDateString("it-IT", { day: "numeric", month: "short" })}
+                          </div>
+                        ) : expiresIn ? (
+                          <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 700 }}>
+                            ⏰ {expiresIn}
+                          </div>
+                        ) : <div />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Section>
+        );
+      })()}
 
       {/* ── STATISTICHE ──────────────────────────────────────────────────── */}
       <Section title="Statistiche" subtitle="Le tue attività in sintesi.">

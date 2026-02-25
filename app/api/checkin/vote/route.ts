@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { triggerMissionCheck } from "@/lib/missions/trigger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -121,6 +122,9 @@ export async function POST(req: NextRequest) {
         .update({ avg_rating: sum / agg.length, ratings_count: agg.length })
         .eq("id", venueId);
     }
+
+    // trigger missioni — fire-and-forget
+    triggerMissionCheck(userId, "vote", { spot_id: venueId });
 
     // Marca voted=true nel user_event scan di oggi (best effort)
     const today = new Date().toISOString().slice(0, 10);

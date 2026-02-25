@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { triggerMissionCheck } from "@/lib/missions/trigger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     // 1) verification
     const { data: verification, error: vErr } = await supabase
       .from("receipt_verifications")
-      .select("id, user_id, venue_id, status, reason, points_awarded")
+      .select("id, user_id, venue_id, status, reason, points_awarded, amount")
       .eq("id", id)
       .maybeSingle();
 
@@ -79,6 +80,12 @@ export async function POST(req: NextRequest) {
         });
 
         if (ueErr) return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
+
+        // trigger missioni — fire-and-forget
+        triggerMissionCheck(verification.user_id, "receipt_approved", {
+          spot_id: verification.venue_id,
+          receipt_amount: verification.amount ?? null,
+        });
 
         const out: Resp = { ok: true, status: "approved", points_awarded: AWARD, total_points: newTotal };
         return NextResponse.json(out);

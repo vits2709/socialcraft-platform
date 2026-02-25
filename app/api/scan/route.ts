@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { bestActivePromo, applyPromoBonus, type PromoSchedule } from "@/lib/promo-utils";
+import { triggerMissionCheck } from "@/lib/missions/trigger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,11 +32,12 @@ export async function POST(req: NextRequest) {
     // geo_verified: true (dentro 100m) → +2pt | false (GPS negato) → +1pt | undefined → +2pt (compat)
     const geoVerified: boolean = body?.geo_verified !== false;
     const AWARD = geoVerified ? AWARD_VERIFIED : AWARD_UNVERIFIED;
+    const companionCount: number = Number(body?.companion_count ?? 0);
 
     // 1) trova venue
     const { data: venue, error: vErr } = await supabase
       .from("venues")
-      .select("id, slug")
+      .select("id, slug, category")
       .eq("slug", slug)
       .maybeSingle();
 
@@ -117,7 +119,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: ueErr.message }, { status: 500 });
     }
 
-    // 7) log evento venue — non bloccante: i punti sono già assegnati
+    // 7) trigger missioni — fire-and-forget, non blocca mai il check-in
+    triggerMissionCheck(scUid, "checkin", {
+      spot_id: venue.id,
+      spot_category: (venue as { id: string; slug: string; category?: string | null }).category ?? null,
+      checkin_time: new Date().toISOString(),
+      checkin_weekday: new Date().getDay(),
+      companion_count: companionCount,
+    });
+
+    // 8) log evento venue — non bloccante: i punti sono già assegnati
     const { error: veErr } = await supabase.from("venue_events").insert({
       venue_id: venue.id,
       user_id: scUid,
