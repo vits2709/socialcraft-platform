@@ -107,7 +107,7 @@ function ReceiptCard({ r }: { r: ReceiptRow }) {
   }
 
   const ai = r.ai_result;
-  const isManualReview = r.validation_status === "manual_review";
+  const isManualReview = r.validation_status === "manual_review" || r.validation_status === "pending";
 
   return (
     <div style={{
@@ -205,7 +205,10 @@ function ReceiptCard({ r }: { r: ReceiptRow }) {
 export default function ReceiptsAdminClient({ receipts }: { receipts: ReceiptRow[] }) {
   const [tab, setTab] = useState<Tab>("manual_review");
 
-  const manualReview = receipts.filter((r) => r.validation_status === "manual_review");
+  // "pending" = AI non ancora conclusa o fallita → trattare come revisione manuale
+  const manualReview = receipts.filter(
+    (r) => r.validation_status === "manual_review" || r.validation_status === "pending"
+  );
   const approved     = receipts.filter((r) => r.validation_status === "approved");
   const rejected     = receipts.filter((r) => r.validation_status === "rejected");
 
