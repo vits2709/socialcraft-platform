@@ -31,8 +31,7 @@ export default function CompanionClient() {
 
   async function joinGroup() {
     if (!navigator.geolocation) {
-      setError("GPS non disponibile. Devi essere fisicamente nello spot per unirti al gruppo.");
-      setStatus("error");
+      await doJoin(null, null);
       return;
     }
 
@@ -42,15 +41,16 @@ export default function CompanionClient() {
       async (pos) => {
         await doJoin(pos.coords.latitude, pos.coords.longitude);
       },
-      () => {
-        setError("GPS non disponibile. Devi essere fisicamente nello spot per unirti al gruppo.");
-        setStatus("error");
+      async () => {
+        // GPS negato o non disponibile: prova comunque senza coordinate
+        // Il server salta il proximity check se creator o joiner non hanno geo
+        await doJoin(null, null);
       },
       { timeout: 10000, maximumAge: 60000, enableHighAccuracy: true }
     );
   }
 
-  async function doJoin(lat: number, lng: number) {
+  async function doJoin(lat: number | null, lng: number | null) {
     setStatus("joining");
     try {
       const res = await fetch("/api/companion/join", {
