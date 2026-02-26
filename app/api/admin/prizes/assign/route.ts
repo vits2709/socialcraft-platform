@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSessionUser, isAdmin } from "@/lib/auth";
+import { notify } from "@/lib/notifications/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,12 @@ export async function POST() {
   const { data: result, error: winnerErr } = await supabase.rpc("assign_weekly_winner");
   if (winnerErr) {
     return NextResponse.json({ ok: false, error: `assign_winner failed: ${winnerErr.message}` }, { status: 500 });
+  }
+
+  // 3. Notifica vincitore se disponibile
+  const winnerId = (result as { winner_id?: string } | null)?.winner_id;
+  if (winnerId) {
+    notify(winnerId, "prize_won", "🏆 Hai vinto il premio!", "Vai sul profilo per il codice di riscatto").catch(() => {});
   }
 
   return NextResponse.json({ ok: true, result });

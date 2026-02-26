@@ -1,6 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import NavAuth from "@/components/NavAuth";
+import OneSignalInit from "@/components/OneSignalInit";
 import type { Viewport } from "next";
 
 export const viewport: Viewport = {
@@ -75,6 +76,7 @@ export default function RootLayout({
 
             <NavAuth />
           </header>
+          <OneSignalInit />
 
           {/* MAIN */}
           <main

@@ -340,7 +340,7 @@ serve(async (req: Request) => {
         }
       }
 
-      // ── 8) Crea notifica utente ──────────────────────────────────────────
+      // ── 8) Crea notifica utente + push ──────────────────────────────────
       // user_notifications.user_id è TEXT (non UUID) — passato come stringa
       const isSurprise = mission.is_surprise;
       const notifTitle = "✅ Missione completata!";
@@ -361,6 +361,26 @@ serve(async (req: Request) => {
           is_surprise: isSurprise,
         },
       });
+
+      // Fire-and-forget push via internal relay
+      const siteUrl = Deno.env.get("SITE_URL") ?? "";
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      if (siteUrl && serviceKey) {
+        fetch(`${siteUrl}/api/internal/notify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            type: "mission_completed",
+            title: notifTitle,
+            body: notifBody,
+            data: { mission_id: mission.id, points_awarded: mission.points_reward },
+          }),
+        }).catch(() => {});
+      }
 
       console.log(
         `[check-mission-completion] Completed mission=${mission.id} user=${userId} pts=${mission.points_reward}`

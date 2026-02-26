@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import NotificationPanel from "@/components/NotificationPanel";
 
 type Status = {
   explorer: boolean;
@@ -82,6 +83,11 @@ export default function NavAuth() {
 
       {/* ── RIGHT: auth desktop + hamburger mobile ────────────── */}
       <div className="navRight">
+
+        {/* Desktop: pannello notifiche (solo se loggato) */}
+        {loaded && loggedIn && (
+          <NotificationPanel isLoggedIn={loggedIn} />
+        )}
 
         {/* Desktop: avatar con dropdown o pulsanti login */}
         {loaded && (
@@ -180,6 +186,7 @@ export default function NavAuth() {
                   {loggedIn ? (
                     <>
                       <Link href="/me" className="drawerLink" onClick={close}>👤 Profilo</Link>
+                      <Link href="/me#notifiche" className="drawerLink" onClick={close}>🔔 Notifiche</Link>
                       {admin && <Link href="/admin" className="drawerLink" onClick={close}>⚙️ Admin</Link>}
                       {spot && !admin && <Link href="/spot" className="drawerLink" onClick={close}>📊 Dashboard</Link>}
                     </>

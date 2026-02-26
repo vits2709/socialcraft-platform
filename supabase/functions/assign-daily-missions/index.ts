@@ -94,6 +94,27 @@ serve(async (req: Request) => {
       `[assign-daily-missions] missions=${missions.length} users=${users.length} new_assignments=${totalInserted}`
     );
 
+    // Fire-and-forget: notifica ogni utente via relay interno
+    const siteUrl = Deno.env.get("SITE_URL") ?? "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    if (siteUrl && serviceKey && totalInserted > 0) {
+      for (const user of users) {
+        fetch(`${siteUrl}/api/internal/notify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            user_id: user.id,
+            type: "mission_assigned",
+            title: "🎯 Missione del giorno!",
+            body: "Nuove missioni ti aspettano oggi",
+          }),
+        }).catch(() => {});
+      }
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,

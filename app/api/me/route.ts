@@ -16,7 +16,7 @@ export async function GET() {
     // ✅ SINGLE SOURCE OF TRUTH: sc_users.points
     const { data: u, error: uErr } = await supabase
       .from("sc_users")
-      .select("id, name, points, updated_at")
+      .select("id, name, points, updated_at, notification_preferences")
       .eq("id", scUid)
       .maybeSingle();
 
@@ -38,6 +38,7 @@ export async function GET() {
         name: u.name ?? "Guest",
         points: u.points ?? 0,
         updated_at: u.updated_at,
+        notification_preferences: u.notification_preferences ?? null,
       },
       last_events: lastEvents ?? [],
     });

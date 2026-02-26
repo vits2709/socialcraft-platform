@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import PushNotificationSetup from "@/components/PushNotificationSetup";
 import { getExplorerLevel } from "@/lib/levels";
 import { BADGE_DEFS, BadgeStats, BadgeRarity } from "@/lib/badges-config";
@@ -15,7 +15,13 @@ type MePayload =
   | { ok: false; error: string }
   | {
       ok: true;
-      user: { id: string; name: string | null; points: number; updated_at: string };
+      user: {
+        id: string;
+        name: string | null;
+        points: number;
+        updated_at: string;
+        notification_preferences: Record<string, boolean> | null;
+      };
       last_events: Array<{
         event_type: string;
         points: number;
@@ -434,6 +440,27 @@ export default function MePage() {
   const [missions, setMissions] = useState<UserMission[]>([]);
   const [missionTab, setMissionTab] = useState<"attive" | "completate">("attive");
 
+  const DEFAULT_PREFS: Record<string, boolean> = {
+    mission_assigned: true,
+    mission_completed: true,
+    prize_won: true,
+    prize_expiring: true,
+    overtaken: true,
+    promo_active: true,
+    badge_unlocked: true,
+  };
+  const PREF_LABELS: Record<string, string> = {
+    mission_assigned: "Missioni assegnate",
+    mission_completed: "Missioni completate",
+    prize_won: "Premio vinto",
+    prize_expiring: "Premio in scadenza",
+    overtaken: "Superato in classifica",
+    promo_active: "Promozioni attive",
+    badge_unlocked: "Badge sbloccato",
+  };
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(DEFAULT_PREFS);
+  const prefDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   async function loadAll(silent = false) {
     if (!silent) {
       setLoading(true);
@@ -471,6 +498,9 @@ export default function MePage() {
       if (missionsJson?.ok && Array.isArray(missionsJson.missions)) {
         setMissions(missionsJson.missions);
       }
+      if (meJson?.ok && meJson.user.notification_preferences) {
+        setNotifPrefs({ ...DEFAULT_PREFS, ...meJson.user.notification_preferences });
+      }
 
       if (!meJson?.ok) setErr(meJson?.error ?? "Errore /api/me");
       else if (!stJson?.ok) setErr(stJson?.error ?? "Errore /api/profile/stats");
@@ -487,6 +517,19 @@ export default function MePage() {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
     setUnreadCount((c) => Math.max(0, c - 1));
     await fetch(`/api/notifications/${id}`, { method: "PATCH" }).catch(() => {});
+  }
+
+  function togglePref(key: string) {
+    const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
+    setNotifPrefs(updated);
+    if (prefDebounceRef.current) clearTimeout(prefDebounceRef.current);
+    prefDebounceRef.current = setTimeout(() => {
+      fetch("/api/me/notification-preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferences: updated }),
+      }).catch(() => {});
+    }, 500);
   }
 
   async function saveNickname() {
@@ -1120,7 +1163,8 @@ return (
         )}
       </Section>
 
-      {/* ── NOTIFICHE ────────────────────────────────────────────────────── */}
+      {/* ── NOTIFICHE ─────────────────────────────────────────────────────────── */}
+      <div id="notifiche" />
       <Section
         title="Notifiche"
         subtitle="Avvisi di sistema e premi."
@@ -1167,6 +1211,64 @@ return (
             ))}
           </div>
         )}
+      </Section>
+
+      {/* ── PREFERENZE NOTIFICHE ──────────────────────────────────────────────── */}
+      <Section
+        title="⚙️ Preferenze notifiche"
+        subtitle="Scegli quali tipi di notifica ricevere."
+      >
+        <div style={{ display: "grid", gap: 8 }}>
+          {Object.entries(PREF_LABELS).map(([key, label]) => (
+            <div
+              key={key}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.07)",
+                background: "rgba(255,255,255,0.6)",
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{label}</div>
+              <button
+                onClick={() => togglePref(key)}
+                aria-pressed={notifPrefs[key] ?? true}
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 999,
+                  background: (notifPrefs[key] ?? true)
+                    ? "linear-gradient(90deg, #6366f1, #8b5cf6)"
+                    : "rgba(0,0,0,0.12)",
+                  border: "none",
+                  cursor: "pointer",
+                  position: "relative",
+                  flexShrink: 0,
+                  transition: "background 0.2s",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    left: (notifPrefs[key] ?? true) ? 22 : 2,
+                    width: 20,
+                    height: 20,
+                    borderRadius: 999,
+                    background: "#fff",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                    transition: "left 0.18s",
+                    display: "block",
+                  }}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
       </Section>
     </div>
   );
