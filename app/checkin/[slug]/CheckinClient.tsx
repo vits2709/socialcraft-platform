@@ -216,6 +216,7 @@ export default function CheckinClient({
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
   const [companionLoading, setCompanionLoading] = useState(false);
+  const [companionError, setCompanionError] = useState<string | null>(null);
   const [companionCode, setCompanionCode] = useState<string | null>(null);
   const [companionExpiry, setCompanionExpiry] = useState<Date | null>(null);
   const [companionQr, setCompanionQr] = useState<string | null>(null);
@@ -333,19 +334,23 @@ export default function CheckinClient({
   // ── Companion code generation ─────────────────────────────────────────────
 
   async function generateCompanionCode() {
-    const lat = userLat ?? spotLat;
-    const lng = userLng ?? spotLng;
-    if (lat == null || lng == null) return;
-
     setCompanionLoading(true);
+    setCompanionError(null);
     try {
+      // Usa GPS già acquisito, oppure coordinate venue, oppure null (per venue senza geo)
+      const lat = userLat ?? spotLat ?? null;
+      const lng = userLng ?? spotLng ?? null;
+
       const res = await fetch("/api/companion/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ venue_id: venueId, lat, lng }),
       });
       const data = await res.json();
-      if (!data.ok) return;
+      if (!data.ok) {
+        setCompanionError(data.error === "no_checkin_today" ? "Devi fare check-in prima di generare un codice gruppo." : "Errore generazione codice. Riprova.");
+        return;
+      }
 
       const expiry = new Date(data.expires_at);
       setCompanionCode(data.code);
@@ -608,6 +613,29 @@ export default function CheckinClient({
           >
             Continua →
           </button>
+
+          {!companionCode && (
+            <button
+              className="btn"
+              onClick={generateCompanionCode}
+              disabled={companionLoading}
+              style={{ width: "100%", maxWidth: 260, marginTop: 10, padding: "12px", fontSize: 13, color: "#2D1B69", fontWeight: 700 }}
+            >
+              {companionLoading ? "Generazione codice..." : "👥 Sei in compagnia? Genera codice gruppo"}
+            </button>
+          )}
+
+          {companionCode && companionQr && (
+            <div style={{ marginTop: 20, padding: "20px 16px", borderRadius: 18, background: "rgba(45,27,105,0.07)", border: "1px solid rgba(45,27,105,0.2)", maxWidth: 280, marginLeft: "auto", marginRight: "auto" }}>
+              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>👥 Codice gruppo</div>
+              <div style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 900, letterSpacing: 3, color: "#2D1B69", marginBottom: 12 }}>{companionCode}</div>
+              <img src={companionQr} alt="QR companion" style={{ width: 180, height: 180, borderRadius: 10, marginBottom: 10 }} />
+              <div style={{ fontSize: 12, color: "rgba(0,0,0,0.45)", marginBottom: 4 }}>Fai scansionare il QR agli amici</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: companionSecondsLeft > 60 ? "#059669" : companionSecondsLeft > 0 ? "#b45309" : "#dc2626" }}>
+                {companionSecondsLeft > 0 ? `⏱ Scade tra ${Math.floor(companionSecondsLeft / 60)}:${String(companionSecondsLeft % 60).padStart(2, "0")}` : "⚠️ Codice scaduto"}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -675,22 +703,29 @@ export default function CheckinClient({
 
         {/* Companion code CTA */}
         {!companionCode && (
-          <button
-            className="btn"
-            onClick={generateCompanionCode}
-            disabled={companionLoading}
-            style={{
-              width: "100%",
-              maxWidth: 260,
-              marginTop: 10,
-              padding: "12px",
-              fontSize: 13,
-              color: "#2D1B69",
-              fontWeight: 700,
-            }}
-          >
-            {companionLoading ? "Generazione codice..." : "👥 Sei in compagnia? Genera codice gruppo"}
-          </button>
+          <>
+            <button
+              className="btn"
+              onClick={generateCompanionCode}
+              disabled={companionLoading}
+              style={{
+                width: "100%",
+                maxWidth: 260,
+                marginTop: 10,
+                padding: "12px",
+                fontSize: 13,
+                color: "#2D1B69",
+                fontWeight: 700,
+              }}
+            >
+              {companionLoading ? "Generazione codice..." : "👥 Sei in compagnia? Genera codice gruppo"}
+            </button>
+            {companionError && (
+              <div style={{ fontSize: 12, color: "#dc2626", marginTop: 6, maxWidth: 260, margin: "6px auto 0" }}>
+                {companionError}
+              </div>
+            )}
+          </>
         )}
 
         {/* Companion QR modal */}

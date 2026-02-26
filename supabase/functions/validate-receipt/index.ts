@@ -266,8 +266,6 @@ Rispondi SOLO con il JSON, nessun testo aggiuntivo.`;
       ai_extracted_amount: importo ?? null,
       ai_confidence:      extracted.confidence ?? null,
       ai_rejection_reason: rejectionReason,
-      // Compatibilità backward: aggiorna amount (colonna esistente)
-      amount:             importo ?? null,
     };
 
     if (outcome === "auto_approved") {

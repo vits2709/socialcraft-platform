@@ -31,14 +31,11 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const venue_id = String(body?.venue_id ?? "").trim();
-    const lat = Number(body?.lat);
-    const lng = Number(body?.lng);
+    const lat = body?.lat != null ? Number(body.lat) : null;
+    const lng = body?.lng != null ? Number(body.lng) : null;
 
     if (!venue_id) {
       return NextResponse.json({ ok: false, error: "missing_venue_id" }, { status: 400 });
-    }
-    if (!isFinite(lat) || !isFinite(lng)) {
-      return NextResponse.json({ ok: false, error: "missing_geo" }, { status: 400 });
     }
 
     const { start, end } = todayRange();

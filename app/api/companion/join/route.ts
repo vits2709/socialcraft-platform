@@ -36,14 +36,11 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const code = String(body?.code ?? "").trim().toUpperCase();
-    const lat = Number(body?.lat);
-    const lng = Number(body?.lng);
+    const lat = body?.lat != null ? Number(body.lat) : null;
+    const lng = body?.lng != null ? Number(body.lng) : null;
 
     if (!code) {
       return NextResponse.json({ ok: false, error: "missing_code" }, { status: 400 });
-    }
-    if (!isFinite(lat) || !isFinite(lng)) {
-      return NextResponse.json({ ok: false, error: "missing_geo" }, { status: 400 });
     }
 
     const { data: companion, error: cErr } = await supabase
@@ -63,12 +60,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "creator_cannot_join" }, { status: 400 });
     }
 
-    const distM = haversine(lat, lng, companion.creator_lat, companion.creator_lng);
-    if (distM > GEO_RADIUS_M) {
-      return NextResponse.json(
-        { ok: false, error: "too_far", distance_m: Math.round(distM) },
-        { status: 403 }
-      );
+    // Proximity check: saltato se creator o joiner non hanno coordinate
+    if (lat != null && lng != null && companion.creator_lat != null && companion.creator_lng != null) {
+      const distM = haversine(lat, lng, companion.creator_lat, companion.creator_lng);
+      if (distM > GEO_RADIUS_M) {
+        return NextResponse.json(
+          { ok: false, error: "too_far", distance_m: Math.round(distM) },
+          { status: 403 }
+        );
+      }
     }
 
     const { data: existingJoin } = await supabase
