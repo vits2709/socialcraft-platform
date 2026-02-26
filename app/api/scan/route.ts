@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // 1) trova venue
     const { data: venue, error: vErr } = await supabase
       .from("venues")
-      .select("id, slug, category")
+      .select("id, slug, categoria")
       .eq("slug", slug)
       .maybeSingle();
 
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     // 7) trigger missioni — fire-and-forget, non blocca mai il check-in
     triggerMissionCheck(scUid, "checkin", {
       spot_id: venue.id,
-      spot_category: (venue as { id: string; slug: string; category?: string | null }).category ?? null,
+      spot_category: (venue as { id: string; slug: string; categoria?: string | null }).categoria ?? null,
       checkin_time: new Date().toISOString(),
       checkin_weekday: new Date().getDay(),
       companion_count: companionCount,
