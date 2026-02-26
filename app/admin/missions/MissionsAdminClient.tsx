@@ -872,6 +872,7 @@ export default function MissionsAdminClient({
 
   const [deleteConfirm, setDeleteConfirm] = useState<MissionRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   const [globalMsg, setGlobalMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -879,6 +880,28 @@ export default function MissionsAdminClient({
     const res = await fetch("/api/admin/missions", { cache: "no-store" });
     const json = await res.json();
     if (json.ok) setMissions(json.missions);
+  }
+
+  async function handleAssign() {
+    setAssigning(true);
+    try {
+      const res = await fetch("/api/admin/missions/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: tab }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        const assigned = json.assigned ?? json.inserted ?? "?";
+        showMsg(true, `Assegnate ${assigned} nuove missioni ${tab === "daily" ? "giornaliere" : "settimanali"} agli utenti!`);
+      } else {
+        showMsg(false, json.error ?? "Errore nell'assegnazione");
+      }
+    } catch {
+      showMsg(false, "Errore di rete");
+    } finally {
+      setAssigning(false);
+    }
   }
 
   function showMsg(ok: boolean, text: string) {
@@ -980,6 +1003,14 @@ export default function MissionsAdminClient({
               📆 Programma settimana
             </button>
           )}
+          <button
+            className="btn"
+            onClick={handleAssign}
+            disabled={assigning}
+            title={`Assegna subito le missioni ${tab === "daily" ? "giornaliere" : "settimanali"} attive a tutti gli utenti`}
+          >
+            {assigning ? "Assegno..." : "🔄 Assegna ora"}
+          </button>
           <button className="btn primary" onClick={() => { setDuplicateForm(null); setShowNewForm(true); }}>
             + Nuova missione
           </button>
