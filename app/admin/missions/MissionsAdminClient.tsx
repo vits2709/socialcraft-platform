@@ -873,7 +873,6 @@ export default function MissionsAdminClient({
   const [deleteConfirm, setDeleteConfirm] = useState<MissionRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [assigning, setAssigning] = useState(false);
-  const [bootstrapping, setBootstrapping] = useState(false);
 
   const [globalMsg, setGlobalMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -881,27 +880,6 @@ export default function MissionsAdminClient({
     const res = await fetch("/api/admin/missions", { cache: "no-store" });
     const json = await res.json();
     if (json.ok) setMissions(json.missions);
-  }
-
-  async function handleBootstrap() {
-    if (!confirm("Attiva tutti i template con date valide (365 giorni) e assegna a tutti gli utenti?")) return;
-    setBootstrapping(true);
-    try {
-      const res = await fetch("/api/admin/missions/bootstrap", { method: "POST" });
-      const json = await res.json();
-      if (json.ok) {
-        const dailyAssigned  = (json.daily?.assignments  ?? json.daily?.assigned  ?? "?");
-        const weeklyAssigned = (json.weekly?.assignments ?? json.weekly?.assigned ?? "?");
-        showMsg(true, `Attivate ${json.activated ?? "?"} missioni. Daily: ${dailyAssigned} assegnazioni, Weekly: ${weeklyAssigned} assegnazioni.`);
-        await reloadMissions();
-      } else {
-        showMsg(false, json.error ?? "Errore bootstrap");
-      }
-    } catch {
-      showMsg(false, "Errore di rete");
-    } finally {
-      setBootstrapping(false);
-    }
   }
 
   async function handleAssign() {
@@ -1020,18 +998,6 @@ export default function MissionsAdminClient({
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {/* Bootstrap: visibile se esistono template non ancora attivati */}
-          {missions.some((m) => getMissionStatus(m) === "template") && (
-            <button
-              className="btn"
-              onClick={handleBootstrap}
-              disabled={bootstrapping}
-              title="Attiva tutti i template con date valide e assegna subito a tutti gli utenti"
-              style={{ background: "rgba(245,158,11,0.1)", color: "#92400e", border: "1px solid rgba(245,158,11,0.3)", fontWeight: 900 }}
-            >
-              {bootstrapping ? "Attivo..." : "🚀 Bootstrap missioni"}
-            </button>
-          )}
           {tab === "daily" && (
             <button className="btn" onClick={() => setShowWeekPlanner(true)}>
               📆 Programma settimana
