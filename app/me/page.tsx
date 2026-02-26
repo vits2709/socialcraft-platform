@@ -432,6 +432,8 @@ export default function MePage() {
   const [badgeTab, setBadgeTab] = useState<"tutti" | "sbloccati" | "in_corso" | "segreti">(
     "tutti"
   );
+  const [badgesExpanded, setBadgesExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [prizes, setPrizes] = useState<HallOfFamePrize[]>([]);
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
@@ -558,6 +560,22 @@ export default function MePage() {
   useEffect(() => {
     loadAll(false);
   }, []);
+
+  // Inizializza isMobile + preferenza espansione badge da localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("badges_expanded");
+    if (saved === "true") setBadgesExpanded(true);
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  function toggleBadges() {
+    const next = !badgesExpanded;
+    setBadgesExpanded(next);
+    localStorage.setItem("badges_expanded", String(next));
+  }
 
   // Auto-salva i badge appena sbloccati nel DB (idempotente)
   useEffect(() => {
@@ -854,21 +872,44 @@ return (
               ))}
             </div>
 
-            {/* Badge grid */}
-            {currentTabBadges.length === 0 ? (
-              <div className="notice" style={{ fontSize: 13 }}>
-                {badgeTab === "sbloccati"
-                  ? "Nessun badge sbloccato ancora. Inizia a esplorare! 🚀"
-                  : badgeTab === "in_corso"
-                  ? "Nessun badge in corso. Attivati! 🔥"
-                  : "Nessun badge in questa categoria."}
-              </div>
-            ) : (
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ minWidth: 0 }}>
-                {currentTabBadges.map((b) => (
-                  <BadgeCard key={b.def.id} badge={b.def} unlockedAt={b.unlockedAt} s={s} />
-                ))}
-              </div>
+            {/* Pulsante toggle — solo su mobile */}
+            {isMobile && (
+              <button
+                onClick={toggleBadges}
+                style={{
+                  width: "100%",
+                  padding: "9px 14px",
+                  borderRadius: 12,
+                  border: "1.5px dashed rgba(99,102,241,0.35)",
+                  background: "rgba(99,102,241,0.05)",
+                  color: "#4338ca",
+                  fontWeight: 900,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  textAlign: "center",
+                }}
+              >
+                {badgesExpanded ? "Nascondi ▲" : "Mostra tutti i badge ▼"}
+              </button>
+            )}
+
+            {/* Badge grid — sempre visibile su desktop, collassabile su mobile */}
+            {(!isMobile || badgesExpanded) && (
+              currentTabBadges.length === 0 ? (
+                <div className="notice" style={{ fontSize: 13 }}>
+                  {badgeTab === "sbloccati"
+                    ? "Nessun badge sbloccato ancora. Inizia a esplorare! 🚀"
+                    : badgeTab === "in_corso"
+                    ? "Nessun badge in corso. Attivati! 🔥"
+                    : "Nessun badge in questa categoria."}
+                </div>
+              ) : (
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ minWidth: 0 }}>
+                  {currentTabBadges.map((b) => (
+                    <BadgeCard key={b.def.id} badge={b.def} unlockedAt={b.unlockedAt} s={s} />
+                  ))}
+                </div>
+              )
             )}
           </>
         )}
