@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { getSessionUser, isAdmin } from "@/lib/auth";
+import AdminNavbar from "@/components/AdminNavbar";
 
 export default async function AdminLayout({
   children,
@@ -7,56 +7,20 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await getSessionUser();
-
-  let showLogout = false;
-  if (user) {
-    showLogout = await isAdmin(user.id);
-  }
+  const showLogout = user ? await isAdmin(user.id) : false;
 
   return (
-    <div className="container">
-      {/* HEADER ADMIN */}
-      <header
+    <div style={{ background: "#F8F9FA", minHeight: "100vh" }}>
+      <AdminNavbar showLogout={showLogout} />
+      <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
+          maxWidth: 1400,
+          margin: "0 auto",
+          padding: "28px 20px",
         }}
       >
-        <div style={{ fontWeight: 600 }}>CityQuest • Admin</div>
-
-        <div style={{ display: "flex", gap: 10 }}>
-          <Link className="btn mini" href="/admin">
-            Dashboard
-          </Link>
-
-          <Link className="btn mini" href="/admin/users">
-            Utenti
-          </Link>
-
-          <Link className="btn mini" href="/admin/receipts">
-            Scontrini
-          </Link>
-
-          <Link className="btn mini" href="/admin/missions">
-            🎯 Missioni
-          </Link>
-
-          <Link className="btn mini" href="/admin/notifications">
-            📢 Notifiche
-          </Link>
-
-          {showLogout && (
-            <Link className="btn mini" href="/logout">
-              Logout
-            </Link>
-          )}
-        </div>
-      </header>
-
-      {/* CONTENUTO PAGINE ADMIN */}
-      {children}
+        {children}
+      </div>
     </div>
   );
 }
