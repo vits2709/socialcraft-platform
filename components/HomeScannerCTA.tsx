@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-type ScanResult =
-  | { ok: true; already: boolean; points_awarded: number; total_points: number; message: string }
-  | { ok: false; error: string };
+import { useRouter } from "next/navigation";
 
 function extractSlugFromQrText(text: string): string | null {
   // Supporta QR con URL tipo:
@@ -32,47 +29,13 @@ function extractSlugFromQrText(text: string): string | null {
 }
 
 export default function HomeScannerCTA() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   const qrRef = useRef<any>(null);
   const mountedRef = useRef(false);
-
-  async function callScan(slug: string) {
-    setBusy(true);
-    setMsg(null);
-
-    try {
-      const res = await fetch("/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
-      });
-
-      const data = (await res.json()) as ScanResult;
-
-      if (!data.ok) {
-        const friendly =
-          data.error === "not_logged"
-            ? "Accedi per registrare la presenza."
-            : data.error === "venue_not_found"
-              ? "Spot non trovato. Controlla il QR."
-              : "Errore. Riprova tra poco.";
-        setMsg(`❌ ${friendly}`);
-        return;
-      }
-
-      setMsg(data.message);
-      // chiudi dopo un attimo
-      setTimeout(() => setOpen(false), 1200);
-    } catch (e: any) {
-      setMsg(`❌ Errore rete`);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function startScanner() {
     setCameraError(null);
@@ -111,7 +74,9 @@ export default function HomeScannerCTA() {
           } catch {}
           qrRef.current = null;
 
-          await callScan(slug);
+          // Chiudi il modal e naviga alla pagina checkin che gestisce tutto il flusso
+          setOpen(false);
+          router.push(`/checkin/${slug}`);
         },
         () => {
           // onScanFailure: ignoriamo
@@ -231,7 +196,7 @@ export default function HomeScannerCTA() {
               </div>
             ) : (
               <div className="muted" style={{ marginTop: 12 }}>
-                {busy ? "Sto registrando la visita..." : "Appena leggo il QR, registro la visita automaticamente."}
+                Inquadra il QR — verrai reindirizzato allo Spot per completare il check-in.
               </div>
             )}
           </div>
