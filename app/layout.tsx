@@ -2,18 +2,30 @@ import "./globals.css";
 import Link from "next/link";
 import NavAuth from "@/components/NavAuth";
 import OneSignalInit from "@/components/OneSignalInit";
-import type { Viewport } from "next";
+import PwaInit from "@/components/PwaInit";
+import InstallBanner from "@/components/InstallBanner";
+import type { Metadata, Viewport } from "next";
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#2D1B69",
 };
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "CityQuest",
   description: "Esplora la tua città, guadagna punti e vinci premi reali.",
-  icons: { icon: "/logo.png" },
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CityQuest",
+  },
 };
 
 export default function RootLayout({
@@ -77,6 +89,8 @@ export default function RootLayout({
             <NavAuth />
           </header>
           <OneSignalInit />
+          <PwaInit />
+          <InstallBanner />
 
           {/* MAIN */}
           <main
