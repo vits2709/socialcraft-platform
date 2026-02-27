@@ -34,14 +34,16 @@ export async function POST(req: NextRequest) {
     if (vErr) return NextResponse.json({ ok: false, error: vErr.message }, { status: 500 });
     if (!verification) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
 
-    // manual_review: l'AI ha terminato ma serve revisione manuale
-    if (verification.validation_status === "manual_review") {
-      const out: Resp = { ok: true, status: "manual_review" };
+    // Controlla prima gli stati terminali (impostati da AI o da admin manualmente):
+    // "rejected" e "approved" hanno sempre priorità su validation_status
+    if (verification.status === "rejected") {
+      const out: Resp = { ok: true, status: "rejected", reason: verification.reason ?? null };
       return NextResponse.json(out);
     }
 
-    if (verification.status === "rejected") {
-      const out: Resp = { ok: true, status: "rejected", reason: verification.reason ?? null };
+    // Se status è ancora "pending", controlla se l'AI ha richiesto revisione manuale
+    if (verification.validation_status === "manual_review") {
+      const out: Resp = { ok: true, status: "manual_review" };
       return NextResponse.json(out);
     }
 

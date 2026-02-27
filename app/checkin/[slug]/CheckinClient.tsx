@@ -431,8 +431,14 @@ export default function CheckinClient({
         if (data.points_awarded) setReceiptPoints(data.points_awarded);
       } else if (data.ok && data.status === "rejected") {
         setReceiptStatus("rejected");
+      } else if (data.ok && data.status === "manual_review") {
+        // L'AI non ha potuto decidere — attende revisione admin
+        if (manual) {
+          setRefreshNote("In revisione manuale — un admin esaminerà il tuo scontrino.");
+          setTimeout(() => setRefreshNote(null), 5000);
+        }
       } else if (manual) {
-        // Ancora pending o manual_review: mostra nota temporanea
+        // Ancora pending (AI non ha ancora processato)
         setRefreshNote("Ancora in elaborazione — riprova tra qualche secondo.");
         setTimeout(() => setRefreshNote(null), 4000);
       }
