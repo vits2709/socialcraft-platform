@@ -107,14 +107,15 @@ serve(async (req: Request) => {
       return jsonResponse({ ok: false, error: `storage_download_failed: ${imgErr?.message}` }, 500);
     }
 
-    // Converti in base64
+    // Converti in base64 (chunk-based per evitare timeout su immagini grandi)
     const arrayBuffer = await imgData.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
-    let binary = "";
-    for (let i = 0; i < uint8.length; i++) {
-      binary += String.fromCharCode(uint8[i]);
+    const CHUNK = 8192;
+    const parts: string[] = [];
+    for (let i = 0; i < uint8.length; i += CHUNK) {
+      parts.push(String.fromCharCode(...uint8.subarray(i, i + CHUNK)));
     }
-    const base64 = btoa(binary);
+    const base64 = btoa(parts.join(""));
 
     const ext = verification.image_path.split(".").pop()?.toLowerCase() ?? "jpg";
     const mediaTypeMap: Record<string, string> = {
@@ -179,14 +180,18 @@ Rispondi SOLO con il JSON, nessun testo aggiuntivo.`;
           const cleaned = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
           extracted = JSON.parse(cleaned);
         } catch {
-          // JSON non valido → confidence null → manual_review
+          // JSON non valido → andrà in manual_review (confidence rimane null)
+          console.error("[validate-receipt] JSON parse failed, rawText:", rawText.slice(0, 200));
         }
       } else {
         aiCallFailed = true;
+        const errBody = await anthropicResp.text().catch(() => "(no body)");
+        console.error("[validate-receipt] Anthropic API error", anthropicResp.status, errBody.slice(0, 300));
       }
-    } catch {
-      // Timeout o errore rete → manual_review silenzioso
+    } catch (e) {
+      // Timeout o errore rete
       aiCallFailed = true;
+      console.error("[validate-receipt] fetch exception:", e instanceof Error ? e.message : String(e));
     } finally {
       clearTimeout(timeoutId);
     }
@@ -197,8 +202,14 @@ Rispondi SOLO con il JSON, nessun testo aggiuntivo.`;
     let outcome: ValidationOutcome = "auto_approved";
     let rejectionReason: string | null = null;
 
-    // Regola 1: confidence low → rifiuto automatico
-    if (aiCallFailed || extracted.confidence === "low" || extracted.confidence === null) {
+    // Regola 1: AI call fallita → manual_review (non rifiuto: potrebbe essere problema tecnico)
+    if (aiCallFailed) {
+      outcome = "manual_review";
+      rejectionReason = "Errore analisi AI — revisione manuale richiesta";
+    }
+
+    // Regola 1b: confidence low → rifiuto automatico
+    if (outcome === "auto_approved" && (extracted.confidence === "low" || extracted.confidence === null)) {
       outcome = "auto_rejected";
       rejectionReason = "Immagine non leggibile o non è uno scontrino";
     }
