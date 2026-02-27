@@ -204,7 +204,9 @@ export default function CheckinClient({
   };
   const [receiptStatus, setReceiptStatus] = useState<ReceiptStatus>(initReceiptStatus);
   const [verificationId, setVerificationId] = useState<string | null>(initialReceiptId);
+  const verificationIdRef = useRef<string | null>(initialReceiptId);
   const [receiptPoints, setReceiptPoints] = useState(0);
+  const [refreshingReceipt, setRefreshingReceipt] = useState(false);
   const cameraRef = useRef<HTMLInputElement | null>(null);
   const galleryRef = useRef<HTMLInputElement | null>(null);
 
@@ -381,8 +383,9 @@ export default function CheckinClient({
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    e.currentTarget.value = "";
     if (!f) return;
+    // Reset dopo aver catturato il file (evita problemi su iOS con file dalla galleria)
+    e.currentTarget.value = "";
     await uploadReceipt(f);
   }
 
@@ -400,7 +403,8 @@ export default function CheckinClient({
         return;
       }
 
-      setVerificationId(data.verification_id);
+      verificationIdRef.current = data.verification_id ?? null;
+      setVerificationId(data.verification_id ?? null);
       if (data.status === "approved") {
         setReceiptStatus("approved");
       } else {
@@ -411,11 +415,13 @@ export default function CheckinClient({
     }
   }
 
-  async function pollReceipt() {
-    if (!verificationId) return;
+  async function pollReceipt(manual = false) {
+    const id = verificationIdRef.current;
+    if (!id) return;
+    if (manual) setRefreshingReceipt(true);
     try {
       const res = await fetch(
-        `/api/receipt/process?id=${encodeURIComponent(verificationId)}`,
+        `/api/receipt/process?id=${encodeURIComponent(id)}`,
         { method: "POST" }
       );
       const data = await res.json();
@@ -425,7 +431,11 @@ export default function CheckinClient({
       } else if (data.ok && data.status === "rejected") {
         setReceiptStatus("rejected");
       }
+      // "pending" o "manual_review": resta in polling, niente cambio
     } catch {}
+    finally {
+      if (manual) setRefreshingReceipt(false);
+    }
   }
 
   function skipReceipt() {
@@ -852,8 +862,12 @@ export default function CheckinClient({
             Aggiornamento automatico ogni 6 secondi
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
-            <button className="btn" onClick={() => pollReceipt()}>
-              Aggiorna ora
+            <button
+              className="btn"
+              disabled={refreshingReceipt}
+              onClick={() => pollReceipt(true)}
+            >
+              {refreshingReceipt ? "Verifico..." : "Aggiorna ora"}
             </button>
             <button
               className="btn"
@@ -928,18 +942,22 @@ export default function CheckinClient({
     // Form upload (idle)
     return (
       <div style={{ padding: "8px 0" }}>
+        {/* Camera: capture="environment" + click programmatico funziona su iOS */}
         <input
           ref={cameraRef}
+          id="sc-receipt-camera"
           type="file"
           accept="image/*"
           capture="environment"
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
+        {/* Gallery: usa <label> per propagare il gesto utente su iOS PWA */}
         <input
           ref={galleryRef}
+          id="sc-receipt-gallery"
           type="file"
-          accept="image/*"
+          accept="image/*,image/heic,image/heif"
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
@@ -971,13 +989,14 @@ export default function CheckinClient({
           >
             <span>📸</span> Scatta foto scontrino
           </button>
-          <button
+          {/* label invece di button: su iOS PWA propaga correttamente il gesto */}
+          <label
+            htmlFor="sc-receipt-gallery"
             className="btn"
-            onClick={() => galleryRef.current?.click()}
-            style={{ padding: "13px", fontSize: 14 }}
+            style={{ padding: "13px", fontSize: 14, textAlign: "center", cursor: "pointer" }}
           >
             Carica da galleria
-          </button>
+          </label>
           <button
             className="btn"
             onClick={skipReceipt}
