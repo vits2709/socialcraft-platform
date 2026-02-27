@@ -207,6 +207,7 @@ export default function CheckinClient({
   const verificationIdRef = useRef<string | null>(initialReceiptId);
   const [receiptPoints, setReceiptPoints] = useState(0);
   const [refreshingReceipt, setRefreshingReceipt] = useState(false);
+  const [refreshNote, setRefreshNote] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement | null>(null);
   const galleryRef = useRef<HTMLInputElement | null>(null);
 
@@ -430,10 +431,17 @@ export default function CheckinClient({
         if (data.points_awarded) setReceiptPoints(data.points_awarded);
       } else if (data.ok && data.status === "rejected") {
         setReceiptStatus("rejected");
+      } else if (manual) {
+        // Ancora pending o manual_review: mostra nota temporanea
+        setRefreshNote("Ancora in elaborazione — riprova tra qualche secondo.");
+        setTimeout(() => setRefreshNote(null), 4000);
       }
-      // "pending" o "manual_review": resta in polling, niente cambio
-    } catch {}
-    finally {
+    } catch {
+      if (manual) {
+        setRefreshNote("Errore di rete. Riprova.");
+        setTimeout(() => setRefreshNote(null), 4000);
+      }
+    } finally {
       if (manual) setRefreshingReceipt(false);
     }
   }
@@ -869,6 +877,11 @@ export default function CheckinClient({
             >
               {refreshingReceipt ? "Verifico..." : "Aggiorna ora"}
             </button>
+            {refreshNote && (
+              <div className="muted" style={{ fontSize: 12, color: "#b45309" }}>
+                ⏳ {refreshNote}
+              </div>
+            )}
             <button
               className="btn"
               onClick={proceedToVote}
@@ -952,15 +965,6 @@ export default function CheckinClient({
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
-        {/* Gallery: usa <label> per propagare il gesto utente su iOS PWA */}
-        <input
-          ref={galleryRef}
-          id="sc-receipt-gallery"
-          type="file"
-          accept="image/*,image/heic,image/heif"
-          style={{ display: "none" }}
-          onChange={handleFileChange}
-        />
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 14 }}>🧾</div>
           <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 8 }}>
@@ -989,14 +993,31 @@ export default function CheckinClient({
           >
             <span>📸</span> Scatta foto scontrino
           </button>
-          {/* label invece di button: su iOS PWA propaga correttamente il gesto */}
-          <label
-            htmlFor="sc-receipt-gallery"
-            className="btn"
-            style={{ padding: "13px", fontSize: 14, textAlign: "center", cursor: "pointer" }}
-          >
-            Carica da galleria
-          </label>
+          {/* Input sovrapposto al bottone: l'utente tocca direttamente l'input,
+              evitando il blocco iOS PWA sui click programmatici */}
+          <div style={{ position: "relative" }}>
+            <div
+              className="btn"
+              style={{ padding: "13px", fontSize: 14, textAlign: "center", pointerEvents: "none" }}
+            >
+              Carica da galleria
+            </div>
+            <input
+              ref={galleryRef}
+              id="sc-receipt-gallery"
+              type="file"
+              accept="image/*,image/heic,image/heif"
+              onChange={handleFileChange}
+              style={{
+                position: "absolute",
+                inset: 0,
+                opacity: 0,
+                width: "100%",
+                height: "100%",
+                cursor: "pointer",
+              }}
+            />
+          </div>
           <button
             className="btn"
             onClick={skipReceipt}
