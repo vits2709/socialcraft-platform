@@ -21,6 +21,8 @@
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",
     "react-onesignal": "^3.5.0",
+    "satori": "^0.19.2",
+    "sharp": "^0.34.5",
     "tesseract.js": "^7.0.0",
     "web-push": "^3.6.7"
   },
