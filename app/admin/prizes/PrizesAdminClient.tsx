@@ -242,8 +242,7 @@ export default function PrizesAdminClient({
       >
         <div style={{ fontWeight: 900, fontSize: 15, marginBottom: 6 }}>Assegna vincitore (settimana precedente)</div>
         <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
-          Esegue <code>finalize_weekly_rankings()</code> e <code>assign_weekly_winner()</code>.
-          Da usare lunedì mattina dopo la fine della settimana.
+          Clicca per assegnare il vincitore della settimana appena conclusa e inviare la notifica al vincitore.
         </p>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <button
@@ -303,7 +302,7 @@ export default function PrizesAdminClient({
                   </td>
                   <td>
                     {!p.winner_user_id ? (
-                      <span className="badge" style={{ background: "rgba(45,27,105,0.1)", color: "#2D1B69" }}>In corso</span>
+                      <span className="badge" style={{ background: "rgba(16,185,129,0.12)", borderColor: "rgba(16,185,129,0.3)", color: "#059669" }}>Attivo</span>
                     ) : p.redeemed ? (
                       <span className="badge" style={{ background: "rgba(16,185,129,0.1)", color: "#059669" }}>✅ Riscattato</span>
                     ) : (
