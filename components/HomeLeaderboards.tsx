@@ -59,11 +59,17 @@ export default function HomeLeaderboards(props: {
   explorers: LBRow[];
   weeklyExplorers?: WeeklyRow[];
 }) {
-  const [tab, setTab] = useState<"spots" | "explorers" | "weekly">("spots");
+  const [tab, setTab] = useState<"spots" | "explorers">("spots");
 
   const topSpots = useMemo(() => props.spots.slice(0, 20), [props.spots]);
   const topExplorers = useMemo(() => props.explorers.slice(0, 20), [props.explorers]);
-  const topWeekly = useMemo(() => (props.weeklyExplorers ?? []).slice(0, 20), [props.weeklyExplorers]);
+
+  // Mappa user_id → dati settimanali per il badge inline
+  const weeklyMap = useMemo(() => {
+    const m = new Map<string, WeeklyRow>();
+    (props.weeklyExplorers ?? []).forEach((w) => m.set(w.user_id, w));
+    return m;
+  }, [props.weeklyExplorers]);
 
   return (
     <div className="leaderWrap">
@@ -71,7 +77,7 @@ export default function HomeLeaderboards(props: {
         <div>
           <h2 className="sectionTitle">Leaderboard</h2>
           <p className="muted" style={{ margin: 0 }}>
-            Classifiche live: Spot · Esploratori · Settimana
+            Classifiche live: Spot · Esploratori
           </p>
         </div>
 
@@ -81,9 +87,6 @@ export default function HomeLeaderboards(props: {
           </button>
           <button className={`tab ${tab === "explorers" ? "active" : ""}`} onClick={() => setTab("explorers")} type="button">
             🧑‍🚀 Generali <span className="pill">{topExplorers.length}</span>
-          </button>
-          <button className={`tab ${tab === "weekly" ? "active" : ""}`} onClick={() => setTab("weekly")} type="button">
-            📅 Settimana <span className="pill">{topWeekly.length}</span>
           </button>
         </div>
       </div>
@@ -111,18 +114,11 @@ export default function HomeLeaderboards(props: {
                       <div className="rowName" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         {v.name ?? "Spot"}
                         {v.hasActivePromo && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              padding: "2px 7px",
-                              borderRadius: 999,
-                              background: "linear-gradient(135deg, #fb923c, #ef4444)",
-                              color: "#fff",
-                              fontWeight: 900,
-                              whiteSpace: "nowrap",
-                              lineHeight: 1.6,
-                            }}
-                          >
+                          <span style={{
+                            fontSize: 10, padding: "2px 7px", borderRadius: 999,
+                            background: "linear-gradient(135deg, #fb923c, #ef4444)",
+                            color: "#fff", fontWeight: 900, whiteSpace: "nowrap", lineHeight: 1.6,
+                          }}>
                             🔥 Promo
                           </span>
                         )}
@@ -148,7 +144,7 @@ export default function HomeLeaderboards(props: {
           </div>
         </section>
 
-        {/* EXPLORERS — classifica generale */}
+        {/* EXPLORERS — classifica generale con badge settimanale inline */}
         <section className={`leaderCol ${tab !== "explorers" ? "mobileHidden" : ""}`}>
           <div className="colTitle">🧑‍🚀 Esploratori (tutti i tempi)</div>
           <div className="colList">
@@ -156,15 +152,35 @@ export default function HomeLeaderboards(props: {
               const score = toInt(u.score);
               const lvlInfo = getExplorerLevel(score);
               const pct = Math.round(lvlInfo.progress);
+              const weekly = weeklyMap.get(u.id);
+              const isTop3Weekly = weekly && weekly.rank <= 3;
 
               return (
                 <div className="rowCard" key={u.id}>
                   <div className="rowTop">
                     <div className="rankBox">{i + 1}</div>
                     <div className="rowMain">
-                      <div className="rowName">{u.name ?? "Esploratore"}</div>
+                      <div className="rowName" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        {u.name ?? "Esploratore"}
+                        {weekly && (
+                          <span style={{
+                            fontSize: 10,
+                            padding: "2px 7px",
+                            borderRadius: 999,
+                            fontWeight: 800,
+                            whiteSpace: "nowrap",
+                            lineHeight: 1.6,
+                            background: isTop3Weekly ? "rgba(245,158,11,0.14)" : "rgba(99,102,241,0.09)",
+                            color: isTop3Weekly ? "#b45309" : "#4f46e5",
+                            border: `1px solid ${isTop3Weekly ? "rgba(245,158,11,0.3)" : "rgba(99,102,241,0.18)"}`,
+                          }}>
+                            ⚡ #{weekly.rank} sett.
+                          </span>
+                        )}
+                      </div>
                       <div className="rowMeta">
                         {lvlInfo.current.emoji} {lvlInfo.current.name} • <b>{score}</b> pt
+                        {weekly && <span className="muted"> • {weekly.points_week} pt questa sett.</span>}
                       </div>
                     </div>
                     <div className="rowRight">
@@ -179,41 +195,6 @@ export default function HomeLeaderboards(props: {
               );
             })}
           </div>
-        </section>
-
-        {/* WEEKLY — classifica settimanale */}
-        <section className={`leaderCol ${tab !== "weekly" ? "mobileHidden" : ""}`}>
-          <div className="colTitle">📅 Esploratori della settimana</div>
-          <p className="muted" style={{ fontSize: 12, margin: "0 0 10px", padding: "0 2px" }}>
-            Si azzera ogni lunedì a mezzanotte.
-          </p>
-          {topWeekly.length === 0 ? (
-            <div className="notice" style={{ fontSize: 13 }}>
-              Nessuna attività questa settimana ancora.
-            </div>
-          ) : (
-            <div className="colList">
-              {topWeekly.map((u, i) => (
-                <div className="rowCard" key={u.user_id}>
-                  <div className="rowTop">
-                    <div className="rankBox">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</div>
-                    <div className="rowMain">
-                      <div className="rowName">{u.user_name ?? "Esploratore"}</div>
-                      <div className="rowMeta"><b>{u.points_week}</b> pt questa settimana</div>
-                    </div>
-                  </div>
-                  <div className="bar">
-                    <div
-                      className="barFill user"
-                      style={{
-                        width: `${topWeekly[0]?.points_week > 0 ? Math.round((u.points_week / topWeekly[0].points_week) * 100) : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </section>
       </div>
     </div>

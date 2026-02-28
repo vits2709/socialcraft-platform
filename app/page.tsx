@@ -9,7 +9,6 @@ import WeeklyPrizeCard from "@/components/WeeklyPrizeCard";
 import WinnerBanner from "@/components/WinnerBanner";
 import HomeWelcomeCard from "@/components/HomeWelcomeCard";
 import HomeMissionCard from "@/components/HomeMissionCard";
-import HomeFeedWidget from "@/components/HomeFeedWidget";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { HomeSpotPin } from "@/components/HomeMap";
 import type { WeeklyRow } from "@/components/HomeLeaderboards";
@@ -358,10 +357,7 @@ export default async function HomePage() {
         <HomePromoSection promos={activePromoCards} />
       )}
 
-      <div className="homeMainGrid">
-        <HomeLeaderboards spots={spots} explorers={explorers as LBRow[]} weeklyExplorers={weeklyExplorers} />
-        <HomeFeedWidget />
-      </div>
+      <HomeLeaderboards spots={spots} explorers={explorers as LBRow[]} weeklyExplorers={weeklyExplorers} />
 
       {/* ---- SEZIONE MAPPA ---- */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
