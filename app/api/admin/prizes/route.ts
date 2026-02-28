@@ -21,7 +21,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("weekly_prizes")
-    .select("id,week_start,prize_description,prize_image,spot_id,winner_user_id,winner_name,winner_assigned_at,redemption_code,redeemed,redeemed_at,venues(id,name,slug)")
+    .select("id,week_start,prize_type,prize_description,prize_image,spot_id,winner_user_id,winner_name,winner_assigned_at,redemption_code,redeemed,redeemed_at,venues(id,name,slug)")
     .order("week_start", { ascending: false })
     .limit(20);
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!admin) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { week_start, prize_description, spot_id, prize_image } = body;
+  const { week_start, prize_description, spot_id, prize_image, prize_type } = body;
 
   if (!week_start || !prize_description) {
     return NextResponse.json({ ok: false, error: "missing_fields" }, { status: 400 });
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     .from("weekly_prizes")
     .upsert({
       week_start,
+      prize_type: prize_type === "monthly" ? "monthly" : "weekly",
       prize_description: String(prize_description).trim(),
       spot_id: spot_id || null,
       prize_image: prize_image || null,

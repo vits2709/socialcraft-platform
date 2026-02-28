@@ -8,6 +8,7 @@ type VenueOption = { id: string; name: string };
 type PrizeRow = {
   id: string;
   week_start: string;
+  prize_type: "weekly" | "monthly" | null;
   prize_description: string;
   prize_image: string | null;
   spot_id: string | null;
@@ -57,6 +58,7 @@ export default function PrizesAdminClient({
   const [weekStart, setWeekStart] = useState(nextMonday());
   const [description, setDescription] = useState("");
   const [spotId, setSpotId] = useState("");
+  const [prizeType, setPrizeType] = useState<"weekly" | "monthly">("weekly");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -77,6 +79,7 @@ export default function PrizesAdminClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           week_start: weekStart,
+          prize_type: prizeType,
           prize_description: description.trim(),
           spot_id: spotId || null,
         }),
@@ -170,6 +173,25 @@ export default function PrizesAdminClient({
                   fontWeight: 700,
                 }}
               />
+            </div>
+
+            <div style={{ display: "grid", gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.6 }}>Tipo premio</label>
+              <select
+                value={prizeType}
+                onChange={(e) => setPrizeType(e.target.value as "weekly" | "monthly")}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(0,0,0,0.15)",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  background: "white",
+                }}
+              >
+                <option value="weekly">📅 Settimanale (7 giorni)</option>
+                <option value="monthly">📆 Mensile (28 giorni)</option>
+              </select>
             </div>
 
             <div style={{ display: "grid", gap: 4 }}>
@@ -282,7 +304,17 @@ export default function PrizesAdminClient({
               {prizes.map((p) => (
                 <tr key={p.id}>
                   <td className="muted" style={{ whiteSpace: "nowrap" }}>{fmt(p.week_start)}</td>
-                  <td style={{ fontWeight: 700 }}>{p.prize_description}</td>
+                  <td style={{ fontWeight: 700 }}>
+                    {p.prize_description}
+                    {p.prize_type === "monthly" && (
+                      <span style={{
+                        marginLeft: 6, fontSize: 10, fontWeight: 700,
+                        padding: "2px 7px", borderRadius: 999,
+                        background: "rgba(59,130,246,0.10)", color: "#1d4ed8",
+                        border: "1px solid rgba(59,130,246,0.2)", verticalAlign: "middle",
+                      }}>mensile</span>
+                    )}
+                  </td>
                   <td className="muted">{(p.venues as any)?.name ?? "—"}</td>
                   <td>
                     {p.winner_name ? (

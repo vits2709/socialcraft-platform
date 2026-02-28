@@ -125,6 +125,7 @@ export default async function HomePage() {
   type PrizeRow = {
     id: string;
     week_start: string;
+    prize_type: string | null;
     prize_description: string;
     prize_image: string | null;
     spot_id: string | null;
@@ -137,26 +138,19 @@ export default async function HomePage() {
   let lastWinner: PrizeRow | null = null;
 
   try {
-    // Calcola lunedì della settimana corrente (UTC)
-    const now = new Date();
-    const dayOfWeek = now.getUTCDay(); // 0=dom, 1=lun, ...
-    const diffToMonday = (dayOfWeek + 6) % 7;
-    const monday = new Date(now);
-    monday.setUTCDate(now.getUTCDate() - diffToMonday);
-    const currentWeekStart = monday.toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
 
-    const prevMonday = new Date(monday);
-    prevMonday.setUTCDate(monday.getUTCDate() - 7);
-    const prevWeekStart = prevMonday.toISOString().slice(0, 10);
-
+    // Cerca i premi recenti: prende sia quello attivo (senza vincitore) che l'ultimo assegnato
     const { data: prizesRaw } = await supabase
       .from("weekly_prizes")
-      .select("id,week_start,prize_description,prize_image,spot_id,winner_user_id,winner_name,venues(name,slug)")
-      .in("week_start", [currentWeekStart, prevWeekStart]);
+      .select("id,week_start,prize_type,prize_description,prize_image,spot_id,winner_user_id,winner_name,venues(name,slug)")
+      .lte("week_start", today)
+      .order("week_start", { ascending: false })
+      .limit(5);
 
     const prizes = (prizesRaw ?? []) as unknown as PrizeRow[];
-    currentPrize = prizes.find((p) => p.week_start === currentWeekStart && !p.winner_user_id) ?? null;
-    lastWinner = prizes.find((p) => p.week_start === prevWeekStart && !!p.winner_user_id) ?? null;
+    currentPrize = prizes.find((p) => !p.winner_user_id) ?? null;
+    lastWinner = prizes.find((p) => !!p.winner_user_id) ?? null;
   } catch { /* migration non ancora eseguita */ }
 
   const carouselPrize: CarouselPrize = currentPrize
@@ -164,6 +158,7 @@ export default async function HomePage() {
         description: currentPrize.prize_description,
         venueName: (currentPrize.venues as any)?.name ?? null,
         weekStart: currentPrize.week_start,
+        prizeType: (currentPrize.prize_type as "weekly" | "monthly") ?? "weekly",
       }
     : null;
 

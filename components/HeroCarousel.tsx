@@ -8,6 +8,7 @@ export type CarouselPrize = {
   description: string;
   venueName: string | null;
   weekStart: string;
+  prizeType: "weekly" | "monthly";
 } | null;
 
 export type CarouselMission = {
@@ -26,14 +27,15 @@ type Props = {
   isLoggedIn: boolean;
 };
 
-function useCountdown(weekStart: string | null): string {
+function useCountdown(weekStart: string | null, prizeType: "weekly" | "monthly" = "weekly"): string {
   const [label, setLabel] = useState("");
 
   useEffect(() => {
     if (!weekStart) return;
+    const daysToAdd = prizeType === "monthly" ? 28 : 7;
     function compute() {
       const end = new Date(weekStart + "T00:00:00Z");
-      end.setUTCDate(end.getUTCDate() + 7);
+      end.setUTCDate(end.getUTCDate() + daysToAdd);
       const diff = end.getTime() - Date.now();
       if (diff <= 0) { setLabel("Scaduto"); return; }
       const days = Math.floor(diff / 86_400_000);
@@ -46,7 +48,7 @@ function useCountdown(weekStart: string | null): string {
     compute();
     const id = setInterval(compute, 60_000);
     return () => clearInterval(id);
-  }, [weekStart]);
+  }, [weekStart, prizeType]);
 
   return label;
 }
@@ -61,7 +63,7 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
   const [slideWidth, setSlideWidth] = useState(0);
 
   const level = getExplorerLevel(totalPoints);
-  const countdown = useCountdown(prize?.weekStart ?? null);
+  const countdown = useCountdown(prize?.weekStart ?? null, prize?.prizeType ?? "weekly");
 
   // Measure container width once mounted and on every resize
   useEffect(() => {
@@ -244,11 +246,13 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
 
         {/* ── Card 2: Premio ── */}
         <div style={cardBase}>
-          <div style={label12}>Ogni settimana</div>
+          <div style={label12}>{prize?.prizeType === "monthly" ? "Ogni mese" : "Ogni settimana"}</div>
 
           {prize ? (
             <>
-              <h2 style={h2style}>🎁 Premio della settimana</h2>
+              <h2 style={h2style}>
+                {prize.prizeType === "monthly" ? "🎁 Premio del mese" : "🎁 Premio della settimana"}
+              </h2>
               <div style={glass}>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>{prize.description}</div>
                 {prize.venueName && (
