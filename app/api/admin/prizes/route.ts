@@ -60,3 +60,24 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, prize: data });
 }
+
+// DELETE — elimina un premio per ID
+// Body: { id: string }
+export async function DELETE(req: NextRequest) {
+  const admin = await checkAdmin();
+  if (!admin) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const { id } = body;
+  if (!id) return NextResponse.json({ ok: false, error: "missing_id" }, { status: 400 });
+
+  const supabase = createSupabaseAdminClient();
+
+  const { error } = await supabase
+    .from("weekly_prizes")
+    .delete()
+    .eq("id", id);
+
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

@@ -66,6 +66,9 @@ export default function PrizesAdminClient({
   const [assigning, setAssigning] = useState(false);
   const [assignMsg, setAssignMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // Eliminazione premio
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   async function handleSavePrize(e: React.FormEvent) {
     e.preventDefault();
     if (!description.trim()) return;
@@ -101,6 +104,31 @@ export default function PrizesAdminClient({
     }
 
     setSaving(false);
+  }
+
+  async function handleDeletePrize(id: string, hasWinner: boolean) {
+    const msg = hasWinner
+      ? "Questo premio ha già un vincitore assegnato. Eliminarlo rimuoverà anche il codice di riscatto. Continuare?"
+      : "Eliminare questo premio? L'azione è irreversibile.";
+    if (!window.confirm(msg)) return;
+
+    setDeletingId(id);
+    try {
+      const res = await fetch("/api/admin/prizes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setPrizes((prev) => prev.filter((p) => p.id !== id));
+      } else {
+        alert(`Errore: ${json.error ?? "eliminazione fallita"}`);
+      }
+    } catch {
+      alert("Errore di rete.");
+    }
+    setDeletingId(null);
   }
 
   async function handleAssignWinner() {
@@ -298,6 +326,7 @@ export default function PrizesAdminClient({
                 <th>Vincitore</th>
                 <th>Codice</th>
                 <th>Stato</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -340,6 +369,25 @@ export default function PrizesAdminClient({
                     ) : (
                       <span className="badge" style={{ background: "rgba(245,158,11,0.1)", color: "#b45309" }}>🎁 Da riscattare</span>
                     )}
+                  </td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <button
+                      onClick={() => handleDeletePrize(p.id, !!p.winner_user_id)}
+                      disabled={deletingId === p.id}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 7,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        background: "rgba(239,68,68,0.09)",
+                        color: "#dc2626",
+                        border: "1px solid rgba(239,68,68,0.22)",
+                        opacity: deletingId === p.id ? 0.5 : 1,
+                      }}
+                    >
+                      {deletingId === p.id ? "..." : "🗑 Elimina"}
+                    </button>
                   </td>
                 </tr>
               ))}
