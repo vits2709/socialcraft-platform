@@ -146,7 +146,7 @@ export default function HomeLeaderboards(props: {
 
         {/* EXPLORERS — classifica generale con badge settimanale inline */}
         <section className={`leaderCol ${tab !== "explorers" ? "mobileHidden" : ""}`}>
-          <div className="colTitle">🧑‍🚀 Esploratori (tutti i tempi)</div>
+          <div className="colTitle">🧑‍🚀 Esploratori</div>
           <div className="colList">
             {topExplorers.map((u, i) => {
               const score = toInt(u.score);
