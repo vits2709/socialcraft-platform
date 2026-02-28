@@ -121,11 +121,11 @@ export default async function HomePage() {
     }
   } catch {}
 
-  // -------- premio settimanale corrente + vincitore settimana precedente ----------
+  // -------- premio corrente + vincitore settimana precedente ----------
   type PrizeRow = {
     id: string;
     week_start: string;
-    prize_type: string | null;
+    prize_type?: string | null;
     prize_description: string;
     prize_image: string | null;
     spot_id: string | null;
@@ -138,20 +138,44 @@ export default async function HomePage() {
   let lastWinner: PrizeRow | null = null;
 
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    // Finestra: fino a 28 giorni fa (copertura mensile) e fino a 7 giorni futuri
+    // (premi configurati in anticipo per la prossima settimana)
+    const pastCutoff = new Date(now);
+    pastCutoff.setUTCDate(now.getUTCDate() - 28);
+    const futureCutoff = new Date(now);
+    futureCutoff.setUTCDate(now.getUTCDate() + 7);
+    const fromDate = pastCutoff.toISOString().slice(0, 10);
+    const toDate = futureCutoff.toISOString().slice(0, 10);
 
-    // Cerca i premi recenti: prende sia quello attivo (senza vincitore) che l'ultimo assegnato
-    const { data: prizesRaw } = await supabase
+    // Prima query: include prize_type (richiede migration 024)
+    const { data: withType, error: typeErr } = await supabase
       .from("weekly_prizes")
       .select("id,week_start,prize_type,prize_description,prize_image,spot_id,winner_user_id,winner_name,venues(name,slug)")
-      .lte("week_start", today)
+      .gte("week_start", fromDate)
+      .lte("week_start", toDate)
       .order("week_start", { ascending: false })
       .limit(5);
 
-    const prizes = (prizesRaw ?? []) as unknown as PrizeRow[];
-    currentPrize = prizes.find((p) => !p.winner_user_id) ?? null;
-    lastWinner = prizes.find((p) => !!p.winner_user_id) ?? null;
-  } catch { /* migration non ancora eseguita */ }
+    if (!typeErr) {
+      // Migration applicata: usa i dati con prize_type
+      const prizes = (withType ?? []) as unknown as PrizeRow[];
+      currentPrize = prizes.find((p) => !p.winner_user_id) ?? null;
+      lastWinner  = prizes.find((p) => !!p.winner_user_id) ?? null;
+    } else {
+      // Fallback: colonna prize_type non ancora nel DB
+      const { data: withoutType } = await supabase
+        .from("weekly_prizes")
+        .select("id,week_start,prize_description,prize_image,spot_id,winner_user_id,winner_name,venues(name,slug)")
+        .gte("week_start", fromDate)
+        .lte("week_start", toDate)
+        .order("week_start", { ascending: false })
+        .limit(5);
+      const prizes = (withoutType ?? []) as unknown as PrizeRow[];
+      currentPrize = prizes.find((p) => !p.winner_user_id) ?? null;
+      lastWinner  = prizes.find((p) => !!p.winner_user_id) ?? null;
+    }
+  } catch { /* tabella non ancora disponibile */ }
 
   const carouselPrize: CarouselPrize = currentPrize
     ? {
