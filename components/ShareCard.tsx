@@ -39,58 +39,49 @@ const RARITY: Record<string, { label: string; color: string; bg: string; ring: s
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * html2canvas note:
- * - NO WebkitBackgroundClip:"text" gradient text (not rendered)
- * - NO backdrop-filter (not rendered)
- * - filter:blur() works but keep it non-critical
- * - Use solid text colors + textShadow for glow effects
+ * html2canvas compatibility notes:
+ * - NO filter:blur()        → not rendered; use radial-gradient instead
+ * - NO WebkitBackgroundClip:"text"  → not rendered; use solid colors
+ * - NO backdrop-filter      → not rendered
+ * - box-shadow IS rendered  → use for glow effects on bordered elements
+ * - radial-gradient IS rendered → use for soft blob backgrounds
  */
 
-/** Absolute-inset background layer. */
-function CardBg({ base, blob1, blob2, accentGrad }: {
-  base: string;
-  blob1: string;
-  blob2: string;
-  accentGrad: string;
-}) {
+/**
+ * Background layer.
+ * `bg` is a full CSS `background` value — use multi-stop radial-gradients
+ * instead of blurred divs (html2canvas does not render filter:blur).
+ */
+function CardBg({ bg, accentGrad }: { bg: string; accentGrad: string }) {
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
-      <div style={{ position: "absolute", inset: 0, background: base }} />
-      {/* top-left blob */}
-      <div style={{
-        position: "absolute", top: -180, left: -180, width: 700, height: 700,
-        borderRadius: "50%", background: blob1, filter: "blur(100px)",
-      }} />
-      {/* bottom-right blob */}
-      <div style={{
-        position: "absolute", bottom: -140, right: -140, width: 580, height: 580,
-        borderRadius: "50%", background: blob2, filter: "blur(110px)",
-      }} />
-      {/* top accent bar */}
+      {/* Main background with soft radial blobs baked in */}
+      <div style={{ position: "absolute", inset: 0, background: bg }} />
+      {/* Top accent stripe */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 5, background: accentGrad }} />
-      {/* dot grid — top right */}
+      {/* Dot grid — top right */}
       {[0,1,2].flatMap(col => [0,1,2].map(row => (
         <div key={`${col}-${row}`} style={{
           position: "absolute",
           top: 40 + row * 20, right: 40 + col * 20,
           width: 4, height: 4, borderRadius: "50%",
-          background: "rgba(255,255,255,0.16)",
+          background: "rgba(255,255,255,0.18)",
         }} />
       )))}
-      {/* corner bracket bottom-left */}
+      {/* Corner bracket bottom-left */}
       <div style={{
         position: "absolute", bottom: 200, left: 52,
         width: 36, height: 36,
-        borderLeft: "2px solid rgba(255,255,255,0.11)",
-        borderBottom: "2px solid rgba(255,255,255,0.11)",
+        borderLeft: "2px solid rgba(255,255,255,0.12)",
+        borderBottom: "2px solid rgba(255,255,255,0.12)",
         borderRadius: "0 0 0 6px",
       }} />
-      {/* corner bracket top-right */}
+      {/* Corner bracket top-right */}
       <div style={{
         position: "absolute", top: 126, right: 52,
         width: 36, height: 36,
-        borderRight: "2px solid rgba(255,255,255,0.11)",
-        borderTop: "2px solid rgba(255,255,255,0.11)",
+        borderRight: "2px solid rgba(255,255,255,0.12)",
+        borderTop: "2px solid rgba(255,255,255,0.12)",
         borderRadius: "0 6px 0 0",
       }} />
     </div>
@@ -98,36 +89,43 @@ function CardBg({ base, blob1, blob2, accentGrad }: {
 }
 
 /**
- * Concentric glow rings.
- * Rendered as SIBLINGS inside a `position:relative` wrapper — rings use
- * top/left/transform to self-center, so the parent can use any display.
+ * Concentric glow rings — html2canvas safe.
+ * Uses box-shadow (rendered) instead of filter:blur (NOT rendered).
+ * Siblings inside a `position:relative` wrapper; self-center via transform.
  */
 function GlowRings({ color, size }: { color: string; size: number }) {
-  const scales = [1, 0.68, 0.42];
-  const opacities = [0.22, 0.15, 0.09];
   return (
     <>
-      {scales.map((s, i) => (
-        <div key={i} style={{
-          position: "absolute",
-          width: size * s, height: size * s,
-          top: "50%", left: "50%",
-          transform: "translate(-50%, -50%)",
-          borderRadius: "50%",
-          border: `1.5px solid ${color}`,
-          opacity: opacities[i],
-        }} />
-      ))}
-      {/* inner glow disc */}
+      {/* Outer ring — box-shadow provides the glow */}
       <div style={{
         position: "absolute",
-        width: size * 0.34, height: size * 0.34,
+        width: size, height: size,
         top: "50%", left: "50%",
         transform: "translate(-50%, -50%)",
         borderRadius: "50%",
-        background: color,
-        opacity: 0.07,
-        filter: "blur(20px)",
+        border: `1.5px solid ${color}`,
+        opacity: 0.35,
+        boxShadow: `0 0 32px ${color}, inset 0 0 32px ${color}`,
+      }} />
+      {/* Middle ring */}
+      <div style={{
+        position: "absolute",
+        width: size * 0.67, height: size * 0.67,
+        top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)",
+        borderRadius: "50%",
+        border: `1.5px solid ${color}`,
+        opacity: 0.22,
+      }} />
+      {/* Inner ring */}
+      <div style={{
+        position: "absolute",
+        width: size * 0.40, height: size * 0.40,
+        top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)",
+        borderRadius: "50%",
+        border: `1.5px solid ${color}`,
+        opacity: 0.14,
       }} />
     </>
   );
@@ -255,9 +253,9 @@ function CardRanking({ data, format, id }: { data: ShareCardData; format: ShareC
   const isStory = format === "story";
   const pos = data.rankPosition ?? 1;
   const numColor  = pos === 1 ? "#fde68a" : pos === 2 ? "#e2e8f0" : "#fdba74";
-  const ringColor = pos === 1 ? "rgba(251,191,36,0.5)" : pos === 2 ? "rgba(226,232,240,0.4)" : "rgba(180,83,9,0.45)";
-  const numFs   = isStory ? 340 : 220;
-  const ringSz  = isStory ? 560 : 360;
+  const ringColor = pos === 1 ? "rgba(251,191,36,0.55)" : pos === 2 ? "rgba(226,232,240,0.45)" : "rgba(251,146,60,0.5)";
+  const numFs   = isStory ? 340 : 230;
+  const ringSz  = isStory ? 560 : 380;
   const logoH   = isStory ? 200 : 120;
   const footerH = isStory ? 180 : 140;
 
@@ -266,9 +264,11 @@ function CardRanking({ data, format, id }: { data: ShareCardData; format: ShareC
       contentGap={isStory ? 48 : 28}
       bg={
         <CardBg
-          base="linear-gradient(155deg, #050310 0%, #080e05 100%)"
-          blob1="rgba(45,27,105,0.55)"
-          blob2="rgba(20,60,15,0.5)"
+          bg={`
+            radial-gradient(ellipse 72% 65% at -5% -5%, rgba(45,27,105,0.75), transparent 65%),
+            radial-gradient(ellipse 60% 58% at 105% 105%, rgba(20,70,15,0.70), transparent 65%),
+            linear-gradient(155deg, #050310 0%, #060d04 100%)
+          `}
           accentGrad="linear-gradient(90deg, #2D1B69, #7BC043)"
         />
       }
@@ -323,19 +323,22 @@ function CardRanking({ data, format, id }: { data: ShareCardData; format: ShareC
 function CardBadge({ data, format, id }: { data: ShareCardData; format: ShareCardFormat; id: string }) {
   const isStory = format === "story";
   const rc = RARITY[data.badgeRarity ?? "common"];
-  const ringSz   = isStory ? 440 : 290;
-  const emojiFs  = isStory ? 180 : 120;
+  // Derive a CSS-safe radial stop from the ring color string (already rgba)
+  const ringSz   = isStory ? 460 : 310;
+  const emojiFs  = isStory ? 196 : 148;
   const logoH    = isStory ? 200 : 120;
   const footerH  = isStory ? 180 : 140;
 
   return (
     <CardShell id={id} format={format} data={data} logoH={logoH} footerH={footerH}
-      contentGap={isStory ? 40 : 20}
+      contentGap={isStory ? 40 : 18}
       bg={
         <CardBg
-          base="linear-gradient(155deg, #07031a 0%, #0c0820 100%)"
-          blob1="rgba(45,27,105,0.60)"
-          blob2="rgba(80,40,10,0.25)"
+          bg={`
+            radial-gradient(ellipse 70% 64% at -5% -5%, rgba(45,27,105,0.80), transparent 65%),
+            radial-gradient(ellipse 55% 55% at 105% 105%, ${rc.ring.replace(/[\d.]+\)$/, "0.30)")}, transparent 65%),
+            linear-gradient(155deg, #07031a 0%, #0b0920 100%)
+          `}
           accentGrad={`linear-gradient(90deg, #2D1B69, ${rc.color})`}
         />
       }
@@ -352,15 +355,15 @@ function CardBadge({ data, format, id }: { data: ShareCardData; format: ShareCar
       {/* Emoji + rings */}
       <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: ringSz, height: ringSz }}>
         <GlowRings color={rc.ring} size={ringSz} />
-        {/* rarity disc behind emoji */}
+        {/* rarity disc behind emoji — radial gradient so center is visible */}
         <div style={{
           position: "absolute",
-          width: ringSz * 0.5, height: ringSz * 0.5,
+          width: ringSz * 0.52, height: ringSz * 0.52,
           top: "50%", left: "50%", transform: "translate(-50%, -50%)",
           borderRadius: "50%",
-          background: rc.bg,
+          background: `radial-gradient(ellipse at center, ${rc.ring.replace(/[\d.]+\)$/, "0.22)")}, transparent 80%)`,
           border: `2px solid ${rc.ring}`,
-          opacity: 0.85,
+          boxShadow: `0 0 24px ${rc.ring}`,
         }} />
         <span style={{ position: "relative", zIndex: 2, fontSize: emojiFs, lineHeight: 1 }}>
           {data.badgeIcon ?? "🏅"}
@@ -400,8 +403,8 @@ function CardBadge({ data, format, id }: { data: ShareCardData; format: ShareCar
 
 function CardPrize({ data, format, id }: { data: ShareCardData; format: ShareCardFormat; id: string }) {
   const isStory = format === "story";
-  const ringSz  = isStory ? 380 : 250;
-  const emojiFs = isStory ? 150 : 100;
+  const ringSz  = isStory ? 400 : 280;
+  const emojiFs = isStory ? 164 : 124;
   const logoH   = isStory ? 200 : 120;
   const footerH = isStory ? 180 : 140;
 
@@ -410,9 +413,11 @@ function CardPrize({ data, format, id }: { data: ShareCardData; format: ShareCar
       contentGap={isStory ? 44 : 22}
       bg={
         <CardBg
-          base="linear-gradient(155deg, #0d0500 0%, #07031a 100%)"
-          blob1="rgba(120,53,15,0.48)"
-          blob2="rgba(45,27,105,0.50)"
+          bg={`
+            radial-gradient(ellipse 68% 62% at -5% -5%, rgba(120,53,15,0.75), transparent 65%),
+            radial-gradient(ellipse 55% 55% at 105% 105%, rgba(45,27,105,0.60), transparent 65%),
+            linear-gradient(155deg, #0d0500 0%, #07031a 100%)
+          `}
           accentGrad="linear-gradient(90deg, #92400e, #fbbf24)"
         />
       }
@@ -422,11 +427,12 @@ function CardPrize({ data, format, id }: { data: ShareCardData; format: ShareCar
         <GlowRings color="rgba(251,191,36,0.48)" size={ringSz} />
         <div style={{
           position: "absolute",
-          width: ringSz * 0.5, height: ringSz * 0.5,
+          width: ringSz * 0.52, height: ringSz * 0.52,
           top: "50%", left: "50%", transform: "translate(-50%, -50%)",
           borderRadius: "50%",
-          background: "rgba(217,119,6,0.15)",
-          border: "2px solid rgba(251,191,36,0.30)",
+          background: "radial-gradient(ellipse at center, rgba(251,191,36,0.18), transparent 80%)",
+          border: "2px solid rgba(251,191,36,0.40)",
+          boxShadow: "0 0 24px rgba(251,191,36,0.30)",
         }} />
         <span style={{ position: "relative", zIndex: 2, fontSize: emojiFs, lineHeight: 1 }}>🏆</span>
       </div>
@@ -459,30 +465,28 @@ function CardPrize({ data, format, id }: { data: ShareCardData; format: ShareCar
 
 function CardStreak({ data, format, id }: { data: ShareCardData; format: ShareCardFormat; id: string }) {
   const isStory = format === "story";
-  const ringSz  = isStory ? 500 : 320;
-  const numFs   = isStory ? 290 : 190;
+  const ringSz  = isStory ? 520 : 350;
+  const numFs   = isStory ? 300 : 200;
+  const fireFs  = isStory ? 140 : 100;
   const logoH   = isStory ? 200 : 120;
   const footerH = isStory ? 180 : 140;
 
   return (
     <CardShell id={id} format={format} data={data} logoH={logoH} footerH={footerH}
-      contentGap={isStory ? 40 : 20}
+      contentGap={isStory ? 36 : 16}
       bg={
         <CardBg
-          base="linear-gradient(155deg, #0a0200 0%, #07031a 100%)"
-          blob1="rgba(124,45,18,0.52)"
-          blob2="rgba(45,27,105,0.45)"
+          bg={`
+            radial-gradient(ellipse 70% 65% at -5% -5%, rgba(140,50,10,0.80), transparent 65%),
+            radial-gradient(ellipse 55% 55% at 105% 105%, rgba(45,27,105,0.58), transparent 65%),
+            linear-gradient(155deg, #0a0200 0%, #07031a 100%)
+          `}
           accentGrad="linear-gradient(90deg, #c2410c, #f97316)"
         />
       }
     >
-      {/* Fire */}
-      <span style={{
-        fontSize: isStory ? 130 : 84, lineHeight: 1,
-        filter: "drop-shadow(0 0 30px rgba(249,115,22,0.7))",
-      }}>
-        🔥
-      </span>
+      {/* Fire emoji */}
+      <span style={{ fontSize: fireFs, lineHeight: 1 }}>🔥</span>
 
       {/* Number + rings */}
       <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: ringSz, height: ringSz * 0.68 }}>
@@ -521,8 +525,8 @@ function CardStreak({ data, format, id }: { data: ShareCardData; format: ShareCa
 
 function CardMission({ data, format, id }: { data: ShareCardData; format: ShareCardFormat; id: string }) {
   const isStory = format === "story";
-  const ringSz  = isStory ? 360 : 240;
-  const emojiFs = isStory ? 140 : 94;
+  const ringSz  = isStory ? 380 : 280;
+  const emojiFs = isStory ? 160 : 130;
   const logoH   = isStory ? 200 : 120;
   const footerH = isStory ? 180 : 140;
 
@@ -531,9 +535,11 @@ function CardMission({ data, format, id }: { data: ShareCardData; format: ShareC
       contentGap={isStory ? 40 : 20}
       bg={
         <CardBg
-          base="linear-gradient(155deg, #010a04 0%, #07031a 100%)"
-          blob1="rgba(20,83,45,0.46)"
-          blob2="rgba(45,27,105,0.50)"
+          bg={`
+            radial-gradient(ellipse 68% 62% at -5% -5%, rgba(20,83,45,0.72), transparent 65%),
+            radial-gradient(ellipse 55% 55% at 105% 105%, rgba(45,27,105,0.62), transparent 65%),
+            linear-gradient(155deg, #010a04 0%, #07031a 100%)
+          `}
           accentGrad="linear-gradient(90deg, #166534, #7BC043)"
         />
       }
@@ -543,11 +549,12 @@ function CardMission({ data, format, id }: { data: ShareCardData; format: ShareC
         <GlowRings color="rgba(123,192,67,0.42)" size={ringSz} />
         <div style={{
           position: "absolute",
-          width: ringSz * 0.5, height: ringSz * 0.5,
+          width: ringSz * 0.52, height: ringSz * 0.52,
           top: "50%", left: "50%", transform: "translate(-50%, -50%)",
           borderRadius: "50%",
-          background: "rgba(20,83,45,0.28)",
-          border: "2px solid rgba(123,192,67,0.28)",
+          background: "radial-gradient(ellipse at center, rgba(123,192,67,0.18), transparent 80%)",
+          border: "2px solid rgba(123,192,67,0.36)",
+          boxShadow: "0 0 24px rgba(123,192,67,0.25)",
         }} />
         <span style={{ position: "relative", zIndex: 2, fontSize: emojiFs, lineHeight: 1 }}>
           {data.missionIcon ?? "🎯"}
