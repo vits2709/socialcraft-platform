@@ -91,7 +91,7 @@ export async function POST() {
   }
 
   // 5. Finalizza classifica settimanale (archivio/reset) — fire-and-forget
-  await supabase.rpc("finalize_weekly_rankings").catch(() => {});
+  try { await supabase.rpc("finalize_weekly_rankings"); } catch { /* ignora */ }
 
   // 6. Notifica vincitore
   notify(topUser.user_id, "prize_won", "🏆 Hai vinto il premio!", "Vai sul profilo per il codice di riscatto").catch(() => {});
