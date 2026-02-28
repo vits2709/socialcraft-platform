@@ -86,7 +86,7 @@ export default function HomeLeaderboards(props: {
             📍 Spot <span className="pill">{topSpots.length}</span>
           </button>
           <button className={`tab ${tab === "explorers" ? "active" : ""}`} onClick={() => setTab("explorers")} type="button">
-            🧑‍🚀 Generali <span className="pill">{topExplorers.length}</span>
+            🧑‍🚀 Esploratori <span className="pill">{topExplorers.length}</span>
           </button>
         </div>
       </div>
