@@ -20,7 +20,7 @@ export default function AdminQrDownload({ slug, venueName, siteUrl }: Props) {
     if (!canvas) return;
 
     QRCode.toCanvas(canvas, checkinUrl, {
-      width: 256,
+      width: 300,
       margin: 2,
       color: { dark: "#000000", light: "#ffffff" },
     }).then(() => {
@@ -95,30 +95,62 @@ export default function AdminQrDownload({ slug, venueName, siteUrl }: Props) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
-      <canvas
-        ref={canvasRef}
-        style={{
-          borderRadius: 12,
-          border: "1px solid rgba(0,0,0,0.08)",
-          display: "block",
-        }}
-      />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+      <div style={{
+        padding: 16,
+        background: "white",
+        borderRadius: 16,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.10)",
+        border: "1px solid rgba(0,0,0,0.07)",
+        display: "inline-block",
+      }}>
+        <canvas
+          ref={canvasRef}
+          style={{
+            borderRadius: 8,
+            display: "block",
+          }}
+        />
+      </div>
+
+      <div style={{
+        fontFamily: "monospace",
+        fontSize: 11,
+        color: "rgba(15,23,42,0.4)",
+        wordBreak: "break-all",
+        textAlign: "center",
+        maxWidth: 320,
+      }}>
+        {checkinUrl}
+      </div>
 
       {ready && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn" onClick={downloadPng}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={downloadPng}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 700,
+              background: "#2D1B69", color: "white", border: "none", cursor: "pointer",
+              boxShadow: "0 3px 12px rgba(45,27,105,0.25)",
+            }}
+          >
             ⬇️ Scarica PNG
           </button>
-          <button className="btn" onClick={downloadPdf}>
+          <button
+            onClick={downloadPdf}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 700,
+              background: "linear-gradient(135deg, #2D1B69 0%, #7bc043 100%)",
+              color: "white", border: "none", cursor: "pointer",
+              boxShadow: "0 3px 12px rgba(45,27,105,0.20)",
+            }}
+          >
             🖨️ Stampa / PDF
           </button>
         </div>
       )}
-
-      <div className="muted" style={{ fontSize: 12, wordBreak: "break-all" }}>
-        {checkinUrl}
-      </div>
     </div>
   );
 }
