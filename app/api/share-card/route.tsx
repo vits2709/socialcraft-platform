@@ -214,11 +214,61 @@ export async function GET(request: NextRequest) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "space-between",
-        backgroundColor: "#0a0a0f",
-        backgroundImage: `radial-gradient(ellipse at 50% 50%, ${glowColor}15 0%, transparent 70%)`,
+        backgroundColor: "#050508",
+        backgroundImage: `radial-gradient(ellipse at 50% 50%, ${glowColor}18 0%, transparent 55%)`,
         padding: isStory ? "80px 60px" : "50px 60px",
         position: "relative",
       }}>
+
+        {/* ── Nebula layer ── */}
+        {/* Purple nebula — top left */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex",
+          backgroundImage: "radial-gradient(ellipse 68% 52% at 12% 18%, rgba(74,27,138,0.18) 0%, transparent 100%)",
+        }} />
+        {/* Blue nebula — bottom right */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex",
+          backgroundImage: "radial-gradient(ellipse 62% 48% at 88% 82%, rgba(27,58,138,0.13) 0%, transparent 100%)",
+        }} />
+        {/* Green accent nebula — center */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex",
+          backgroundImage: "radial-gradient(ellipse 42% 30% at 52% 50%, rgba(27,107,58,0.09) 0%, transparent 100%)",
+        }} />
+
+        {/* ── Stars (posizioni fisse) ── */}
+        {[
+          { x: 8,  y: 7,  s: 2,   o: 0.70 },
+          { x: 15, y: 4,  s: 1.5, o: 0.50 },
+          { x: 23, y: 18, s: 2.5, o: 0.80 },
+          { x: 38, y: 6,  s: 2,   o: 0.60 },
+          { x: 52, y: 11, s: 1.5, o: 0.50 },
+          { x: 67, y: 5,  s: 2,   o: 0.70 },
+          { x: 78, y: 16, s: 3,   o: 0.85 },
+          { x: 88, y: 8,  s: 2,   o: 0.60 },
+          { x: 93, y: 32, s: 1.5, o: 0.45 },
+          { x: 4,  y: 45, s: 2,   o: 0.65 },
+          { x: 18, y: 63, s: 2.5, o: 0.75 },
+          { x: 82, y: 54, s: 2,   o: 0.60 },
+          { x: 95, y: 71, s: 1.5, o: 0.45 },
+          { x: 12, y: 82, s: 3,   o: 0.85 },
+          { x: 65, y: 88, s: 2,   o: 0.65 },
+          { x: 47, y: 94, s: 1.5, o: 0.50 },
+          { x: 30, y: 90, s: 2,   o: 0.60 },
+          { x: 73, y: 92, s: 2.5, o: 0.75 },
+        ].map(({ x, y, s, o }, i) => (
+          <div key={`star-${i}`} style={{
+            position: "absolute",
+            top: `${y}%`,
+            left: `${x}%`,
+            width: s,
+            height: s,
+            borderRadius: s / 2,
+            backgroundColor: `rgba(255,255,255,${o})`,
+            display: "flex",
+          }} />
+        ))}
 
         {/* Dot grid — top right */}
         <div style={{ position: "absolute", top: 40, right: 40, display: "flex", flexDirection: "column", gap: 6 }}>
