@@ -5,6 +5,7 @@ import Link from "next/link";
 import PushNotificationSetup from "@/components/PushNotificationSetup";
 import { getExplorerLevel } from "@/lib/levels";
 import { BADGE_DEFS, BadgeStats, BadgeRarity } from "@/lib/badges-config";
+import { ShareButton } from "@/components/ShareCard";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1280,6 +1281,130 @@ return (
           </div>
         )}
       </Section>
+
+      {/* ── CONDIVIDI RISULTATI ───────────────────────────────────────────────── */}
+      {me && me.ok && s && (
+        <Section
+          title="📸 Condividi i tuoi risultati"
+          subtitle="Genera card da condividere su Instagram, Stories e oltre."
+        >
+          <div style={{ display: "grid", gap: 10 }}>
+            {/* Posizione in classifica */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: "1px solid rgba(0,0,0,0.07)",
+                background: "rgba(255,255,255,0.65)",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 14 }}>Posizione in classifica</div>
+                <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>
+                  {points.toLocaleString("it-IT")} punti totali
+                </div>
+              </div>
+              <ShareButton
+                type="ranking"
+                data={{
+                  username: me.user.username ?? me.user.name ?? "esploratore",
+                  avatarEmoji: me.user.avatar_emoji,
+                  profileColor: me.user.profile_color,
+                  rankPoints: points,
+                  rankCity: "CityQuest",
+                }}
+                label="Genera card →"
+                className="btn mini"
+                style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}
+              />
+            </div>
+
+            {/* Badge migliore */}
+            {sbloccati.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  border: "1px solid rgba(0,0,0,0.07)",
+                  background: "rgba(255,255,255,0.65)",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>
+                    {sbloccati[0].def.icon} Badge migliore — {sbloccati[0].def.name}
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>
+                    {sbloccati.length} badge sbloccati in totale
+                  </div>
+                </div>
+                <ShareButton
+                  type="badge"
+                  data={{
+                    username: me.user.username ?? me.user.name ?? "esploratore",
+                    avatarEmoji: me.user.avatar_emoji,
+                    profileColor: me.user.profile_color,
+                    badgeIcon: sbloccati[0].def.icon,
+                    badgeName: sbloccati[0].def.name,
+                    badgeRarity: sbloccati[0].def.rarity,
+                    badgeUnlockedAt: sbloccati[0].unlockedAt,
+                  }}
+                  label="Genera card →"
+                  className="btn mini"
+                  style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}
+                />
+              </div>
+            )}
+
+            {/* Streak */}
+            {s.streak_days > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  border: "1px solid rgba(0,0,0,0.07)",
+                  background: "rgba(255,255,255,0.65)",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>
+                    🔥 Streak attiva — {s.streak_days} giorni
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>
+                    Record: {s.best_streak_days} giorni
+                  </div>
+                </div>
+                <ShareButton
+                  type="streak"
+                  data={{
+                    username: me.user.username ?? me.user.name ?? "esploratore",
+                    avatarEmoji: me.user.avatar_emoji,
+                    profileColor: me.user.profile_color,
+                    streakDays: s.streak_days,
+                  }}
+                  label="Genera card →"
+                  className="btn mini"
+                  style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}
+                />
+              </div>
+            )}
+          </div>
+        </Section>
+      )}
 
       {/* ── PREFERENZE NOTIFICHE ──────────────────────────────────────────────── */}
       <Section
