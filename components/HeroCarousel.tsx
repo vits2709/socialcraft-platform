@@ -93,8 +93,8 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
   // Shared styles
   const glass: React.CSSProperties = {
     background: "rgba(255,255,255,0.14)",
-    borderRadius: 12,
-    padding: "8px 12px",
+    borderRadius: 10,
+    padding: "5px 10px",
   };
   const cta: React.CSSProperties = {
     display: "inline-flex",
@@ -103,24 +103,24 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
     background: "rgba(255,255,255,0.2)",
     border: "1px solid rgba(255,255,255,0.35)",
     color: "#fff",
-    borderRadius: 10,
-    padding: "7px 14px",
+    borderRadius: 9,
+    padding: "5px 12px",
     fontWeight: 700,
-    fontSize: 13,
+    fontSize: 12,
     textDecoration: "none",
     alignSelf: "flex-start",
-    marginTop: 2,
+    marginTop: 1,
   };
   const label12: React.CSSProperties = {
     color: "rgba(255,255,255,0.7)",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 600,
     letterSpacing: 0.3,
   };
   const h2style: React.CSSProperties = {
     margin: 0,
     color: "#fff",
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 900,
     letterSpacing: -0.2,
     lineHeight: 1.2,
@@ -135,10 +135,10 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
     // fallback before first measurement: card fills outer (track won't overflow
     // because outer is overflow:hidden and slideWidth=0 → transform=0)
     minWidth: cw === undefined ? "100%" : undefined,
-    padding: "14px 16px 12px",
+    padding: "8px 14px 6px",
     display: "flex",
     flexDirection: "column",
-    gap: 8,
+    gap: 5,
     boxSizing: "border-box",
   };
 
@@ -229,7 +229,7 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
                 {level.next ? `${level.toNext} pt → ${level.next.name}` : "Livello max 👑"}
               </div>
             </div>
-            <div style={{ height: 5, borderRadius: 999, background: "rgba(255,255,255,0.2)", overflow: "hidden" }}>
+            <div style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,0.2)", overflow: "hidden" }}>
               <div style={{
                 height: "100%", borderRadius: 999,
                 background: "rgba(255,255,255,0.88)",
@@ -292,10 +292,10 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
               <div style={{
                 background: "rgba(255,255,255,0.12)",
                 border: "1.5px solid rgba(255,255,255,0.22)",
-                borderRadius: 14,
-                padding: "12px 14px",
+                borderRadius: 12,
+                padding: "8px 10px",
               }}>
-                <div style={{ fontSize: 26, marginBottom: 6 }}>{mission.emoji}</div>
+                <div style={{ fontSize: 20, marginBottom: 4 }}>{mission.emoji}</div>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 14, marginBottom: 4, lineHeight: 1.25 }}>
                   {mission.title}
                 </div>
@@ -306,7 +306,7 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
               <div style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 background: "rgba(255,255,255,0.14)", borderRadius: 999,
-                padding: "5px 12px", color: "#fff", fontWeight: 700, fontSize: 12,
+                padding: "3px 10px", color: "#fff", fontWeight: 700, fontSize: 11,
                 alignSelf: "flex-start",
               }}>
                 🏅 +{mission.points_reward} pt
@@ -318,11 +318,11 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
               <div style={{
                 background: "rgba(255,255,255,0.1)",
                 border: "1.5px dashed rgba(255,255,255,0.28)",
-                borderRadius: 14,
-                padding: "16px 14px",
+                borderRadius: 12,
+                padding: "10px 12px",
                 textAlign: "center",
               }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
+                <div style={{ fontSize: 22, marginBottom: 5 }}>🎯</div>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 14, marginBottom: 4 }}>
                   {isLoggedIn ? "Nessuna missione attiva" : "Missioni giornaliere"}
                 </div>
@@ -342,16 +342,16 @@ export default function HeroCarousel({ username, totalPoints, weeklyRank, prize,
       </div>
 
       {/* Dots */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 6, padding: "6px 0 12px" }}>
+      <div style={{ display: "flex", justifyContent: "center", gap: 5, padding: "3px 0 8px" }}>
         {Array.from({ length: TOTAL }).map((_, i) => (
           <button
             key={i}
             onClick={() => setIdx(i)}
             aria-label={`Slide ${i + 1}`}
             style={{
-              width: idx === i ? 20 : 7,
-              height: 7,
-              borderRadius: 4,
+              width: idx === i ? 14 : 5,
+              height: 5,
+              borderRadius: 3,
               background: idx === i ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.35)",
               border: "none",
               cursor: "pointer",

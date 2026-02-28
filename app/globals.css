@@ -261,7 +261,18 @@ a { color: inherit; text-decoration: none; }
   padding: 12px;
 }
 .colTitle { font-weight: 900; margin-bottom: 10px; }
-.colList { display: grid; gap: 10px; }
+.colList {
+  display: grid;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45,27,105,0.22) transparent;
+}
+.colList::-webkit-scrollbar { width: 4px; }
+.colList::-webkit-scrollbar-track { background: transparent; }
+.colList::-webkit-scrollbar-thumb { background: rgba(45,27,105,0.22); border-radius: 4px; }
 
 .rowCard {
   border: 1px solid var(--border);
@@ -512,6 +523,7 @@ a { color: inherit; text-decoration: none; }
   /* Leaderboard: cards già vanno in 1 col (regola <=900), ma stringiamo spacing */
   .leaderCol { padding: 10px; }
   .rowCard { padding: 12px; }
+  .colList { max-height: 300px; }
 
   /* Tabs: scroll orizzontale su mobile */
   .tabs { gap: 6px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }

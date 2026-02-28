@@ -41,6 +41,8 @@ export default async function HomePage() {
   const scUid = cookieStore.get("sc_uid")?.value?.trim() ?? null;
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const isLoggedIn = !!scUid || !!authUser;
+  // Explorer normali (scUid only, no authUser) non sono il target della card "Sei uno spot?"
+  const isExplorerOnly = !!scUid && !authUser;
 
   // 🔥 SPOT leaderboard invariata
   const { data: spotsRaw, error: sErr } = await supabase
@@ -413,19 +415,51 @@ export default async function HomePage() {
         )}
       </div>
 
-      <div className="card soft" style={{ marginTop: 14 }}>
-        <div className="softRow">
-          <div>
-            <div className="softTitle">Sei uno Spot?</div>
-            <div className="softText">
-              Accedi come Spot e gestisci promo, stats e QR dalla dashboard.
+      {!isExplorerOnly && (
+        <div style={{
+          background: "white",
+          borderRadius: 18,
+          padding: "20px 22px",
+          boxShadow: "0 2px 14px rgba(0,0,0,0.06)",
+          border: "1px solid rgba(0,0,0,0.07)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ fontSize: 36, lineHeight: 1 }}>🏪</div>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 15, color: "#0f172a" }}>
+                Vuoi portare il tuo locale su CityQuest?
+              </div>
+              <div style={{ fontSize: 13, color: "rgba(15,23,42,0.5)", marginTop: 2 }}>
+                Aumenta la visibilità e fidelizza i clienti.
+              </div>
             </div>
           </div>
-          <Link className="btn" href="/venue">
-            Dashboard Spot →
+          <Link
+            href="/venue"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "11px 20px",
+              borderRadius: 12,
+              fontSize: 14,
+              fontWeight: 800,
+              background: "linear-gradient(135deg, #2D1B69 0%, #7BC043 100%)",
+              color: "white",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              boxShadow: "0 3px 12px rgba(45,27,105,0.22)",
+            }}
+          >
+            Scopri come →
           </Link>
         </div>
-      </div>
+      )}
     </div>
   );
 }
