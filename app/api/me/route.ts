@@ -16,7 +16,7 @@ export async function GET() {
     // ✅ SINGLE SOURCE OF TRUTH: sc_users.points
     const { data: u, error: uErr } = await supabase
       .from("sc_users")
-      .select("id, name, points, updated_at, notification_preferences")
+      .select("id, name, points, updated_at, notification_preferences, username, bio, instagram, tiktok, twitter_x, avatar_emoji, profile_color, showcase_badges, is_public")
       .eq("id", scUid)
       .maybeSingle();
 
@@ -39,6 +39,15 @@ export async function GET() {
         points: u.points ?? 0,
         updated_at: u.updated_at,
         notification_preferences: u.notification_preferences ?? null,
+        username: (u as any).username ?? null,
+        bio: (u as any).bio ?? null,
+        instagram: (u as any).instagram ?? null,
+        tiktok: (u as any).tiktok ?? null,
+        twitter_x: (u as any).twitter_x ?? null,
+        avatar_emoji: (u as any).avatar_emoji ?? "🧭",
+        profile_color: (u as any).profile_color ?? "#2D1B69",
+        showcase_badges: (u as any).showcase_badges ?? [],
+        is_public: (u as any).is_public ?? true,
       },
       last_events: lastEvents ?? [],
     });

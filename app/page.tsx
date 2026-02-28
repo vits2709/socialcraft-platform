@@ -26,6 +26,7 @@ export type LBRow = {
   avg_rating?: number | null;
   ratings_count?: number | null;
   hasActivePromo?: boolean;
+  username?: string | null;
 };
 
 type SpotRatingRow = {
@@ -55,7 +56,7 @@ export default async function HomePage() {
   // 🔥 ESPLORATORI dai punti REALI
   const { data: explorersRaw, error: eErr } = await supabase
     .from("sc_users")
-    .select("id,name,points")
+    .select("id,name,points,username")
     .order("points", { ascending: false })
     .limit(200);
 
@@ -85,6 +86,7 @@ export default async function HomePage() {
       name: u.name ?? "Guest",
       score: u.points ?? 0,
       meta: null,
+      username: (u as any).username ?? null,
     })) ?? [];
 
   // -------- spot per la mappa (lat/lng non null) ----------

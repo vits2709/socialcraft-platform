@@ -161,7 +161,13 @@ export default function HomeLeaderboards(props: {
                     <div className="rankBox">{i + 1}</div>
                     <div className="rowMain">
                       <div className="rowName" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        {u.name ?? "Esploratore"}
+                        {u.username ? (
+                          <Link href={`/profilo/${u.username}`} style={{ color: "inherit", textDecoration: "none", fontWeight: "inherit" }}>
+                            {u.name ?? "Esploratore"}
+                          </Link>
+                        ) : (
+                          u.name ?? "Esploratore"
+                        )}
                         {weekly && (
                           <span style={{
                             fontSize: 10,
@@ -184,7 +190,11 @@ export default function HomeLeaderboards(props: {
                       </div>
                     </div>
                     <div className="rowRight">
-                      <Link className="btn mini" href="/me">Profilo</Link>
+                      {u.username ? (
+                        <Link className="btn mini" href={`/profilo/${u.username}`}>Profilo</Link>
+                      ) : (
+                        <Link className="btn mini" href="/me">Profilo</Link>
+                      )}
                     </div>
                   </div>
                   <div className="bar"><div className="barFill user" style={{ width: `${pct}%` }} /></div>

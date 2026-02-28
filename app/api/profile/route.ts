@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase
       .from("sc_users")
-      .select("id,name,points,created_at,updated_at")
+      .select("id,name,points,created_at,updated_at,username,bio,instagram,tiktok,twitter_x,avatar_emoji,profile_color,showcase_badges,is_public")
       .eq("id", scUid)
       .maybeSingle();
 

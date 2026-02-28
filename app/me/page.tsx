@@ -21,6 +21,15 @@ type MePayload =
         points: number;
         updated_at: string;
         notification_preferences: Record<string, boolean> | null;
+        username?: string | null;
+        bio?: string | null;
+        instagram?: string | null;
+        tiktok?: string | null;
+        twitter_x?: string | null;
+        avatar_emoji?: string | null;
+        profile_color?: string | null;
+        showcase_badges?: string[] | null;
+        is_public?: boolean | null;
       };
       last_events: Array<{
         event_type: string;
@@ -463,6 +472,20 @@ export default function MePage() {
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(DEFAULT_PREFS);
   const prefDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Profilo pubblico ─────────────────────────────────────────────────────
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileBio, setProfileBio] = useState("");
+  const [profileInstagram, setProfileInstagram] = useState("");
+  const [profileTiktok, setProfileTiktok] = useState("");
+  const [profileTwitterX, setProfileTwitterX] = useState("");
+  const [profileAvatar, setProfileAvatar] = useState("🧭");
+  const [profileColor, setProfileColor] = useState("#2D1B69");
+  const [profilePublic, setProfilePublic] = useState(true);
+  const [profileUsername, setProfileUsername] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileErr, setProfileErr] = useState<string | null>(null);
+
   async function loadAll(silent = false) {
     if (!silent) {
       setLoading(true);
@@ -502,6 +525,17 @@ export default function MePage() {
       }
       if (meJson?.ok && meJson.user.notification_preferences) {
         setNotifPrefs({ ...DEFAULT_PREFS, ...meJson.user.notification_preferences });
+      }
+      if (meJson?.ok) {
+        const u = meJson.user;
+        setProfileUsername(u.username ?? "");
+        setProfileBio(u.bio ?? "");
+        setProfileInstagram(u.instagram ?? "");
+        setProfileTiktok(u.tiktok ?? "");
+        setProfileTwitterX(u.twitter_x ?? "");
+        setProfileAvatar(u.avatar_emoji ?? "🧭");
+        setProfileColor(u.profile_color ?? "#2D1B69");
+        setProfilePublic(u.is_public !== false);
       }
 
       if (!meJson?.ok) setErr(meJson?.error ?? "Errore /api/me");
@@ -554,6 +588,48 @@ export default function MePage() {
       setNickErr(e?.message ?? "Errore di rete");
     } finally {
       setNickSaving(false);
+    }
+  }
+
+  async function saveProfile() {
+    setProfileSaving(true);
+    setProfileErr(null);
+    setProfileSaved(false);
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: profileUsername.trim() || undefined,
+          bio: profileBio.trim() || null,
+          instagram: profileInstagram.trim() || null,
+          tiktok: profileTiktok.trim() || null,
+          twitter_x: profileTwitterX.trim() || null,
+          avatar_emoji: profileAvatar || "🧭",
+          profile_color: profileColor || "#2D1B69",
+          is_public: profilePublic,
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        const msg =
+          json.error === "username_taken"
+            ? "Username già in uso"
+            : json.error === "invalid_username"
+            ? "Username non valido"
+            : json.error === "bio_too_long"
+            ? "Bio troppo lunga (max 100 caratteri)"
+            : json.error ?? "Errore salvataggio";
+        setProfileErr(msg);
+        return;
+      }
+      setProfileSaved(true);
+      if (json.user?.username) setProfileUsername(json.user.username);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch (e: any) {
+      setProfileErr(e?.message ?? "Errore di rete");
+    } finally {
+      setProfileSaving(false);
     }
   }
 
@@ -681,6 +757,224 @@ return (
   >
       {/* Richiesta permesso notifiche */}
       <PushNotificationSetup />
+
+      {/* ── PROFILO PUBBLICO ─────────────────────────────────────────────── */}
+      <div
+        style={{
+          borderRadius: 18,
+          border: "1px dashed rgba(0,0,0,0.12)",
+          background: "rgba(255,255,255,0.6)",
+          overflow: "hidden",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setProfileOpen((o) => !o)}
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "14px 16px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: 950,
+            fontSize: 16,
+            gap: 8,
+          }}
+        >
+          <span>🌐 Profilo Pubblico</span>
+          <span style={{ fontSize: 13, opacity: 0.5, fontWeight: 700 }}>
+            {profileOpen ? "▲ Chiudi" : "▼ Modifica"}
+          </span>
+        </button>
+
+        {profileOpen && (
+          <div style={{ padding: "0 16px 18px", display: "grid", gap: 14 }}>
+            {/* URL profilo */}
+            {profileUsername && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "rgba(45,27,105,0.06)",
+                  border: "1px solid rgba(45,27,105,0.15)",
+                  fontSize: 13,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ opacity: 0.7 }}>Il tuo profilo:</span>
+                <a
+                  href={`/profilo/${profileUsername}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontWeight: 800, color: "#2D1B69" }}
+                >
+                  /profilo/{profileUsername}
+                </a>
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {/* Avatar emoji */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 4 }}>
+                  Avatar emoji
+                </label>
+                <input
+                  type="text"
+                  value={profileAvatar}
+                  onChange={(e) => setProfileAvatar(e.target.value.slice(0, 2))}
+                  maxLength={2}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(0,0,0,0.14)",
+                    fontSize: 22,
+                    textAlign: "center",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              {/* Colore */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 4 }}>
+                  Colore profilo
+                </label>
+                <input
+                  type="color"
+                  value={profileColor}
+                  onChange={(e) => setProfileColor(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 42,
+                    padding: 2,
+                    borderRadius: 8,
+                    border: "1px solid rgba(0,0,0,0.14)",
+                    cursor: "pointer",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Username */}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 4 }}>
+                Username (URL profilo)
+              </label>
+              <input
+                type="text"
+                value={profileUsername}
+                onChange={(e) => setProfileUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                placeholder="es. marco-rossi"
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(0,0,0,0.14)",
+                  fontSize: 14,
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 4 }}>
+                Bio <span style={{ fontWeight: 400, opacity: 0.6 }}>({profileBio.length}/100)</span>
+              </label>
+              <textarea
+                value={profileBio}
+                onChange={(e) => setProfileBio(e.target.value.slice(0, 100))}
+                maxLength={100}
+                placeholder="Presentati agli altri esploratori..."
+                rows={2}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(0,0,0,0.14)",
+                  fontSize: 14,
+                  resize: "none",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+
+            {/* Social */}
+            <div style={{ display: "grid", gap: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: 800, marginBottom: 2, display: "block" }}>
+                Social
+              </label>
+              {[
+                { label: "📷 Instagram", value: profileInstagram, setter: setProfileInstagram },
+                { label: "🎵 TikTok", value: profileTiktok, setter: setProfileTiktok },
+                { label: "𝕏 X / Twitter", value: profileTwitterX, setter: setProfileTwitterX },
+              ].map(({ label, value, setter }) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, width: 100, flexShrink: 0, opacity: 0.7 }}>{label}</span>
+                  <input
+                    type="text"
+                    value={value}
+                    onChange={(e) => setter(e.target.value.replace(/^@/, ""))}
+                    placeholder="@username"
+                    style={{
+                      flex: 1,
+                      padding: "7px 10px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(0,0,0,0.14)",
+                      fontSize: 13,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Visibilità */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <label style={{ fontSize: 12, fontWeight: 800 }}>Visibilità:</label>
+              <select
+                value={profilePublic ? "public" : "private"}
+                onChange={(e) => setProfilePublic(e.target.value === "public")}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(0,0,0,0.14)",
+                  fontSize: 13,
+                }}
+              >
+                <option value="public">🌐 Pubblico</option>
+                <option value="private">🔒 Privato</option>
+              </select>
+            </div>
+
+            {/* Errore + Salva */}
+            {profileErr && (
+              <div className="notice" style={{ fontSize: 13 }}>
+                {profileErr}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={saveProfile}
+              disabled={profileSaving}
+              className="btn primary"
+              style={{ alignSelf: "flex-start" }}
+            >
+              {profileSaving ? "Salvataggio..." : profileSaved ? "✅ Salvato!" : "Salva profilo"}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ── PROFILO ──────────────────────────────────────────────────────── */}
       <Section
