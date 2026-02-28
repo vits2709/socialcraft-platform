@@ -9,6 +9,10 @@ export type { ShareCardType, ShareCardFormat, ShareCardData } from "@/lib/share-
 
 // ─── Image generation via API ─────────────────────────────────────────────────
 
+const RARITY_LABELS: Record<string, string> = {
+  common: "Comune", rare: "Raro", epic: "Epico", legendary: "Leggendario",
+};
+
 async function fetchCardImage(
   type: ShareCardType,
   data: ShareCardData,
@@ -17,8 +21,36 @@ async function fetchCardImage(
   const params = new URLSearchParams({
     type,
     format,
-    data: JSON.stringify(data),
+    username:     data.username,
+    avatar:       data.avatarEmoji  ?? "🧭",
+    color:        data.profileColor ?? "#2D1B69",
+    // badge
+    badge_emoji:  data.badgeIcon   ?? "🎖️",
+    badge_name:   data.badgeName   ?? "",
+    badge_rarity: RARITY_LABELS[data.badgeRarity ?? "common"] ?? "Comune",
+    // ranking
+    rank:   String(data.rankPosition ?? 1),
+    points: String(data.rankPoints   ?? 0),
+    // streak
+    streak: String(data.streakDays ?? 1),
+    // prize
+    prize_name: data.prizeName ?? "",
+    prize_spot: data.prizeSpot ?? "",
+    // mission
+    mission_name:   data.missionName   ?? "",
+    mission_emoji:  data.missionIcon   ?? "🎯",
+    mission_points: String(data.missionPoints ?? 0),
   });
+
+  if (data.badgeUnlockedAt) {
+    params.set(
+      "badge_date",
+      new Date(data.badgeUnlockedAt).toLocaleDateString("it-IT", {
+        day: "numeric", month: "long", year: "numeric",
+      })
+    );
+  }
+
   const res = await fetch(`/api/share-card?${params}`);
   if (!res.ok) throw new Error(`Card generation failed: ${res.status}`);
   const blob = await res.blob();
