@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getExplorerLevel } from "@/lib/levels";
 import { BADGE_DEFS, type BadgeDef } from "@/lib/badges-config";
 import ShareProfileButton from "@/components/ShareProfileButton";
+import SocialLinks from "@/components/SocialLinks";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -237,22 +238,12 @@ export default async function ProfiloPage({
 
         {/* Social links */}
         {(user.instagram || user.tiktok || user.twitter_x) && (
-          <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 8 }}>
-            {user.instagram && (
-              <span className="muted" style={{ fontSize: 13 }}>
-                📷 @{user.instagram}
-              </span>
-            )}
-            {user.tiktok && (
-              <span className="muted" style={{ fontSize: 13 }}>
-                🎵 @{user.tiktok}
-              </span>
-            )}
-            {user.twitter_x && (
-              <span className="muted" style={{ fontSize: 13 }}>
-                𝕏 @{user.twitter_x}
-              </span>
-            )}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+            <SocialLinks
+              instagram={user.instagram ?? null}
+              tiktok={user.tiktok ?? null}
+              twitter_x={user.twitter_x ?? null}
+            />
           </div>
         )}
 
