@@ -11,6 +11,7 @@ type VenueOption = { id: string; name: string };
 type PrizeRow = {
   id: string;
   week_start: string;
+  prize_type: "weekly" | "monthly" | null;
   prize_description: string;
   prize_image: string | null;
   spot_id: string | null;
