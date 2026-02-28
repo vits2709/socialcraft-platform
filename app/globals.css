@@ -1207,6 +1207,36 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* =========================
+   HOME — griglia card benvenuto (2 colonne desktop)
+   ========================= */
+.homeCardsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .homeCardsGrid { grid-template-columns: 1fr; }
+}
+
+/* =========================
+   HOME — griglia classifiche + widget feed
+   ========================= */
+.homeMainGrid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .homeMainGrid { grid-template-columns: 1fr; }
+}
+
+@keyframes feedFadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================
    ADMIN PANEL — navbar responsive
    ========================= */
 .adminHamBtn { display: none; cursor: pointer; }

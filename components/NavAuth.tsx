@@ -14,7 +14,6 @@ type Status = {
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
-  { href: "/feed", label: "Feed" },
   { href: "/venue", label: "Spot" },
   { href: "/come-funziona", label: "Come funziona" },
 ];

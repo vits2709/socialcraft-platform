@@ -7,7 +7,9 @@ import HomeMapLoader from "@/components/HomeMapLoader";
 import HomePromoSection from "@/components/HomePromoSection";
 import WeeklyPrizeCard from "@/components/WeeklyPrizeCard";
 import WinnerBanner from "@/components/WinnerBanner";
-import HeroCarousel, { type CarouselPrize, type CarouselMission } from "@/components/HeroCarousel";
+import HomeWelcomeCard from "@/components/HomeWelcomeCard";
+import HomeMissionCard from "@/components/HomeMissionCard";
+import HomeFeedWidget from "@/components/HomeFeedWidget";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { HomeSpotPin } from "@/components/HomeMap";
 import type { WeeklyRow } from "@/components/HomeLeaderboards";
@@ -177,17 +179,9 @@ export default async function HomePage() {
     }
   } catch { /* tabella non ancora disponibile */ }
 
-  const carouselPrize: CarouselPrize = currentPrize
-    ? {
-        description: currentPrize.prize_description,
-        venueName: (currentPrize.venues as any)?.name ?? null,
-        weekStart: currentPrize.week_start,
-        prizeType: (currentPrize.prize_type as "weekly" | "monthly") ?? "weekly",
-      }
-    : null;
-
-  // -------- missione giornaliera per il carosello ----------
-  let carouselMission: CarouselMission = null;
+  // -------- missione giornaliera ----------
+  type MissionData = { emoji: string; title: string; description: string; points_reward: number } | null;
+  let carouselMission: MissionData = null;
 
   if (scUid) {
     try {
@@ -217,6 +211,7 @@ export default async function HomePage() {
           };
         }
       }
+
     } catch { /* missions non ancora disponibili */ }
   }
 
@@ -323,14 +318,18 @@ export default async function HomePage() {
         )}
       </div>
 
-      <HeroCarousel
-        username={currentUserName}
-        totalPoints={currentUserPoints}
-        weeklyRank={currentWeeklyRank}
-        prize={carouselPrize}
-        mission={carouselMission}
-        isLoggedIn={isLoggedIn}
-      />
+      <div className="homeCardsGrid">
+        <HomeWelcomeCard
+          username={currentUserName}
+          totalPoints={currentUserPoints}
+          weeklyRank={currentWeeklyRank}
+          isLoggedIn={isLoggedIn}
+        />
+        <HomeMissionCard
+          mission={carouselMission}
+          isLoggedIn={isLoggedIn}
+        />
+      </div>
 
       {/* Vincitore settimana scorsa */}
       {lastWinner && (
@@ -359,7 +358,10 @@ export default async function HomePage() {
         <HomePromoSection promos={activePromoCards} />
       )}
 
-      <HomeLeaderboards spots={spots} explorers={explorers as LBRow[]} weeklyExplorers={weeklyExplorers} />
+      <div className="homeMainGrid">
+        <HomeLeaderboards spots={spots} explorers={explorers as LBRow[]} weeklyExplorers={weeklyExplorers} />
+        <HomeFeedWidget />
+      </div>
 
       {/* ---- SEZIONE MAPPA ---- */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
