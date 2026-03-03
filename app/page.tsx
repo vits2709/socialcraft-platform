@@ -187,30 +187,29 @@ export default async function HomePage() {
   if (scUid) {
     try {
       const adminSupabase = createSupabaseAdminClient();
-      const { data: umRow } = await adminSupabase
-        .from("user_missions")
-        .select("missions(emoji, title, description, points_reward, is_surprise)")
-        .eq("user_id", scUid)
-        .is("completed_at", null)
+      const now = new Date().toISOString();
+
+      // Legge direttamente da `missions` con filtro sulla finestra temporale
+      // (non va via user_missions perché richiederebbe che il cron sia già girato)
+      const { data: mRow } = await adminSupabase
+        .from("missions")
+        .select("emoji, title, description, points_reward, is_surprise")
+        .eq("type", "daily")
+        .eq("is_active", true)
+        .lte("active_from", now)
+        .gte("active_until", now)
+        .eq("is_surprise", false)
+        .order("active_from", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (umRow?.missions) {
-        const m = umRow.missions as unknown as {
-          emoji: string;
-          title: string;
-          description: string;
-          points_reward: number;
-          is_surprise: boolean;
+      if (mRow) {
+        carouselMission = {
+          emoji: mRow.emoji,
+          title: mRow.title,
+          description: mRow.description,
+          points_reward: mRow.points_reward,
         };
-        if (!m.is_surprise) {
-          carouselMission = {
-            emoji: m.emoji,
-            title: m.title,
-            description: m.description,
-            points_reward: m.points_reward,
-          };
-        }
       }
 
     } catch { /* missions non ancora disponibili */ }
