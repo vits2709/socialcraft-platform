@@ -14,36 +14,6 @@ export async function GET(req: NextRequest) {
     const supabase = createSupabaseAdminClient();
     const now = new Date().toISOString();
 
-    // Missioni assegnate all'utente, attive o completate negli ultimi 30 giorni
-    const { data, error } = await supabase
-      .from("user_missions")
-      .select(`
-        id,
-        completed_at,
-        points_awarded,
-        progress,
-        missions (
-          id,
-          title,
-          description,
-          completion_message,
-          mission_type,
-          type,
-          config,
-          points_reward,
-          is_surprise,
-          active_from,
-          active_until
-        )
-      `)
-      .eq("user_id", scUid)
-      .order("completed_at", { ascending: false, nullsFirst: true });
-
-    if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    }
-
-    // Filtra: missioni attive O completate (sempre visibili)
     type MissionRow = {
       id: string;
       title: string;
@@ -58,31 +28,80 @@ export async function GET(req: NextRequest) {
       active_until: string;
     };
 
-    type UserMissionRow = {
+    type UmRow = {
       id: string;
+      mission_id: string;
       completed_at: string | null;
       points_awarded: number | null;
       progress: Record<string, unknown> | null;
       missions: MissionRow | null;
     };
 
-    const rows = (data as unknown as UserMissionRow[]).filter((um) => {
-      const m = um.missions;
-      if (!m) return false;
-      if (um.completed_at) return true;
-      return m.active_from <= now && m.active_until >= now;
-    });
+    // Query parallela:
+    // 1. Missioni attive adesso (stesso filtro temporale della home)
+    // 2. user_missions dell'utente (per progresso + missioni completate storiche)
+    const [activeMissionsRes, umRes] = await Promise.all([
+      supabase
+        .from("missions")
+        .select("id, title, description, completion_message, mission_type, type, config, points_reward, is_surprise, active_from, active_until")
+        .eq("is_active", true)
+        .lte("active_from", now)
+        .gte("active_until", now)
+        .order("type")
+        .order("active_from", { ascending: false }),
 
-    const missions = rows.map((um) => {
-      const m = um.missions;
+      supabase
+        .from("user_missions")
+        .select(`
+          id,
+          mission_id,
+          completed_at,
+          points_awarded,
+          progress,
+          missions (
+            id,
+            title,
+            description,
+            completion_message,
+            mission_type,
+            type,
+            config,
+            points_reward,
+            is_surprise,
+            active_from,
+            active_until
+          )
+        `)
+        .eq("user_id", scUid)
+        .order("completed_at", { ascending: false, nullsFirst: true }),
+    ]);
 
-      if (!m) return null;
+    if (activeMissionsRes.error) {
+      return NextResponse.json({ ok: false, error: activeMissionsRes.error.message }, { status: 500 });
+    }
+    if (umRes.error) {
+      return NextResponse.json({ ok: false, error: umRes.error.message }, { status: 500 });
+    }
 
-      const isCompleted = !!um.completed_at;
+    const activeMissions = (activeMissionsRes.data ?? []) as MissionRow[];
+    const umRows = (umRes.data ?? []) as unknown as UmRow[];
+
+    // Mappa mission_id → riga user_missions (per progresso)
+    const umByMission: Record<string, UmRow> = {};
+    for (const um of umRows) {
+      umByMission[um.mission_id] = um;
+    }
+
+    const activeMissionIds = new Set(activeMissions.map((m) => m.id));
+
+    function buildMissionEntry(
+      m: MissionRow,
+      um: UmRow | null,
+    ) {
+      const isCompleted = !!um?.completed_at;
       const isSurpriseHidden = m.is_surprise && !isCompleted;
-
       return {
-        user_mission_id: um.id,
+        user_mission_id: um?.id ?? null,
         mission_id: m.id,
         title: isSurpriseHidden ? "Missione sorpresa" : m.title,
         description: isSurpriseHidden ? "Completa un'azione per scoprirla!" : m.description,
@@ -94,11 +113,26 @@ export async function GET(req: NextRequest) {
         is_surprise_hidden: isSurpriseHidden,
         active_from: m.active_from,
         active_until: m.active_until,
-        completed_at: um.completed_at ?? null,
-        points_awarded: um.points_awarded ?? null,
-        progress: (um.progress ?? {}) as Record<string, unknown>,
+        completed_at: um?.completed_at ?? null,
+        points_awarded: um?.points_awarded ?? null,
+        progress: (um?.progress ?? {}) as Record<string, unknown>,
       };
-    }).filter(Boolean);
+    }
+
+    const missions = [
+      // Missioni attive (con eventuale progresso utente sovrapposto)
+      ...activeMissions.map((m) => buildMissionEntry(m, umByMission[m.id] ?? null)),
+
+      // Missioni completate storiche (scadute ma completate dall'utente)
+      ...umRows
+        .filter((um) => um.completed_at && !activeMissionIds.has(um.mission_id))
+        .map((um) => {
+          const m = um.missions;
+          if (!m) return null;
+          return buildMissionEntry(m, um);
+        })
+        .filter(Boolean),
+    ];
 
     return NextResponse.json({ ok: true, missions });
   } catch (e: unknown) {

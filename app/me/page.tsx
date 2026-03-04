@@ -69,7 +69,7 @@ type UserNotification = {
 };
 
 type UserMission = {
-  user_mission_id: string;
+  user_mission_id: string | null;
   mission_id: string;
   title: string;
   description: string;
@@ -1013,7 +1013,7 @@ return (
 
                   return (
                     <div
-                      key={m.user_mission_id}
+                      key={m.user_mission_id ?? m.mission_id}
                       style={{
                         borderRadius: 16,
                         border: isCompleted
