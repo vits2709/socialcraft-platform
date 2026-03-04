@@ -18,7 +18,7 @@ type Venue = {
   city: string | null;
   slug: string | null;
   indirizzo: string | null;
-  display_address: string | null;
+  display_address?: string | null;
   telefono: string | null;
   sito_web: string | null;
   instagram: string | null;
@@ -150,9 +150,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
 
   const { data: venue, error } = await supabase
     .from("venues")
-    .select(
-      "id,name,city,slug,indirizzo,display_address,telefono,sito_web,instagram,facebook,categoria,fascia_prezzo,servizi,is_active,is_featured,orari,foto,lat,lng,cover_image"
-    )
+    .select("*")
     .eq("slug", slug)
     .maybeSingle();
 

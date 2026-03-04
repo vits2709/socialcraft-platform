@@ -63,7 +63,7 @@ function defaultOrari(): OrariData {
 type VenueData = {
   id: string;
   indirizzo?: string | null;
-  display_address?: string | null;
+  display_address?: string | null; // opzionale finché la migration non è applicata
   telefono?: string | null;
   sito_web?: string | null;
   categoria?: string | null;

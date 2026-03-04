@@ -11,7 +11,7 @@ type VenueFull = {
   name: string;
   slug: string | null;
   indirizzo: string | null;
-  display_address: string | null;
+  display_address?: string | null;
   telefono: string | null;
   sito_web: string | null;
   categoria: string | null;
@@ -36,9 +36,7 @@ export default async function SpotEditPage(props: { params: Promise<{ venueId: s
 
   const { data: venue, error } = await supabase
     .from("venues")
-    .select(
-      "id,name,slug,indirizzo,display_address,telefono,sito_web,categoria,fascia_prezzo,servizi,is_active,is_featured,orari,foto,lat,lng"
-    )
+    .select("*")
     .eq("id", venueId)
     .maybeSingle();
 
