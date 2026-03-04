@@ -10,6 +10,7 @@ type OrariData = Record<string, OrariGiorno>;
 
 export type UpdateSpotData = {
   indirizzo?: string;
+  display_address?: string;
   telefono?: string;
   sito_web?: string;
   categoria?: string;
@@ -63,6 +64,7 @@ export async function updateSpotAction(venueId: string, data: UpdateSpotData) {
     .from("venues")
     .update({
       indirizzo: data.indirizzo ?? null,
+      display_address: data.display_address ?? null,
       telefono: data.telefono ?? null,
       sito_web: data.sito_web ?? null,
       categoria: data.categoria ?? null,

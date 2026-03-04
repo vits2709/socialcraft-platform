@@ -18,6 +18,7 @@ type Venue = {
   city: string | null;
   slug: string | null;
   indirizzo: string | null;
+  display_address: string | null;
   telefono: string | null;
   sito_web: string | null;
   instagram: string | null;
@@ -150,7 +151,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
   const { data: venue, error } = await supabase
     .from("venues")
     .select(
-      "id,name,city,slug,indirizzo,telefono,sito_web,instagram,facebook,categoria,fascia_prezzo,servizi,is_active,is_featured,orari,foto,lat,lng,cover_image"
+      "id,name,city,slug,indirizzo,display_address,telefono,sito_web,instagram,facebook,categoria,fascia_prezzo,servizi,is_active,is_featured,orari,foto,lat,lng,cover_image"
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -306,7 +307,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
           >
             {v.name}
           </h1>
-          {(v.categoria || v.indirizzo) && (
+          {(v.categoria || v.display_address || v.indirizzo) && (
             <p
               style={{
                 color: "rgba(255,255,255,0.82)",
@@ -318,8 +319,8 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
               {v.categoria && (
                 <span>{CAT_EMOJI[v.categoria] ?? "📍"} {v.categoria.charAt(0).toUpperCase() + v.categoria.slice(1)}</span>
               )}
-              {v.indirizzo && (
-                <span style={{ opacity: 0.85 }}> · {v.indirizzo}</span>
+              {(v.display_address ?? v.indirizzo) && (
+                <span style={{ opacity: 0.85 }}> · {v.display_address ?? v.indirizzo}</span>
               )}
             </p>
           )}
@@ -594,7 +595,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
           <Section>
             <SectionTitle>📍 Posizione</SectionTitle>
             <SpotMapLoader lat={v.lat!} lng={v.lng!} name={v.name} />
-            {v.indirizzo && (
+            {(v.display_address ?? v.indirizzo) && (
               <a
                 href={mapsSearchUrl}
                 target="_blank"
@@ -606,7 +607,7 @@ export default async function VenuePublicPage(props: { params: Promise<{ slug: s
                 }}
               >
                 <span>📍</span>
-                <span>{v.indirizzo}</span>
+                <span>{v.display_address ?? v.indirizzo}</span>
                 <span style={{ fontSize: 12, opacity: 0.6 }}>↗</span>
               </a>
             )}

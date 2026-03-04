@@ -63,6 +63,7 @@ function defaultOrari(): OrariData {
 type VenueData = {
   id: string;
   indirizzo?: string | null;
+  display_address?: string | null;
   telefono?: string | null;
   sito_web?: string | null;
   categoria?: string | null;
@@ -84,6 +85,7 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
 
   // Basic fields
   const [indirizzo, setIndirizzo] = useState(venue.indirizzo ?? "");
+  const [displayAddress, setDisplayAddress] = useState(venue.display_address ?? "");
   const [telefono, setTelefono] = useState(venue.telefono ?? "");
   const [sitoWeb, setSitoWeb] = useState(venue.sito_web ?? "");
   const [instagram, setInstagram] = useState(venue.instagram ?? "");
@@ -185,6 +187,7 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
 
     const data: UpdateSpotData = {
       indirizzo: indirizzo || undefined,
+      display_address: displayAddress || undefined,
       telefono: telefono || undefined,
       sito_web: sitoWeb || undefined,
       instagram: instagram || null,
@@ -234,12 +237,26 @@ export default function SpotEditForm({ venue }: { venue: VenueData }) {
       {/* Campi base */}
       <div style={{ display: "grid", gap: 12 }}>
         <div>
-          <div className="muted" style={{ marginBottom: 6, fontSize: 13 }}>Indirizzo</div>
+          <div className="muted" style={{ marginBottom: 6, fontSize: 13 }}>Indirizzo / Coordinate GPS (per la mappa)</div>
           <input
             style={inputStyle}
             value={indirizzo}
             onChange={(e) => setIndirizzo(e.target.value)}
-            placeholder="Es: Via Roma 1, Vasto (CH)"
+            placeholder="Es: Via Roma 1, Vasto (CH) oppure 42.1234, 14.5678"
+          />
+        </div>
+        <div>
+          <div className="muted" style={{ marginBottom: 6, fontSize: 13 }}>
+            Indirizzo visualizzato{" "}
+            <span style={{ fontWeight: 400, opacity: 0.7 }}>
+              — mostrato al posto del campo sopra nella pagina pubblica
+            </span>
+          </div>
+          <input
+            style={inputStyle}
+            value={displayAddress}
+            onChange={(e) => setDisplayAddress(e.target.value)}
+            placeholder="Es: Via Roma 1, 66054 Vasto (CH)"
           />
         </div>
 
